@@ -4,7 +4,7 @@ AI 코딩 도구(Antigravity)로 다이어리 앱을 만들면서,
 **두 대의 노트북에서 같은 저장소를 pull / push 하는 것**을 익히는 실습 저장소입니다.
 
 - 실습일: [2026-0X-XX]
-- 결과물: [https://agreesin.github.io/저장소이름/]
+- 결과물: [https://agreesin.github.io/ryuwithagree/]
 
 ---
 
@@ -12,8 +12,8 @@ AI 코딩 도구(Antigravity)로 다이어리 앱을 만들면서,
 
 | 이름 | 담당 파일 |
 |---|---|
-| [본인 이름] | `app.js` |
-| [친구 이름] | `style.css` |
+| [동의] | `app.js` |
+| [류] | `style.css` |
 | 공용 | `index.html`, `README.md` |
 
 ---
