@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!--
-  다이어리 - 바이브 코딩 실습 초기 코드
+  다이어리 - 바이브 코딩 실습
   이 파일은 화면의 "구조"만 담당합니다.
-  이 파일은 두 사람이 함께 쓰는 공용 파일입니다. 고치기 전에 상대에게 말하세요.
+  두 사람이 함께 쓰는 공용 파일입니다. 고치기 전에 상대에게 말하세요.
 -->
 <html lang="ko">
   <head>
@@ -15,9 +15,13 @@
   <body>
     <header class="header">
       <h1 class="header-title">다이어리</h1>
+      <p class="who">쓰는 사람: <span id="who-am-i"></span></p>
     </header>
 
     <main class="main">
+      <!-- 문제가 생기면 여기에 표시됨 -->
+      <p id="error-banner" class="error-banner" hidden></p>
+
       <!-- 글 쓰는 곳 -->
       <section class="editor">
         <input
@@ -44,6 +48,7 @@
       </section>
     </main>
 
-    <script src="app.js" defer></script>
+    <!-- type="module" 을 지우면 앱이 통째로 죽습니다 -->
+    <script type="module" src="app.js"></script>
   </body>
 </html>
