@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<!--
+  다이어리 - 바이브 코딩 실습 초기 코드
+  이 파일은 화면의 "구조"만 담당합니다.
+  이 파일은 두 사람이 함께 쓰는 공용 파일입니다. 고치기 전에 상대에게 말하세요.
+-->
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>다이어리</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <header class="header">
+      <h1 class="header-title">다이어리</h1>
+    </header>
+
+    <main class="main">
+      <!-- 글 쓰는 곳 -->
+      <section class="editor">
+        <input
+          id="title-input"
+          class="title-input"
+          type="text"
+          placeholder="제목"
+        />
+        <textarea
+          id="body-input"
+          class="body-input"
+          rows="5"
+          placeholder="오늘 있었던 일"
+        ></textarea>
+        <button id="save-button" class="save-button" type="button">
+          저장
+        </button>
+      </section>
+
+      <!-- 쓴 글이 쌓이는 곳 -->
+      <section class="entries">
+        <p id="empty-message" class="empty-message">아직 쓴 글이 없습니다.</p>
+        <ul id="entry-list" class="entry-list"></ul>
+      </section>
+    </main>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
