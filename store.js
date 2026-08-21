@@ -1,13 +1,18 @@
 // =========================================================
-// store.js - 저장·공유 담당 (배관)
+// store.js - 로그인 · 저장 · 공유 담당 (배관)
 //
 // ★ 실습 당일 이 파일은 아무도 건드리지 않습니다.
 // ★ AI에게 이 파일을 수정하라고 시키지 마십시오.
-//
-// 하는 일: 일기를 Firestore에 저장하고, 바뀌면 즉시 알려줌
 // =========================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+} from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 import {
   getFirestore,
   collection,
@@ -29,15 +34,37 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 const db = getFirestore(app);
 
 // 일기가 쌓이는 곳의 이름
 const entriesRef = collection(db, "entries");
 
-// ---------------------------------------------------------
-// 일기 목록을 계속 지켜본다.
+// =========================================================
+// 로그인
+// =========================================================
+
+// 로그인 상태가 바뀔 때마다 onChange(user)가 실행된다.
+// 로그인 상태면 user 객체, 아니면 null 이 들어온다.
+export function watchLogin(onChange) {
+  return onAuthStateChanged(auth, onChange);
+}
+
+export function login() {
+  return signInWithPopup(auth, new GoogleAuthProvider());
+}
+
+export function logout() {
+  return signOut(auth);
+}
+
+// =========================================================
+// 일기
+// =========================================================
+
+// 목록을 계속 지켜본다.
 // 누가 어디서 쓰든, 바뀌는 즉시 onChange가 실행된다.
-// ---------------------------------------------------------
+// 반환값을 나중에 함수로 실행하면 지켜보기를 멈춘다.
 export function subscribeEntries(onChange, onError) {
   const q = query(entriesRef, orderBy("createdAt", "desc"));
 
@@ -57,22 +84,22 @@ export function subscribeEntries(onChange, onError) {
   );
 }
 
-// ---------------------------------------------------------
-// 일기 한 개를 저장한다.
-// ---------------------------------------------------------
-export async function addEntry({ title, body, author }) {
+// 일기 한 개를 저장한다. 작성자는 로그인 정보에서 자동으로 붙는다.
+export async function addEntry({ title, body }) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("로그인이 필요합니다.");
+
   await addDoc(entriesRef, {
     title: title,
     body: body,
-    author: author,
+    author: user.displayName || "이름 없음",
+    uid: user.uid,
     createdAt: Date.now(),
   });
 }
 
-// ---------------------------------------------------------
 // 일기 한 개를 지운다.
 // (지금은 app.js에서 아직 쓰이지 않음 - 실습 때 연결)
-// ---------------------------------------------------------
 export async function removeEntry(id) {
   await deleteDoc(doc(db, "entries", id));
 }
