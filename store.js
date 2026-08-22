@@ -25,6 +25,10 @@ import {
   updateDoc,
   arrayUnion,
   getDoc,
+  setDoc,
+  getDocs,
+  where,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -42,6 +46,77 @@ const db = getFirestore(app);
 
 // 일기가 쌓이는 곳의 이름
 const entriesRef = collection(db, "entries");
+// 사용자 프로필(이름)이 쌓이는 곳의 이름
+const profilesRef = collection(db, "profiles");
+
+// 캐시된 프로필 목록 { uid: displayName }
+let cachedProfiles = {};
+
+// =========================================================
+// 프로필 관리 (모든 사용자 이름 실시간 동기화)
+// =========================================================
+
+// 모든 사용자 프로필을 실시간으로 감시한다.
+export function subscribeProfiles(onChange) {
+  return onSnapshot(profilesRef, (snapshot) => {
+    const profiles = {};
+    snapshot.forEach((d) => {
+      profiles[d.id] = d.data().displayName;
+    });
+    cachedProfiles = profiles;
+    if (onChange) onChange(profiles);
+  });
+}
+
+// 로그인 시 프로필 생성 및 동기화
+export async function syncUserProfile(user) {
+  if (!user) return;
+  const userDoc = doc(db, "profiles", user.uid);
+  const snap = await getDoc(userDoc);
+  if (!snap.exists()) {
+    const initialName = user.displayName || "이름 없음";
+    await setDoc(userDoc, {
+      displayName: initialName,
+      email: user.email || "",
+      updatedAt: Date.now(),
+    });
+    cachedProfiles[user.uid] = initialName;
+  } else {
+    cachedProfiles[user.uid] = snap.data().displayName || user.displayName || "이름 없음";
+  }
+}
+
+// 특정 사용자(본인 또는 상대방)의 이름 자체를 변경한다.
+export async function setUserDisplayName(targetUid, newName) {
+  if (!targetUid || !newName) return;
+
+  // 1. 프로필 컬렉션에 새 이름 저장
+  const userDoc = doc(db, "profiles", targetUid);
+  await setDoc(
+    userDoc,
+    {
+      displayName: newName,
+      updatedAt: Date.now(),
+    },
+    { merge: true }
+  );
+  cachedProfiles[targetUid] = newName;
+
+  // 2. 해당 사용자가 작성한 모든 글(entries)의 작성자명을 일괄 변경
+  try {
+    const q = query(entriesRef, where("uid", "==", targetUid));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const batch = writeBatch(db);
+      snap.forEach((d) => {
+        batch.update(d.ref, { author: newName });
+      });
+      await batch.commit();
+    }
+  } catch (err) {
+    console.error("[store] 글 일괄 업데이트 오류:", err);
+  }
+}
 
 // =========================================================
 // 로그인
@@ -50,7 +125,12 @@ const entriesRef = collection(db, "entries");
 // 로그인 상태가 바뀔 때마다 onChange(user)가 실행된다.
 // 로그인 상태면 user 객체, 아니면 null 이 들어온다.
 export function watchLogin(onChange) {
-  return onAuthStateChanged(auth, onChange);
+  return onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      await syncUserProfile(user);
+    }
+    onChange(user);
+  });
 }
 
 export function login() {
@@ -87,22 +167,23 @@ export function subscribeEntries(onChange, onError) {
   );
 }
 
-// 일기 한 개를 저장한다. 작성자는 로그인 정보에서 자동으로 붙는다.
+// 일기 한 개를 저장한다. 작성자는 프로필 또는 로그인 정보에서 자동으로 붙는다.
 export async function addEntry({ title, body }) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
+  const authorName = cachedProfiles[user.uid] || user.displayName || "이름 없음";
+
   await addDoc(entriesRef, {
     title: title,
     body: body,
-    author: user.displayName || "이름 없음",
+    author: authorName,
     uid: user.uid,
     createdAt: Date.now(),
   });
 }
 
 // 일기 한 개를 지운다.
-// (지금은 app.js에서 아직 쓰이지 않음 - 실습 때 연결)
 export async function removeEntry(id) {
   await deleteDoc(doc(db, "entries", id));
 }
@@ -112,10 +193,12 @@ export async function addComment(entryId, text) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
+  const authorName = cachedProfiles[user.uid] || user.displayName || "이름 없음";
+
   const comment = {
     id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
     text: text,
-    author: user.displayName || "이름 없음",
+    author: authorName,
     uid: user.uid,
     createdAt: Date.now(),
   };
@@ -126,14 +209,14 @@ export async function addComment(entryId, text) {
   });
 }
 
-// 일기 작성자 이름을 변경한다.
+// 일기 작성자 이름을 개별 변경한다.
 export async function updateEntryAuthor(id, newAuthor) {
   await updateDoc(doc(db, "entries", id), {
     author: newAuthor,
   });
 }
 
-// 댓글 작성자 이름을 변경한다.
+// 댓글 작성자 이름을 개별 변경한다.
 export async function updateCommentAuthor(entryId, commentId, newAuthor) {
   const entryRef = doc(db, "entries", entryId);
   const snap = await getDoc(entryRef);

@@ -19,6 +19,8 @@ import {
   addComment,
   updateEntryAuthor,
   updateCommentAuthor,
+  subscribeProfiles,
+  setUserDisplayName,
 } from "./store.js";
 import { updateProfile } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
@@ -29,6 +31,7 @@ const loginArea = document.getElementById("login-area");
 const appArea = document.getElementById("app-area");
 const whoAmI = document.getElementById("who-am-i");
 const changeNameButton = document.getElementById("change-name-button");
+const manageUsersButton = document.getElementById("manage-users-button");
 
 const titleInput = document.getElementById("title-input");
 const bodyInput = document.getElementById("body-input");
@@ -37,19 +40,21 @@ const listElement = document.getElementById("entry-list");
 const emptyMessage = document.getElementById("empty-message");
 const errorBanner = document.getElementById("error-banner");
 
-// 로그인한 사용자 정보 및 목록 지켜보기를 멈출 때 쓰는 손잡이
+// 로그인한 사용자 정보 및 프로필/목록 지켜보기를 멈출 때 쓰는 손잡이
 let currentUser = null;
-let stopWatching = null;
+let currentProfiles = {};
+let stopWatchingEntries = null;
+let stopWatchingProfiles = null;
 
 // ---------------------------------------------------------
-// 이름 변경 버튼 (본인 계정 이름 변경)
+// 내 이름 변경 버튼 (본인 닉네임 변경)
 // ---------------------------------------------------------
 if (changeNameButton) {
   changeNameButton.addEventListener("click", async () => {
     if (!currentUser) return;
 
-    const currentName = currentUser.displayName || "";
-    const newName = prompt("변경할 닉네임(이름)을 입력하세요:", currentName);
+    const currentName = currentProfiles[currentUser.uid] || currentUser.displayName || "";
+    const newName = prompt("변경할 내 닉네임(이름)을 입력하세요:", currentName);
 
     if (newName === null) return; // 취소한 경우
     const trimmed = newName.trim();
@@ -59,12 +64,65 @@ if (changeNameButton) {
     }
 
     try {
-      await updateProfile(currentUser, { displayName: trimmed });
+      await setUserDisplayName(currentUser.uid, trimmed);
+      try {
+        await updateProfile(currentUser, { displayName: trimmed });
+      } catch (e) {
+        // updateProfile 실패 시에도 Firestore 프로필 우선 적용
+      }
       whoAmI.textContent = trimmed;
-      alert(`이름이 '${trimmed}'(으)로 변경되었습니다! 앞으로 작성하는 글에 적용됩니다.`);
+      alert(`내 이름이 '${trimmed}'(으)로 변경되었습니다! 모든 글과 화면에 적용됩니다.`);
     } catch (error) {
       console.error(error);
       showError("이름을 변경하지 못했습니다: " + error.message);
+    }
+  });
+}
+
+// ---------------------------------------------------------
+// 👥 친구 이름 변경 버튼 (상대방 닉네임 강제 변경)
+// ---------------------------------------------------------
+if (manageUsersButton) {
+  manageUsersButton.addEventListener("click", async () => {
+    if (!currentUser) return;
+
+    const otherUids = Object.keys(currentProfiles).filter((uid) => uid !== currentUser.uid);
+    if (otherUids.length === 0) {
+      alert("아직 등록된 다른 참여자가 없습니다. 글이나 댓글의 ✏️ 버튼을 눌러 변경할 수도 있습니다.");
+      return;
+    }
+
+    let menu = "이름을 변경할 대상을 선택하세요:\n";
+    otherUids.forEach((uid, idx) => {
+      menu += `${idx + 1}. ${currentProfiles[uid]}\n`;
+    });
+
+    const choice = prompt(menu + "\n번호를 입력하세요:");
+    if (choice === null) return;
+
+    const index = parseInt(choice, 10) - 1;
+    if (isNaN(index) || index < 0 || index >= otherUids.length) {
+      alert("올바른 번호를 입력해주세요.");
+      return;
+    }
+
+    const targetUid = otherUids[index];
+    const oldName = currentProfiles[targetUid];
+    const newName = prompt(`'${oldName}'님의 새 이름을 입력하세요:\n(상대방의 화면과 모든 글에 즉시 적용됩니다)`, oldName);
+    if (newName === null) return;
+
+    const trimmed = newName.trim();
+    if (!trimmed) {
+      alert("이름을 입력해주세요.");
+      return;
+    }
+
+    try {
+      await setUserDisplayName(targetUid, trimmed);
+      alert(`'${oldName}'님의 이름이 '${trimmed}'(으)로 성공적으로 변경되었습니다!`);
+    } catch (err) {
+      console.error(err);
+      showError("상대방 이름 변경 실패: " + err.message);
     }
   });
 }
@@ -92,16 +150,27 @@ watchLogin((user) => {
     // 로그인됨
     loginArea.hidden = true;
     appArea.hidden = false;
-    whoAmI.textContent = user.displayName || "이름 없음";
+    whoAmI.textContent = currentProfiles[user.uid] || user.displayName || "이름 없음";
 
-    stopWatching = subscribeEntries(render, () => {
+    stopWatchingProfiles = subscribeProfiles((profiles) => {
+      currentProfiles = profiles;
+      if (currentUser) {
+        whoAmI.textContent = profiles[currentUser.uid] || currentUser.displayName || "이름 없음";
+      }
+    });
+
+    stopWatchingEntries = subscribeEntries(render, () => {
       showError("목록을 불러오지 못했습니다. 접근 권한을 확인하세요.");
     });
   } else {
     // 로그아웃됨
-    if (stopWatching) {
-      stopWatching();
-      stopWatching = null;
+    if (stopWatchingEntries) {
+      stopWatchingEntries();
+      stopWatchingEntries = null;
+    }
+    if (stopWatchingProfiles) {
+      stopWatchingProfiles();
+      stopWatchingProfiles = null;
     }
     loginArea.hidden = false;
     appArea.hidden = true;
@@ -192,17 +261,23 @@ function render(entries) {
     const authorWrapper = document.createElement("span");
     authorWrapper.className = "entry-author-wrapper";
 
+    const authorDisplayName = (entry.uid && currentProfiles[entry.uid]) ? currentProfiles[entry.uid] : entry.author;
+
     const entryAuthor = document.createElement("span");
     entryAuthor.className = "entry-author";
-    entryAuthor.textContent = `작성자: ${entry.author}`;
+    entryAuthor.textContent = `작성자: ${authorDisplayName}`;
 
     const editAuthorBtn = document.createElement("button");
     editAuthorBtn.className = "edit-author-btn";
     editAuthorBtn.type = "button";
     editAuthorBtn.textContent = "✏️";
-    editAuthorBtn.title = "작성자 이름 변경";
+    editAuthorBtn.title = "작성자 이름 자체를 변경 (모든 글에 반영)";
     editAuthorBtn.addEventListener("click", async () => {
-      const newName = prompt(`'${entry.author}'의 이름을 무엇으로 변경할까요?`, entry.author);
+      const currentAuthorName = (entry.uid && currentProfiles[entry.uid]) ? currentProfiles[entry.uid] : entry.author;
+      const newName = prompt(
+        `'${currentAuthorName}'님의 이름 자체를 무엇으로 변경할까요?\n(해당 사용자의 프로필, 모든 글과 앞으로 작성할 글의 이름이 변경됩니다)`,
+        currentAuthorName
+      );
       if (newName === null) return;
       const trimmed = newName.trim();
       if (!trimmed) {
@@ -210,7 +285,12 @@ function render(entries) {
         return;
       }
       try {
-        await updateEntryAuthor(entry.id, trimmed);
+        if (entry.uid) {
+          await setUserDisplayName(entry.uid, trimmed);
+        } else {
+          await updateEntryAuthor(entry.id, trimmed);
+        }
+        alert(`'${currentAuthorName}'님의 이름이 '${trimmed}'(으)로 변경되었습니다!`);
       } catch (err) {
         console.error(err);
         showError("작성자 이름을 변경하지 못했습니다: " + err.message);
@@ -271,17 +351,23 @@ function render(entries) {
         const commentAuthorWrapper = document.createElement("span");
         commentAuthorWrapper.className = "comment-author-wrapper";
 
+        const commentAuthorDisplayName = (comment.uid && currentProfiles[comment.uid]) ? currentProfiles[comment.uid] : comment.author;
+
         const commentAuthor = document.createElement("span");
         commentAuthor.className = "comment-author";
-        commentAuthor.textContent = comment.author;
+        commentAuthor.textContent = commentAuthorDisplayName;
 
         const editCommentAuthorBtn = document.createElement("button");
         editCommentAuthorBtn.className = "edit-author-btn";
         editCommentAuthorBtn.type = "button";
         editCommentAuthorBtn.textContent = "✏️";
-        editCommentAuthorBtn.title = "댓글 작성자 이름 변경";
+        editCommentAuthorBtn.title = "댓글 작성자 이름 자체를 변경 (모든 글에 반영)";
         editCommentAuthorBtn.addEventListener("click", async () => {
-          const newName = prompt(`댓글 작성자 '${comment.author}'의 이름을 무엇으로 변경할까요?`, comment.author);
+          const currentAuthorName = (comment.uid && currentProfiles[comment.uid]) ? currentProfiles[comment.uid] : comment.author;
+          const newName = prompt(
+            `댓글 작성자 '${currentAuthorName}'님의 이름 자체를 무엇으로 변경할까요?\n(해당 사용자의 프로필 및 모든 글/댓글에 적용됩니다)`,
+            currentAuthorName
+          );
           if (newName === null) return;
           const trimmed = newName.trim();
           if (!trimmed) {
@@ -289,7 +375,12 @@ function render(entries) {
             return;
           }
           try {
-            await updateCommentAuthor(entry.id, comment.id, trimmed);
+            if (comment.uid) {
+              await setUserDisplayName(comment.uid, trimmed);
+            } else {
+              await updateCommentAuthor(entry.id, comment.id, trimmed);
+            }
+            alert(`'${currentAuthorName}'님의 이름이 '${trimmed}'(으)로 변경되었습니다!`);
           } catch (err) {
             console.error(err);
             showError("댓글 작성자 이름 변경에 실패했습니다: " + err.message);
