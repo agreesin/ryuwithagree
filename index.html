@@ -32,7 +32,12 @@
       <!-- 로그인 후에 보이는 곳 -->
       <div id="app-area" hidden>
         <p class="who">
-          쓰는 사람: <span id="who-am-i"></span>
+          <span class="who-info">
+            쓰는 사람: <strong id="who-am-i"></strong>
+            <button id="change-name-button" class="change-name-button" type="button">
+              이름 변경
+            </button>
+          </span>
           <button id="logout-button" class="logout-button" type="button">
             로그아웃
           </button>

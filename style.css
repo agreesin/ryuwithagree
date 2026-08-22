@@ -98,6 +98,29 @@ body {
   margin-bottom: 20px;
 }
 
+.who-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.change-name-button {
+  background: white;
+  border: 1px solid var(--primary-color);
+  color: var(--primary-color);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.change-name-button:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
 .logout-button {
   background: transparent;
   border: 1px solid var(--text-muted);

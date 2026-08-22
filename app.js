@@ -17,6 +17,7 @@ import {
   addEntry,
   removeEntry,
 } from "./store.js";
+import { updateProfile } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
 // 화면 요소 가져오기
 const loginButton = document.getElementById("login-button");
@@ -24,6 +25,7 @@ const logoutButton = document.getElementById("logout-button");
 const loginArea = document.getElementById("login-area");
 const appArea = document.getElementById("app-area");
 const whoAmI = document.getElementById("who-am-i");
+const changeNameButton = document.getElementById("change-name-button");
 
 const titleInput = document.getElementById("title-input");
 const bodyInput = document.getElementById("body-input");
@@ -35,6 +37,34 @@ const errorBanner = document.getElementById("error-banner");
 // 로그인한 사용자 정보 및 목록 지켜보기를 멈출 때 쓰는 손잡이
 let currentUser = null;
 let stopWatching = null;
+
+// ---------------------------------------------------------
+// 이름 변경 버튼 (본인 계정 이름 변경)
+// ---------------------------------------------------------
+if (changeNameButton) {
+  changeNameButton.addEventListener("click", async () => {
+    if (!currentUser) return;
+
+    const currentName = currentUser.displayName || "";
+    const newName = prompt("변경할 닉네임(이름)을 입력하세요:", currentName);
+
+    if (newName === null) return; // 취소한 경우
+    const trimmed = newName.trim();
+    if (trimmed === "") {
+      alert("이름은 빈 칸으로 둘 수 없습니다.");
+      return;
+    }
+
+    try {
+      await updateProfile(currentUser, { displayName: trimmed });
+      whoAmI.textContent = trimmed;
+      alert(`이름이 '${trimmed}'(으)로 변경되었습니다! 앞으로 작성하는 글에 적용됩니다.`);
+    } catch (error) {
+      console.error(error);
+      showError("이름을 변경하지 못했습니다: " + error.message);
+    }
+  });
+}
 
 // ---------------------------------------------------------
 // 로그인 버튼
