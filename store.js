@@ -22,6 +22,8 @@ import {
   onSnapshot,
   query,
   orderBy,
+  updateDoc,
+  arrayUnion,
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -103,3 +105,23 @@ export async function addEntry({ title, body }) {
 export async function removeEntry(id) {
   await deleteDoc(doc(db, "entries", id));
 }
+
+// 댓글 한 개를 추가한다.
+export async function addComment(entryId, text) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("로그인이 필요합니다.");
+
+  const comment = {
+    id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    text: text,
+    author: user.displayName || "이름 없음",
+    uid: user.uid,
+    createdAt: Date.now(),
+  };
+
+  const entryRef = doc(db, "entries", entryId);
+  await updateDoc(entryRef, {
+    comments: arrayUnion(comment),
+  });
+}
+
