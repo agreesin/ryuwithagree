@@ -17,6 +17,8 @@ import {
   addEntry,
   removeEntry,
   addComment,
+  updateEntryAuthor,
+  updateCommentAuthor,
 } from "./store.js";
 import { updateProfile } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
@@ -187,9 +189,36 @@ function render(entries) {
     const metaDiv = document.createElement("div");
     metaDiv.className = "entry-meta";
 
+    const authorWrapper = document.createElement("span");
+    authorWrapper.className = "entry-author-wrapper";
+
     const entryAuthor = document.createElement("span");
     entryAuthor.className = "entry-author";
     entryAuthor.textContent = `작성자: ${entry.author}`;
+
+    const editAuthorBtn = document.createElement("button");
+    editAuthorBtn.className = "edit-author-btn";
+    editAuthorBtn.type = "button";
+    editAuthorBtn.textContent = "✏️";
+    editAuthorBtn.title = "작성자 이름 변경";
+    editAuthorBtn.addEventListener("click", async () => {
+      const newName = prompt(`'${entry.author}'의 이름을 무엇으로 변경할까요?`, entry.author);
+      if (newName === null) return;
+      const trimmed = newName.trim();
+      if (!trimmed) {
+        alert("이름을 입력해주세요.");
+        return;
+      }
+      try {
+        await updateEntryAuthor(entry.id, trimmed);
+      } catch (err) {
+        console.error(err);
+        showError("작성자 이름을 변경하지 못했습니다: " + err.message);
+      }
+    });
+
+    authorWrapper.appendChild(entryAuthor);
+    authorWrapper.appendChild(editAuthorBtn);
 
     // TODO(2): 작성 날짜 보여주기
     const entryDate = document.createElement("span");
@@ -205,7 +234,7 @@ function render(entries) {
       });
     }
 
-    metaDiv.appendChild(entryAuthor);
+    metaDiv.appendChild(authorWrapper);
     metaDiv.appendChild(entryDate);
 
     const entryBody = document.createElement("p");
@@ -239,9 +268,36 @@ function render(entries) {
         const commentMeta = document.createElement("div");
         commentMeta.className = "comment-meta";
 
+        const commentAuthorWrapper = document.createElement("span");
+        commentAuthorWrapper.className = "comment-author-wrapper";
+
         const commentAuthor = document.createElement("span");
         commentAuthor.className = "comment-author";
         commentAuthor.textContent = comment.author;
+
+        const editCommentAuthorBtn = document.createElement("button");
+        editCommentAuthorBtn.className = "edit-author-btn";
+        editCommentAuthorBtn.type = "button";
+        editCommentAuthorBtn.textContent = "✏️";
+        editCommentAuthorBtn.title = "댓글 작성자 이름 변경";
+        editCommentAuthorBtn.addEventListener("click", async () => {
+          const newName = prompt(`댓글 작성자 '${comment.author}'의 이름을 무엇으로 변경할까요?`, comment.author);
+          if (newName === null) return;
+          const trimmed = newName.trim();
+          if (!trimmed) {
+            alert("이름을 입력해주세요.");
+            return;
+          }
+          try {
+            await updateCommentAuthor(entry.id, comment.id, trimmed);
+          } catch (err) {
+            console.error(err);
+            showError("댓글 작성자 이름 변경에 실패했습니다: " + err.message);
+          }
+        });
+
+        commentAuthorWrapper.appendChild(commentAuthor);
+        commentAuthorWrapper.appendChild(editCommentAuthorBtn);
 
         const commentDate = document.createElement("span");
         commentDate.className = "comment-date";
@@ -255,7 +311,7 @@ function render(entries) {
           });
         }
 
-        commentMeta.appendChild(commentAuthor);
+        commentMeta.appendChild(commentAuthorWrapper);
         commentMeta.appendChild(commentDate);
 
         const commentText = document.createElement("p");

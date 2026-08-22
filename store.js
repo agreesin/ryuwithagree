@@ -24,6 +24,7 @@ import {
   orderBy,
   updateDoc,
   arrayUnion,
+  getDoc,
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -123,5 +124,30 @@ export async function addComment(entryId, text) {
   await updateDoc(entryRef, {
     comments: arrayUnion(comment),
   });
+}
+
+// 일기 작성자 이름을 변경한다.
+export async function updateEntryAuthor(id, newAuthor) {
+  await updateDoc(doc(db, "entries", id), {
+    author: newAuthor,
+  });
+}
+
+// 댓글 작성자 이름을 변경한다.
+export async function updateCommentAuthor(entryId, commentId, newAuthor) {
+  const entryRef = doc(db, "entries", entryId);
+  const snap = await getDoc(entryRef);
+  if (snap.exists()) {
+    const data = snap.data();
+    const updatedComments = (data.comments || []).map((c) => {
+      if (c.id === commentId) {
+        return { ...c, author: newAuthor };
+      }
+      return c;
+    });
+    await updateDoc(entryRef, {
+      comments: updatedComments,
+    });
+  }
 }
 

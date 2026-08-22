@@ -251,11 +251,35 @@ body {
 .entry-meta {
   display: flex;
   gap: 12px;
+  align-items: center;
   font-size: 0.85rem;
   color: var(--text-muted);
   margin-bottom: 12px;
   border-bottom: 1px dashed var(--border-color);
   padding-bottom: 8px;
+}
+
+.entry-author-wrapper,
+.comment-author-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.edit-author-btn {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  opacity: 0.6;
+  transition: opacity 0.2s, transform 0.2s;
+  line-height: 1;
+}
+
+.edit-author-btn:hover {
+  opacity: 1;
+  transform: scale(1.2);
 }
 
 .entry-body {
