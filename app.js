@@ -16,6 +16,7 @@ import {
   subscribeEntries,
   addEntry,
   removeEntry,
+  addComment,
 } from "./store.js";
 import { updateProfile } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
@@ -214,6 +215,97 @@ function render(entries) {
     item.appendChild(headerDiv);
     item.appendChild(metaDiv);
     item.appendChild(entryBody);
+
+    // 댓글 영역
+    const commentsSection = document.createElement("div");
+    commentsSection.className = "comments-section";
+
+    const comments = entry.comments || [];
+
+    const commentsHeader = document.createElement("div");
+    commentsHeader.className = "comments-header";
+    commentsHeader.textContent = `댓글 ${comments.length > 0 ? `(${comments.length})` : ""}`;
+    commentsSection.appendChild(commentsHeader);
+
+    // 댓글 목록
+    if (comments.length > 0) {
+      const commentsList = document.createElement("ul");
+      commentsList.className = "comments-list";
+
+      for (const comment of comments) {
+        const commentItem = document.createElement("li");
+        commentItem.className = "comment-item";
+
+        const commentMeta = document.createElement("div");
+        commentMeta.className = "comment-meta";
+
+        const commentAuthor = document.createElement("span");
+        commentAuthor.className = "comment-author";
+        commentAuthor.textContent = comment.author;
+
+        const commentDate = document.createElement("span");
+        commentDate.className = "comment-date";
+        if (comment.createdAt) {
+          const cd = new Date(comment.createdAt);
+          commentDate.textContent = cd.toLocaleString("ko-KR", {
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        }
+
+        commentMeta.appendChild(commentAuthor);
+        commentMeta.appendChild(commentDate);
+
+        const commentText = document.createElement("p");
+        commentText.className = "comment-text";
+        commentText.textContent = comment.text;
+
+        commentItem.appendChild(commentMeta);
+        commentItem.appendChild(commentText);
+        commentsList.appendChild(commentItem);
+      }
+
+      commentsSection.appendChild(commentsList);
+    }
+
+    // 댓글 작성 폼
+    const commentForm = document.createElement("form");
+    commentForm.className = "comment-form";
+    commentForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = commentInput.value.trim();
+      if (!text) return;
+
+      commentSubmitBtn.disabled = true;
+      try {
+        await addComment(entry.id, text);
+        commentInput.value = "";
+      } catch (error) {
+        console.error(error);
+        showError("댓글을 저장하지 못했습니다. 연결을 확인하세요.");
+      } finally {
+        commentSubmitBtn.disabled = false;
+      }
+    });
+
+    const commentInput = document.createElement("input");
+    commentInput.className = "comment-input";
+    commentInput.type = "text";
+    commentInput.placeholder = "따뜻한 댓글을 남겨보세요...";
+    commentInput.required = true;
+
+    const commentSubmitBtn = document.createElement("button");
+    commentSubmitBtn.className = "comment-submit-btn";
+    commentSubmitBtn.type = "submit";
+    commentSubmitBtn.textContent = "등록";
+
+    commentForm.appendChild(commentInput);
+    commentForm.appendChild(commentSubmitBtn);
+    commentsSection.appendChild(commentForm);
+
+    item.appendChild(commentsSection);
     listElement.appendChild(item);
   }
 }
