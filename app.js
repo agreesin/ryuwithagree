@@ -118,27 +118,64 @@ function render(entries) {
     const item = document.createElement("li");
     item.className = "entry";
 
+    const headerDiv = document.createElement("div");
+    headerDiv.className = "entry-header";
+
     const entryTitle = document.createElement("h2");
     entryTitle.className = "entry-title";
     entryTitle.textContent = entry.title;
 
+    // TODO(1): 삭제 버튼 만들기
+    const deleteButton = document.createElement("button");
+    deleteButton.className = "delete-button";
+    deleteButton.type = "button";
+    deleteButton.textContent = "삭제";
+    deleteButton.addEventListener("click", async () => {
+      if (confirm("정말 이 일기를 삭제하시겠습니까?")) {
+        try {
+          await removeEntry(entry.id);
+        } catch (error) {
+          console.error(error);
+          showError("삭제하지 못했습니다. 인터넷 연결과 권한을 확인하세요.");
+        }
+      }
+    });
+
+    headerDiv.appendChild(entryTitle);
+    headerDiv.appendChild(deleteButton);
+
+    const metaDiv = document.createElement("div");
+    metaDiv.className = "entry-meta";
+
     const entryAuthor = document.createElement("span");
     entryAuthor.className = "entry-author";
-    entryAuthor.textContent = entry.author;
+    entryAuthor.textContent = `작성자: ${entry.author}`;
+
+    // TODO(2): 작성 날짜 보여주기
+    const entryDate = document.createElement("span");
+    entryDate.className = "entry-date";
+    if (entry.createdAt) {
+      const d = new Date(entry.createdAt);
+      entryDate.textContent = d.toLocaleString("ko-KR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    metaDiv.appendChild(entryAuthor);
+    metaDiv.appendChild(entryDate);
 
     const entryBody = document.createElement("p");
     entryBody.className = "entry-body";
     entryBody.textContent = entry.body;
 
-    item.appendChild(entryTitle);
-    item.appendChild(entryAuthor);
+    item.appendChild(headerDiv);
+    item.appendChild(metaDiv);
     item.appendChild(entryBody);
     listElement.appendChild(item);
-
-    // TODO(1): 여기에 삭제 버튼 만들기
-    //          store.js의 removeEntry(entry.id) 를 부르면 지워집니다
-    // TODO(2): 여기에 작성 날짜 보여주기
-    //          entry.createdAt 안에 숫자로 들어 있습니다
   }
 }
 
@@ -157,9 +194,9 @@ function hideError() {
 // =========================================================
 // 오늘 만들 것 (하나씩, 순서대로)
 //
-// [ ] TODO(1) 삭제 버튼
-// [ ] TODO(2) 작성 날짜 표시
-// [ ] 화면 꾸미기 (style.css - 친구 담당)
+// [x] TODO(1) 삭제 버튼
+// [x] TODO(2) 작성 날짜 표시
+// [x] 화면 꾸미기 (style.css - 친구 담당)
 //
 // AI에게 요청할 때는 파일을 못 박는다.
 //   예) "app.js 만 수정해. store.js 와 index.html 은 건드리지 마."

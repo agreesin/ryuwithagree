@@ -1,65 +1,233 @@
 /* =========================================================
    다이어리 - 바이브 코딩 실습
 
-   담당: [친구 이름]
-
-   이 파일은 일부러 거의 비워 두었습니다.
-   지금은 못생긴 게 정상입니다. 오늘 여기를 채우면 됩니다.
-
-   고칠 수 있는 이름들 (index.html 에 붙어 있는 이름)
-     .header        맨 위 제목 줄
-     .header-title  "다이어리" 글자
-     .who           "쓰는 사람: OOO"
-     .error-banner  문제 생겼을 때 뜨는 줄
-     .editor        글 쓰는 영역
-     .title-input   제목 입력칸
-     .body-input    본문 입력칸
-     .save-button   저장 버튼
-     .empty-message 글이 없을 때 나오는 문구
-     .entry-list    글 목록 전체
-     .entry         글 한 개
-     .entry-title   글 한 개의 제목
-     .entry-author  누가 썼는지
-     .entry-body    글 한 개의 본문
+   담당: [친구 이름 / 류]
    ========================================================= */
 
+:root {
+  --primary-color: #4a7c59;
+  --primary-hover: #3b6346;
+  --danger-color: #d9534f;
+  --danger-hover: #c9302c;
+  --bg-color: #f8f9fa;
+  --card-bg: #ffffff;
+  --text-main: #333333;
+  --text-muted: #666666;
+  --border-color: #e9ecef;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
-  font-family: system-ui, sans-serif;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
   margin: 0;
-  padding: 24px;
+  padding: 24px 16px;
+  line-height: 1.6;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.header-title {
+  margin: 0;
+  color: var(--primary-color);
+  font-size: 1.8rem;
+  letter-spacing: -0.5px;
 }
 
 .main {
-  max-width: 640px;
+  max-width: 600px;
   margin: 0 auto;
 }
 
 .error-banner {
-  color: crimson;
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+.login-area {
+  background: var(--card-bg);
+  padding: 32px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.login-message {
+  margin-bottom: 20px;
+  font-size: 1.05rem;
+  color: var(--text-muted);
+}
+
+.login-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.login-button:hover {
+  background-color: var(--primary-hover);
+}
+
+.who {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #eef4f0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+.logout-button {
+  background: transparent;
+  border: 1px solid var(--text-muted);
+  color: var(--text-muted);
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.logout-button:hover {
+  background-color: var(--border-color);
 }
 
 .editor {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 24px;
+  gap: 12px;
+  background: var(--card-bg);
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 28px;
+}
+
+.title-input,
+.body-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.title-input:focus,
+.body-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.15);
+}
+
+.save-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.save-button:hover {
+  background-color: var(--primary-hover);
+}
+
+.save-button:disabled {
+  background-color: #a5c4ad;
+  cursor: not-allowed;
+}
+
+.empty-message {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 32px 0;
 }
 
 .entry-list {
   list-style: none;
   margin: 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-/* =========================================================
-   오늘 해볼 것 (하나씩, 순서대로)
+.entry {
+  background: var(--card-bg);
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-color);
+}
 
-   [ ] 배경색과 글자색 정하기
-   [ ] 저장 버튼 꾸미기 (색, 둥근 모서리, 마우스 올렸을 때)
-   [ ] 글 한 개(.entry)를 카드처럼 보이게 하기
-   [ ] 내가 쓴 글과 상대가 쓴 글을 구분되게 하기
-   [ ] 휴대폰 화면에서도 보기 좋게 하기
+.entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
 
-   AI에게 요청할 때는 파일을 못 박는다.
-     예) "style.css 만 수정해. index.html 과 app.js 는 건드리지 마."
-   ========================================================= */
+.entry-title {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text-main);
+  word-break: break-word;
+}
+
+.delete-button {
+  background-color: transparent;
+  color: var(--danger-color);
+  border: 1px solid var(--danger-color);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.delete-button:hover {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.entry-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  border-bottom: 1px dashed var(--border-color);
+  padding-bottom: 8px;
+}
+
+.entry-body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #444;
+}
