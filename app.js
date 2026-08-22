@@ -32,7 +32,8 @@ const listElement = document.getElementById("entry-list");
 const emptyMessage = document.getElementById("empty-message");
 const errorBanner = document.getElementById("error-banner");
 
-// 목록 지켜보기를 멈출 때 쓰는 손잡이
+// 로그인한 사용자 정보 및 목록 지켜보기를 멈출 때 쓰는 손잡이
+let currentUser = null;
 let stopWatching = null;
 
 // ---------------------------------------------------------
@@ -53,6 +54,7 @@ logoutButton.addEventListener("click", () => logout());
 // 로그인 상태가 바뀔 때마다 실행됨
 // ---------------------------------------------------------
 watchLogin((user) => {
+  currentUser = user;
   if (user) {
     // 로그인됨
     loginArea.hidden = true;
@@ -125,24 +127,31 @@ function render(entries) {
     entryTitle.className = "entry-title";
     entryTitle.textContent = entry.title;
 
-    // TODO(1): 삭제 버튼 만들기
-    const deleteButton = document.createElement("button");
-    deleteButton.className = "delete-button";
-    deleteButton.type = "button";
-    deleteButton.textContent = "삭제";
-    deleteButton.addEventListener("click", async () => {
-      if (confirm("정말 이 일기를 삭제하시겠습니까?")) {
-        try {
-          await removeEntry(entry.id);
-        } catch (error) {
-          console.error(error);
-          showError("삭제하지 못했습니다. 인터넷 연결과 권한을 확인하세요.");
-        }
-      }
-    });
-
     headerDiv.appendChild(entryTitle);
-    headerDiv.appendChild(deleteButton);
+
+    // 내가 쓴 글인지 확인 (uid 일치 또는 작성자 이름 일치)
+    const isMyEntry = currentUser && (
+      (entry.uid && entry.uid === currentUser.uid) ||
+      (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
+    );
+
+    if (isMyEntry) {
+      const deleteButton = document.createElement("button");
+      deleteButton.className = "delete-button";
+      deleteButton.type = "button";
+      deleteButton.textContent = "삭제";
+      deleteButton.addEventListener("click", async () => {
+        if (confirm("정말 이 일기를 삭제하시겠습니까?")) {
+          try {
+            await removeEntry(entry.id);
+          } catch (error) {
+            console.error(error);
+            showError("삭제하지 못했습니다. 인터넷 연결과 권한을 확인하세요.");
+          }
+        }
+      });
+      headerDiv.appendChild(deleteButton);
+    }
 
     const metaDiv = document.createElement("div");
     metaDiv.className = "entry-meta";
