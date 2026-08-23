@@ -138,6 +138,10 @@ body {
   font-size: 0.85rem;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .logout-button:hover {
   background-color: var(--border-color);
 }
@@ -169,6 +173,196 @@ body {
 .body-input:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(230, 109, 123, 0.18);
+}
+
+/* =========================================================
+   그림판 스타일
+   ========================================================= */
+
+.draw-toggle-btn {
+  background: #fff0f3;
+  color: var(--primary-color);
+  border: 1.5px dashed var(--primary-color);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.draw-toggle-btn:hover {
+  background: #ffe3e8;
+  border-style: solid;
+}
+
+.drawing-container {
+  background: #fffbfc;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.drawing-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #fcecee;
+}
+
+.tool-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tool-btn {
+  background: white;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tool-btn:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.tool-btn.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 6px rgba(230, 109, 123, 0.3);
+}
+
+.action-btn {
+  background: #fafafa;
+  font-size: 0.8rem;
+  padding: 5px 8px;
+}
+
+.action-btn:hover {
+  background: #f0f0f0;
+}
+
+.colors-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.color-picker {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-picker::-webkit-color-swatch {
+  border: 2px solid #ddd;
+  border-radius: 50%;
+}
+
+.color-chip {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.color-chip:hover {
+  transform: scale(1.15);
+}
+
+.color-chip.active {
+  border-color: #333;
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px white inset;
+}
+
+.size-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: white;
+  padding: 2px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.size-btn {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  line-height: 1;
+  transition: all 0.15s;
+}
+
+.size-btn[data-size="3"] {
+  font-size: 0.6rem;
+}
+
+.size-btn[data-size="8"] {
+  font-size: 0.85rem;
+}
+
+.size-btn[data-size="16"] {
+  font-size: 1.15rem;
+}
+
+.size-btn.active {
+  color: var(--primary-color);
+  background: #fdf0f2;
+}
+
+.canvas-wrapper {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+#drawing-canvas {
+  touch-action: none;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 800 / 500;
+  background: #ffffff;
+  display: block;
+  cursor: crosshair;
 }
 
 .save-button {
@@ -289,6 +483,17 @@ body {
   white-space: pre-wrap;
   word-break: break-word;
   color: #444;
+}
+
+.entry-image {
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 800 / 500;
+  border-radius: 8px;
+  margin-top: 12px;
+  border: 1px solid var(--border-color);
+  background: #ffffff;
+  display: block;
 }
 
 /* =========================================================

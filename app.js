@@ -23,6 +23,17 @@ import {
   setUserDisplayName,
 } from "./store.js";
 import { updateProfile } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+import {
+  initCanvas,
+  setMode,
+  setColor,
+  setLineWidth,
+  undo,
+  clearCanvas,
+  resetCanvas,
+  hasDrawing,
+  exportImage,
+} from "./draw.js";
 
 // 화면 요소 가져오기
 const loginButton = document.getElementById("login-button");
@@ -39,6 +50,94 @@ const saveButton = document.getElementById("save-button");
 const listElement = document.getElementById("entry-list");
 const emptyMessage = document.getElementById("empty-message");
 const errorBanner = document.getElementById("error-banner");
+
+// 그림판 화면 요소
+const drawToggleBtn = document.getElementById("draw-toggle-btn");
+const drawingContainer = document.getElementById("drawing-container");
+const drawingCanvas = document.getElementById("drawing-canvas");
+
+// 그림판 초기화
+if (drawingCanvas) {
+  initCanvas(drawingCanvas);
+}
+
+// 그림판 토글 버튼
+if (drawToggleBtn && drawingContainer) {
+  drawToggleBtn.addEventListener("click", () => {
+    const isHidden = drawingContainer.hidden;
+    drawingContainer.hidden = !isHidden;
+    drawToggleBtn.textContent = isHidden ? "🎨 그림 접기" : "🎨 그림 그리기";
+  });
+}
+
+// 툴바 도구 버튼들
+const toolPenBtn = document.getElementById("tool-pen");
+const toolEraserBtn = document.getElementById("tool-eraser");
+const toolColorPicker = document.getElementById("tool-color-picker");
+const colorChips = document.querySelectorAll(".color-chip");
+const sizeBtns = document.querySelectorAll(".size-btn");
+const toolUndoBtn = document.getElementById("tool-undo");
+const toolClearBtn = document.getElementById("tool-clear");
+
+if (toolPenBtn) {
+  toolPenBtn.addEventListener("click", () => {
+    setMode("pen");
+    toolPenBtn.classList.add("active");
+    if (toolEraserBtn) toolEraserBtn.classList.remove("active");
+  });
+}
+
+if (toolEraserBtn) {
+  toolEraserBtn.addEventListener("click", () => {
+    setMode("eraser");
+    toolEraserBtn.classList.add("active");
+    if (toolPenBtn) toolPenBtn.classList.remove("active");
+  });
+}
+
+if (toolColorPicker) {
+  toolColorPicker.addEventListener("input", (e) => {
+    setColor(e.target.value);
+    if (toolPenBtn) toolPenBtn.classList.add("active");
+    if (toolEraserBtn) toolEraserBtn.classList.remove("active");
+    colorChips.forEach((chip) => chip.classList.remove("active"));
+  });
+}
+
+colorChips.forEach((chip) => {
+  chip.addEventListener("click", () => {
+    const color = chip.dataset.color;
+    setColor(color);
+    if (toolColorPicker) toolColorPicker.value = color;
+    if (toolPenBtn) toolPenBtn.classList.add("active");
+    if (toolEraserBtn) toolEraserBtn.classList.remove("active");
+    colorChips.forEach((c) => c.classList.remove("active"));
+    chip.classList.add("active");
+  });
+});
+
+sizeBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const size = Number(btn.dataset.size);
+    setLineWidth(size);
+    sizeBtns.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+  });
+});
+
+if (toolUndoBtn) {
+  toolUndoBtn.addEventListener("click", () => {
+    undo();
+  });
+}
+
+if (toolClearBtn) {
+  toolClearBtn.addEventListener("click", () => {
+    if (confirm("그림을 모두 지우시겠습니까?")) {
+      clearCanvas();
+    }
+  });
+}
 
 // 로그인한 사용자 정보 및 프로필/목록 지켜보기를 멈출 때 쓰는 손잡이
 let currentUser = null;
@@ -207,9 +306,11 @@ saveButton.addEventListener("click", onSave);
 async function onSave() {
   const title = titleInput.value.trim();
   const body = bodyInput.value.trim();
+  const isDrawn = hasDrawing();
 
-  if (title === "") {
-    alert("제목을 입력하세요.");
+  // 제목, 본문, 그림이 전부 비어 있을 때만 저장을 차단
+  if (title === "" && body === "" && !isDrawn) {
+    alert("제목, 본문, 또는 그림 중 하나 이상을 입력하세요.");
     titleInput.focus();
     return;
   }
@@ -217,14 +318,27 @@ async function onSave() {
   saveButton.disabled = true;
 
   try {
-    await addEntry({ title: title, body: body });
+    let image = null;
+    if (isDrawn) {
+      image = exportImage();
+    }
 
+    await addEntry({ title, body, image });
+
+    // 입력 필드 및 그림판 초기화
     titleInput.value = "";
     bodyInput.value = "";
+    resetCanvas();
+    if (drawingContainer) {
+      drawingContainer.hidden = true;
+    }
+    if (drawToggleBtn) {
+      drawToggleBtn.textContent = "🎨 그림 그리기";
+    }
     titleInput.focus();
   } catch (error) {
     console.error(error);
-    showError("저장하지 못했습니다. 인터넷 연결과 권한을 확인하세요.");
+    showError("저장하지 못했습니다: " + error.message);
   } finally {
     saveButton.disabled = false;
   }
@@ -247,7 +361,7 @@ function render(entries) {
 
     const entryTitle = document.createElement("h2");
     entryTitle.className = "entry-title";
-    entryTitle.textContent = entry.title;
+    entryTitle.textContent = entry.title || "(제목 없음)";
 
     headerDiv.appendChild(entryTitle);
 
@@ -339,13 +453,25 @@ function render(entries) {
     metaDiv.appendChild(authorWrapper);
     metaDiv.appendChild(entryDate);
 
-    const entryBody = document.createElement("p");
-    entryBody.className = "entry-body";
-    entryBody.textContent = entry.body;
-
     item.appendChild(headerDiv);
     item.appendChild(metaDiv);
-    item.appendChild(entryBody);
+
+    // 본문 표시 (본문이 있을 때만 추가)
+    if (entry.body && entry.body.trim() !== "") {
+      const entryBody = document.createElement("p");
+      entryBody.className = "entry-body";
+      entryBody.textContent = entry.body;
+      item.appendChild(entryBody);
+    }
+
+    // 그림 렌더링 (하위 호환: image 필드가 존재할 때만 렌더링)
+    if (entry.image) {
+      const entryImg = document.createElement("img");
+      entryImg.className = "entry-image";
+      entryImg.src = entry.image;
+      entryImg.alt = entry.title ? `${entry.title} 그림` : "일기 그림";
+      item.appendChild(entryImg);
+    }
 
     // 댓글 영역
     const commentsSection = document.createElement("div");
