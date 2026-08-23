@@ -46,12 +46,24 @@ let currentProfiles = {};
 let stopWatchingEntries = null;
 let stopWatchingProfiles = null;
 
+// 관리자 이메일 목록 (이 계정만 모든 이름 변경 권한을 가짐)
+const ADMIN_EMAILS = ["ehd8109@gmail.com"];
+
+function isAdmin(user) {
+  if (!user) return false;
+  if (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) return true;
+  return false;
+}
+
 // ---------------------------------------------------------
-// 내 이름 변경 버튼 (본인 닉네임 변경)
+// 내 이름 변경 버튼 (관리자 전용)
 // ---------------------------------------------------------
 if (changeNameButton) {
   changeNameButton.addEventListener("click", async () => {
-    if (!currentUser) return;
+    if (!currentUser || !isAdmin(currentUser)) {
+      alert("이름 변경 권한이 없습니다. (관리자 전용 기능)");
+      return;
+    }
 
     const currentName = currentProfiles[currentUser.uid] || currentUser.displayName || "";
     const newName = prompt("변경할 내 닉네임(이름)을 입력하세요:", currentName);
@@ -80,11 +92,14 @@ if (changeNameButton) {
 }
 
 // ---------------------------------------------------------
-// 👥 친구 이름 변경 버튼 (상대방 닉네임 강제 변경)
+// 👥 친구 이름 변경 버튼 (관리자 전용)
 // ---------------------------------------------------------
 if (manageUsersButton) {
   manageUsersButton.addEventListener("click", async () => {
-    if (!currentUser) return;
+    if (!currentUser || !isAdmin(currentUser)) {
+      alert("상대방 이름 변경 권한이 없습니다. (관리자 전용 기능)");
+      return;
+    }
 
     const otherUids = Object.keys(currentProfiles).filter((uid) => uid !== currentUser.uid);
     if (otherUids.length === 0) {
@@ -151,6 +166,11 @@ watchLogin((user) => {
     loginArea.hidden = true;
     appArea.hidden = false;
     whoAmI.textContent = currentProfiles[user.uid] || user.displayName || "이름 없음";
+
+    // 관리자(ehd8109@gmail.com)에게만 이름 변경 버튼 노출
+    const adminUser = isAdmin(user);
+    if (changeNameButton) changeNameButton.hidden = !adminUser;
+    if (manageUsersButton) manageUsersButton.hidden = !adminUser;
 
     stopWatchingProfiles = subscribeProfiles((profiles) => {
       currentProfiles = profiles;
@@ -266,39 +286,41 @@ function render(entries) {
     const entryAuthor = document.createElement("span");
     entryAuthor.className = "entry-author";
     entryAuthor.textContent = `작성자: ${authorDisplayName}`;
-
-    const editAuthorBtn = document.createElement("button");
-    editAuthorBtn.className = "edit-author-btn";
-    editAuthorBtn.type = "button";
-    editAuthorBtn.textContent = "✏️";
-    editAuthorBtn.title = "작성자 이름 자체를 변경 (모든 글에 반영)";
-    editAuthorBtn.addEventListener("click", async () => {
-      const currentAuthorName = (entry.uid && currentProfiles[entry.uid]) ? currentProfiles[entry.uid] : entry.author;
-      const newName = prompt(
-        `'${currentAuthorName}'님의 이름 자체를 무엇으로 변경할까요?\n(해당 사용자의 프로필, 모든 글과 앞으로 작성할 글의 이름이 변경됩니다)`,
-        currentAuthorName
-      );
-      if (newName === null) return;
-      const trimmed = newName.trim();
-      if (!trimmed) {
-        alert("이름을 입력해주세요.");
-        return;
-      }
-      try {
-        if (entry.uid) {
-          await setUserDisplayName(entry.uid, trimmed);
-        } else {
-          await updateEntryAuthor(entry.id, trimmed);
-        }
-        alert(`'${currentAuthorName}'님의 이름이 '${trimmed}'(으)로 변경되었습니다!`);
-      } catch (err) {
-        console.error(err);
-        showError("작성자 이름을 변경하지 못했습니다: " + err.message);
-      }
-    });
-
     authorWrapper.appendChild(entryAuthor);
-    authorWrapper.appendChild(editAuthorBtn);
+
+    // 관리자(ehd8109@gmail.com)에게만 작성자 이름 강제 변경 버튼 노출
+    if (isAdmin(currentUser)) {
+      const editAuthorBtn = document.createElement("button");
+      editAuthorBtn.className = "edit-author-btn";
+      editAuthorBtn.type = "button";
+      editAuthorBtn.textContent = "✏️";
+      editAuthorBtn.title = "작성자 이름 자체를 변경 (관리자 전용)";
+      editAuthorBtn.addEventListener("click", async () => {
+        const currentAuthorName = (entry.uid && currentProfiles[entry.uid]) ? currentProfiles[entry.uid] : entry.author;
+        const newName = prompt(
+          `'${currentAuthorName}'님의 이름 자체를 무엇으로 변경할까요?\n(해당 사용자의 프로필, 모든 글과 앞으로 작성할 글의 이름이 변경됩니다)`,
+          currentAuthorName
+        );
+        if (newName === null) return;
+        const trimmed = newName.trim();
+        if (!trimmed) {
+          alert("이름을 입력해주세요.");
+          return;
+        }
+        try {
+          if (entry.uid) {
+            await setUserDisplayName(entry.uid, trimmed);
+          } else {
+            await updateEntryAuthor(entry.id, trimmed);
+          }
+          alert(`'${currentAuthorName}'님의 이름이 '${trimmed}'(으)로 변경되었습니다!`);
+        } catch (err) {
+          console.error(err);
+          showError("작성자 이름을 변경하지 못했습니다: " + err.message);
+        }
+      });
+      authorWrapper.appendChild(editAuthorBtn);
+    }
 
     // TODO(2): 작성 날짜 보여주기
     const entryDate = document.createElement("span");
@@ -356,39 +378,41 @@ function render(entries) {
         const commentAuthor = document.createElement("span");
         commentAuthor.className = "comment-author";
         commentAuthor.textContent = commentAuthorDisplayName;
-
-        const editCommentAuthorBtn = document.createElement("button");
-        editCommentAuthorBtn.className = "edit-author-btn";
-        editCommentAuthorBtn.type = "button";
-        editCommentAuthorBtn.textContent = "✏️";
-        editCommentAuthorBtn.title = "댓글 작성자 이름 자체를 변경 (모든 글에 반영)";
-        editCommentAuthorBtn.addEventListener("click", async () => {
-          const currentAuthorName = (comment.uid && currentProfiles[comment.uid]) ? currentProfiles[comment.uid] : comment.author;
-          const newName = prompt(
-            `댓글 작성자 '${currentAuthorName}'님의 이름 자체를 무엇으로 변경할까요?\n(해당 사용자의 프로필 및 모든 글/댓글에 적용됩니다)`,
-            currentAuthorName
-          );
-          if (newName === null) return;
-          const trimmed = newName.trim();
-          if (!trimmed) {
-            alert("이름을 입력해주세요.");
-            return;
-          }
-          try {
-            if (comment.uid) {
-              await setUserDisplayName(comment.uid, trimmed);
-            } else {
-              await updateCommentAuthor(entry.id, comment.id, trimmed);
-            }
-            alert(`'${currentAuthorName}'님의 이름이 '${trimmed}'(으)로 변경되었습니다!`);
-          } catch (err) {
-            console.error(err);
-            showError("댓글 작성자 이름 변경에 실패했습니다: " + err.message);
-          }
-        });
-
         commentAuthorWrapper.appendChild(commentAuthor);
-        commentAuthorWrapper.appendChild(editCommentAuthorBtn);
+
+        // 관리자(ehd8109@gmail.com)에게만 댓글 작성자 이름 강제 변경 버튼 노출
+        if (isAdmin(currentUser)) {
+          const editCommentAuthorBtn = document.createElement("button");
+          editCommentAuthorBtn.className = "edit-author-btn";
+          editCommentAuthorBtn.type = "button";
+          editCommentAuthorBtn.textContent = "✏️";
+          editCommentAuthorBtn.title = "댓글 작성자 이름 자체를 변경 (관리자 전용)";
+          editCommentAuthorBtn.addEventListener("click", async () => {
+            const currentAuthorName = (comment.uid && currentProfiles[comment.uid]) ? currentProfiles[comment.uid] : comment.author;
+            const newName = prompt(
+              `댓글 작성자 '${currentAuthorName}'님의 이름 자체를 무엇으로 변경할까요?\n(해당 사용자의 프로필 및 모든 글/댓글에 적용됩니다)`,
+              currentAuthorName
+            );
+            if (newName === null) return;
+            const trimmed = newName.trim();
+            if (!trimmed) {
+              alert("이름을 입력해주세요.");
+              return;
+            }
+            try {
+              if (comment.uid) {
+                await setUserDisplayName(comment.uid, trimmed);
+              } else {
+                await updateCommentAuthor(entry.id, comment.id, trimmed);
+              }
+              alert(`'${currentAuthorName}'님의 이름이 '${trimmed}'(으)로 변경되었습니다!`);
+            } catch (err) {
+              console.error(err);
+              showError("댓글 작성자 이름 변경에 실패했습니다: " + err.message);
+            }
+          });
+          commentAuthorWrapper.appendChild(editCommentAuthorBtn);
+        }
 
         const commentDate = document.createElement("span");
         commentDate.className = "comment-date";
