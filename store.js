@@ -48,6 +48,8 @@ const db = getFirestore(app);
 const entriesRef = collection(db, "entries");
 // 사용자 프로필(이름)이 쌓이는 곳의 이름
 const profilesRef = collection(db, "profiles");
+// 공지사항이 쌓이는 곳의 이름
+const noticesRef = collection(db, "notices");
 
 // 캐시된 프로필 목록 { uid: displayName }
 let cachedProfiles = {};
@@ -240,4 +242,79 @@ export async function updateCommentAuthor(entryId, commentId, newAuthor) {
     });
   }
 }
+
+// =========================================================
+// 공지사항 (Notices)
+// =========================================================
+
+// 공지사항 목록을 실시간으로 감시한다.
+export function subscribeNotices(onChange, onError) {
+  const q = query(noticesRef, orderBy("createdAt", "desc"));
+
+  return onSnapshot(
+    q,
+    async (snapshot) => {
+      // 공지가 하나도 없는 경우 기본 공지 자동 생성
+      if (snapshot.empty) {
+        try {
+          await addDoc(noticesRef, {
+            text: "만약 들어오신 분이 류진과 신동의가 아니라면,\n제발 비밀로 해주시고 조용히 나가주세요",
+            author: "다이어리",
+            uid: "system",
+            createdAt: Date.now(),
+          });
+          return; // 생성 후 다음 스냅샷에서 전달
+        } catch (e) {
+          console.warn("[store] 기본 공지 자동 생성 건너뜀 (비로그인 상태 등):", e.message);
+        }
+      }
+
+      const notices = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+      onChange(notices);
+    },
+    (error) => {
+      console.error("[store] 공지사항을 읽지 못했습니다:", error);
+      if (onError) onError(error);
+    }
+  );
+}
+
+// 새 공지사항을 추가한다.
+export async function addNotice(text) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("로그인이 필요합니다.");
+
+  const authorName = cachedProfiles[user.uid] || user.displayName || "이름 없음";
+
+  await addDoc(noticesRef, {
+    text: text,
+    author: authorName,
+    uid: user.uid,
+    createdAt: Date.now(),
+  });
+}
+
+// 공지사항을 수정한다.
+export async function updateNotice(id, text) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("로그인이 필요합니다.");
+
+  const noticeRef = doc(db, "notices", id);
+  await updateDoc(noticeRef, {
+    text: text,
+    updatedAt: Date.now(),
+  });
+}
+
+// 공지사항을 삭제한다.
+export async function removeNotice(id) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("로그인이 필요합니다.");
+
+  await deleteDoc(doc(db, "notices", id));
+}
+
 

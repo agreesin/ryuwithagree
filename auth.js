@@ -19,6 +19,7 @@ import {
 import { showError, hideError } from "./ui.js";
 import { updateProfileButtonsVisibility } from "./profile.js";
 import { render } from "./render.js";
+import { updateNoticeAuth } from "./notice.js";
 
 // 화면 요소
 const loginButton = document.getElementById("login-button");
@@ -64,6 +65,8 @@ export function initAuth() {
 
       // 관리자 권한에 따른 이름 변경 버튼 표시 갱신
       updateProfileButtonsVisibility(user);
+      // 공지사항 편집 권한 갱신 (로그인 사용자에게 편집 버튼 노출)
+      updateNoticeAuth(user);
 
       stopWatchingProfiles = subscribeProfiles((profiles) => {
         setCurrentProfiles(profiles);
@@ -89,6 +92,7 @@ export function initAuth() {
       if (loginArea) loginArea.hidden = false;
       if (appArea) appArea.hidden = true;
       if (listElement) listElement.innerHTML = "";
+      updateNoticeAuth(null);
       hideError();
     }
   });
