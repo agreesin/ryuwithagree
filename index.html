@@ -60,6 +60,42 @@
             rows="5"
             placeholder="오늘 있었던 일"
           ></textarea>
+
+          <!-- 그림 그리기 토글 버튼 -->
+          <button id="draw-toggle-btn" class="draw-toggle-btn" type="button">
+            🎨 그림 그리기
+          </button>
+
+          <!-- 접이식 그림판 영역 -->
+          <div id="drawing-container" class="drawing-container" hidden>
+            <div class="drawing-toolbar">
+              <div class="tool-group">
+                <button type="button" id="tool-pen" class="tool-btn active">✏️ 펜</button>
+                <button type="button" id="tool-eraser" class="tool-btn">🧹 지우개</button>
+              </div>
+              <div class="tool-group colors-group">
+                <input type="color" id="tool-color-picker" class="color-picker" value="#333333" title="색상 선택" />
+                <button type="button" class="color-chip active" data-color="#333333" style="background-color: #333333;"></button>
+                <button type="button" class="color-chip" data-color="#e66d7b" style="background-color: #e66d7b;"></button>
+                <button type="button" class="color-chip" data-color="#3b82f6" style="background-color: #3b82f6;"></button>
+                <button type="button" class="color-chip" data-color="#10b981" style="background-color: #10b981;"></button>
+                <button type="button" class="color-chip" data-color="#f59e0b" style="background-color: #f59e0b;"></button>
+              </div>
+              <div class="tool-group size-group">
+                <button type="button" class="size-btn" data-size="3" title="얇게">●</button>
+                <button type="button" class="size-btn active" data-size="8" title="보통">●</button>
+                <button type="button" class="size-btn" data-size="16" title="굵게">●</button>
+              </div>
+              <div class="tool-group action-group">
+                <button type="button" id="tool-undo" class="tool-btn action-btn" title="실행취소">↩ 취소</button>
+                <button type="button" id="tool-clear" class="tool-btn action-btn" title="전체 지우기">🗑️ 지우기</button>
+              </div>
+            </div>
+            <div class="canvas-wrapper">
+              <canvas id="drawing-canvas"></canvas>
+            </div>
+          </div>
+
           <button id="save-button" class="save-button" type="button">
             저장
           </button>
