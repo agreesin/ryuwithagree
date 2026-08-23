@@ -21,34 +21,7 @@
       <!-- 문제가 생기면 여기에 표시됨 -->
       <p id="error-banner" class="error-banner" hidden></p>
 
-      <!-- 상단 공지사항 영역 (로그인 전후 모두 노출) -->
-      <section id="notice-area" class="notice-area">
-        <div class="notice-header">
-          <div class="notice-title-wrap">
-            <span class="notice-icon">📢</span>
-            <span class="notice-title">공지사항</span>
-            <span id="notice-count" class="notice-count"></span>
-          </div>
-          <div class="notice-controls">
-            <button id="add-notice-btn" class="notice-btn" type="button" hidden>+ 공지 쓰기</button>
-            <button id="toggle-notices-btn" class="notice-toggle-btn" type="button" title="접기">▲</button>
-          </div>
-        </div>
-
-        <!-- 공지 작성/수정 폼 -->
-        <div id="notice-form-wrapper" class="notice-form-wrapper" hidden>
-          <textarea id="notice-input" class="notice-input" rows="3" placeholder="공지사항 내용을 입력하세요..."></textarea>
-          <div class="notice-form-actions">
-            <button id="notice-cancel-btn" class="notice-action-btn cancel" type="button">취소</button>
-            <button id="notice-submit-btn" class="notice-action-btn submit" type="button">등록</button>
-          </div>
-        </div>
-
-        <!-- 공지 목록 -->
-        <ul id="notice-list" class="notice-list"></ul>
-      </section>
-
-      <!-- 로그인 전에 보이는 곳 -->
+      <!-- 로그인 전에 보이는 곳 (외부인에게는 실명 및 공지 일체 비노출) -->
       <section id="login-area" class="login-area">
         <p class="login-message">허용된 사람만 볼 수 있는 일기장입니다.</p>
         <button id="login-button" class="login-button" type="button">
@@ -56,8 +29,35 @@
         </button>
       </section>
 
-      <!-- 로그인 후에 보이는 곳 -->
+      <!-- 로그인 후에 보이는 곳 (인증 후 다이어리 진입 시에만 노출) -->
       <div id="app-area" hidden>
+        <!-- 상단 공지사항 영역 -->
+        <section id="notice-area" class="notice-area">
+          <div class="notice-header">
+            <div class="notice-title-wrap">
+              <span class="notice-icon">📢</span>
+              <span class="notice-title">공지사항</span>
+              <span id="notice-count" class="notice-count"></span>
+            </div>
+            <div class="notice-controls">
+              <button id="add-notice-btn" class="notice-btn" type="button">+ 공지 쓰기</button>
+              <button id="toggle-notices-btn" class="notice-toggle-btn" type="button" title="접기">▲</button>
+            </div>
+          </div>
+
+          <!-- 공지 작성/수정 폼 -->
+          <div id="notice-form-wrapper" class="notice-form-wrapper" hidden>
+            <textarea id="notice-input" class="notice-input" rows="3" placeholder="공지사항 내용을 입력하세요..."></textarea>
+            <div class="notice-form-actions">
+              <button id="notice-cancel-btn" class="notice-action-btn cancel" type="button">취소</button>
+              <button id="notice-submit-btn" class="notice-action-btn submit" type="button">등록</button>
+            </div>
+          </div>
+
+          <!-- 공지 목록 -->
+          <ul id="notice-list" class="notice-list"></ul>
+        </section>
+
         <p class="who">
           <span class="who-info">
             쓰는 사람: <strong id="who-am-i"></strong>
