@@ -20,6 +20,7 @@ import { showError, hideError } from "./ui.js";
 import { updateProfileButtonsVisibility } from "./profile.js";
 import { render } from "./render.js";
 import { updateNoticeAuth } from "./notice.js";
+import { checkNewUpdates, requestNotificationPermission } from "./notify.js";
 
 // 화면 요소
 const loginButton = document.getElementById("login-button");
@@ -66,6 +67,9 @@ function grantAccess(user) {
   // 공지사항 편집 권한 갱신 (로그인 사용자에게 편집 버튼 노출)
   updateNoticeAuth(user);
 
+  // 알림 권한 자동 요청
+  requestNotificationPermission();
+
   if (!stopWatchingProfiles) {
     stopWatchingProfiles = subscribeProfiles((profiles) => {
       setCurrentProfiles(profiles);
@@ -77,7 +81,10 @@ function grantAccess(user) {
   }
 
   if (!stopWatchingEntries) {
-    stopWatchingEntries = subscribeEntries(render, () => {
+    stopWatchingEntries = subscribeEntries((entries) => {
+      render(entries);
+      checkNewUpdates(entries);
+    }, () => {
       showError("목록을 불러오지 못했습니다. 접근 권한을 확인하세요.");
     });
   }
