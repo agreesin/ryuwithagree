@@ -24,11 +24,24 @@ export function createEntryCard(entry) {
   const headerDiv = document.createElement("div");
   headerDiv.className = "entry-header";
 
+  const titleWrapper = document.createElement("div");
+  titleWrapper.className = "entry-title-wrapper";
+
   const entryTitle = document.createElement("h2");
   entryTitle.className = "entry-title";
   entryTitle.textContent = entry.title || "(제목 없음)";
+  titleWrapper.appendChild(entryTitle);
 
-  headerDiv.appendChild(entryTitle);
+  // 오늘의 기분 이모지가 있을 때 뱃지로 렌더링
+  if (entry.mood) {
+    const moodBadge = document.createElement("span");
+    moodBadge.className = "entry-mood-badge";
+    moodBadge.textContent = entry.mood;
+    moodBadge.title = `오늘의 기분: ${entry.mood}`;
+    titleWrapper.appendChild(moodBadge);
+  }
+
+  headerDiv.appendChild(titleWrapper);
 
   // 내가 쓴 글인지 확인 (uid 일치 또는 작성자 이름 일치)
   const isMyEntry = currentUser && (

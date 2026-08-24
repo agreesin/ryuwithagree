@@ -1,11 +1,11 @@
 // =========================================================
 // comments.js - 일기 댓글 및 대댓글(답글) 컴포넌트 모듈
-// 댓글/답글 목록 렌더링 및 등록 폼 배선을 담당합니다.
+// 댓글/답글 목록 렌더링, 인라인 답글 등록, 댓글 수정 및 삭제를 담당합니다.
 // ★ 목록 갱신은 Firestore onSnapshot이 담당하므로 수동 render 호출은 불필요하며 render.js를 import하지 않습니다.
 // =========================================================
 
-import { addComment } from "./store.js";
-import { getCurrentProfiles } from "./state.js";
+import { addComment, updateComment, removeComment } from "./store.js";
+import { getCurrentUser, getCurrentProfiles } from "./state.js";
 import { showError } from "./ui.js";
 
 /**
@@ -14,6 +14,7 @@ import { showError } from "./ui.js";
  * @returns {HTMLElement} 댓글 섹션 div 요소
  */
 export function createCommentsSection(entry) {
+  const currentUser = getCurrentUser();
   const currentProfiles = getCurrentProfiles();
 
   const commentsSection = document.createElement("div");
@@ -79,16 +80,63 @@ export function createCommentsSection(entry) {
       commentText.className = "comment-text";
       commentText.textContent = comment.text;
 
-      // 댓글 하단 액션 영역 (답글 버튼)
+      // 댓글 하단 액션 영역 (답글, 수정, 삭제)
       const commentActions = document.createElement("div");
       commentActions.className = "comment-actions";
 
+      // 내가 쓴 댓글인지 확인 (uid 일치 또는 작성자명 일치)
+      const isMyComment = currentUser && (
+        (comment.uid && comment.uid === currentUser.uid) ||
+        (comment.author && currentUser.displayName && comment.author === currentUser.displayName)
+      );
+
+      // 답글 달기 버튼
       const replyToggleBtn = document.createElement("button");
       replyToggleBtn.type = "button";
-      replyToggleBtn.className = "comment-reply-btn";
+      replyToggleBtn.className = "comment-action-btn reply";
       replyToggleBtn.textContent = "💬 답글";
-
       commentActions.appendChild(replyToggleBtn);
+
+      if (isMyComment) {
+        // 수정 버튼
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "comment-action-btn edit";
+        editBtn.textContent = "수정";
+        editBtn.addEventListener("click", async () => {
+          const newText = prompt("댓글 내용을 수정하세요:", comment.text);
+          if (newText === null) return;
+          const trimmed = newText.trim();
+          if (!trimmed) {
+            alert("댓글 내용을 입력해주세요.");
+            return;
+          }
+          try {
+            await updateComment(entry.id, comment.id, trimmed);
+          } catch (err) {
+            console.error(err);
+            showError("댓글 수정에 실패했습니다: " + err.message);
+          }
+        });
+        commentActions.appendChild(editBtn);
+
+        // 삭제 버튼
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "comment-action-btn delete";
+        deleteBtn.textContent = "삭제";
+        deleteBtn.addEventListener("click", async () => {
+          if (confirm("정말 이 댓글을 삭제하시겠습니까?")) {
+            try {
+              await removeComment(entry.id, comment.id);
+            } catch (err) {
+              console.error(err);
+              showError("댓글 삭제에 실패했습니다: " + err.message);
+            }
+          }
+        });
+        commentActions.appendChild(deleteBtn);
+      }
 
       // 인라인 답글 작성 폼
       const replyForm = document.createElement("form");
@@ -186,8 +234,59 @@ export function createCommentsSection(entry) {
           replyText.className = "comment-text";
           replyText.textContent = reply.text;
 
+          // 대댓글 액션 (수정, 삭제)
+          const replyActions = document.createElement("div");
+          replyActions.className = "comment-actions";
+
+          const isMyReply = currentUser && (
+            (reply.uid && reply.uid === currentUser.uid) ||
+            (reply.author && currentUser.displayName && reply.author === currentUser.displayName)
+          );
+
+          if (isMyReply) {
+            const replyEditBtn = document.createElement("button");
+            replyEditBtn.type = "button";
+            replyEditBtn.className = "comment-action-btn edit";
+            replyEditBtn.textContent = "수정";
+            replyEditBtn.addEventListener("click", async () => {
+              const newText = prompt("답글 내용을 수정하세요:", reply.text);
+              if (newText === null) return;
+              const trimmed = newText.trim();
+              if (!trimmed) {
+                alert("답글 내용을 입력해주세요.");
+                return;
+              }
+              try {
+                await updateComment(entry.id, reply.id, trimmed);
+              } catch (err) {
+                console.error(err);
+                showError("답글 수정에 실패했습니다: " + err.message);
+              }
+            });
+            replyActions.appendChild(replyEditBtn);
+
+            const replyDeleteBtn = document.createElement("button");
+            replyDeleteBtn.type = "button";
+            replyDeleteBtn.className = "comment-action-btn delete";
+            replyDeleteBtn.textContent = "삭제";
+            replyDeleteBtn.addEventListener("click", async () => {
+              if (confirm("정말 이 답글을 삭제하시겠습니까?")) {
+                try {
+                  await removeComment(entry.id, reply.id);
+                } catch (err) {
+                  console.error(err);
+                  showError("답글 삭제에 실패했습니다: " + err.message);
+                }
+              }
+            });
+            replyActions.appendChild(replyDeleteBtn);
+          }
+
           replyItem.appendChild(replyMeta);
           replyItem.appendChild(replyText);
+          if (isMyReply) {
+            replyItem.appendChild(replyActions);
+          }
           repliesList.appendChild(replyItem);
         }
 

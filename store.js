@@ -170,7 +170,7 @@ export function subscribeEntries(onChange, onError) {
 }
 
 // 일기 한 개를 저장한다. 작성자는 프로필 또는 로그인 정보에서 자동으로 붙는다.
-export async function addEntry({ title, body, image }) {
+export async function addEntry({ title, body, image, mood }) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
@@ -183,6 +183,11 @@ export async function addEntry({ title, body, image }) {
     uid: user.uid,
     createdAt: Date.now(),
   };
+
+  // 오늘의 기분이 선택되었을 때만 mood 필드 추가
+  if (mood) {
+    entryData.mood = mood;
+  }
 
   // 그림이 있을 때만 image 필드 추가 (null은 저장하지 않음)
   if (image) {
@@ -221,6 +226,45 @@ export async function addComment(entryId, text, parentId = null) {
   await updateDoc(entryRef, {
     comments: arrayUnion(comment),
   });
+}
+
+// 댓글(또는 답글) 내용을 수정한다.
+export async function updateComment(entryId, commentId, newText) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("로그인이 필요합니다.");
+
+  const entryRef = doc(db, "entries", entryId);
+  const snap = await getDoc(entryRef);
+  if (snap.exists()) {
+    const data = snap.data();
+    const updatedComments = (data.comments || []).map((c) => {
+      if (c.id === commentId) {
+        return { ...c, text: newText, updatedAt: Date.now() };
+      }
+      return c;
+    });
+    await updateDoc(entryRef, {
+      comments: updatedComments,
+    });
+  }
+}
+
+// 댓글(또는 답글)을 삭제한다. (부모 댓글 삭제 시 연결된 답글도 함께 삭제)
+export async function removeComment(entryId, commentId) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("로그인이 필요합니다.");
+
+  const entryRef = doc(db, "entries", entryId);
+  const snap = await getDoc(entryRef);
+  if (snap.exists()) {
+    const data = snap.data();
+    const updatedComments = (data.comments || []).filter(
+      (c) => c.id !== commentId && c.parentId !== commentId
+    );
+    await updateDoc(entryRef, {
+      comments: updatedComments,
+    });
+  }
 }
 
 // 일기 작성자 이름을 개별 변경한다.

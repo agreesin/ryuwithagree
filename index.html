@@ -99,11 +99,24 @@
 
         <!-- 글 쓰는 곳 -->
         <section class="editor">
+          <!-- 오늘의 기분 선택 바 -->
+          <div class="mood-selector-container">
+            <span class="mood-title">오늘의 기분:</span>
+            <div id="mood-options" class="mood-options">
+              <button type="button" class="mood-btn" data-mood="😁" title="기쁨/신남">😁</button>
+              <button type="button" class="mood-btn" data-mood="🥰" title="행복/사랑">🥰</button>
+              <button type="button" class="mood-btn" data-mood="😭" title="슬픔/눈물">😭</button>
+              <button type="button" class="mood-btn" data-mood="🤬" title="화남/분노">🤬</button>
+              <button type="button" class="mood-btn" data-mood="🫪" title="멘붕/멍함">🫪</button>
+              <button type="button" class="mood-btn" data-mood="😴" title="피곤/졸림">😴</button>
+            </div>
+          </div>
+
           <input
             id="title-input"
             class="title-input"
             type="text"
-            placeholder="제목"
+            placeholder="제목 (미입력 시 'M/D 오늘의 일기' 자동 입력)"
           />
           <textarea
             id="body-input"

@@ -1,6 +1,6 @@
 // =========================================================
 // entries.js - 일기 작성 및 그림판 연동 모듈
-// 일기 저장, 유효성 검사 및 그림판 툴바 이벤트 배선을 담당합니다.
+// 일기 저장, 유효성 검사, 오늘의 기분 선택 및 그림판 툴바 이벤트 배선을 담당합니다.
 // =========================================================
 
 import { addEntry } from "./store.js";
@@ -21,6 +21,7 @@ import { showError } from "./ui.js";
 const titleInput = document.getElementById("title-input");
 const bodyInput = document.getElementById("body-input");
 const saveButton = document.getElementById("save-button");
+const moodBtns = document.querySelectorAll(".mood-btn");
 
 // 그림판 화면 요소
 const drawToggleBtn = document.getElementById("draw-toggle-btn");
@@ -36,19 +37,28 @@ const sizeBtns = document.querySelectorAll(".size-btn");
 const toolUndoBtn = document.getElementById("tool-undo");
 const toolClearBtn = document.getElementById("tool-clear");
 
+// 내부 상태 (선택된 오늘의 기분)
+let selectedMood = null;
+
 /**
  * 일기 저장 핸들러
  */
 async function onSave() {
-  const title = titleInput.value.trim();
+  let title = titleInput.value.trim();
   const body = bodyInput.value.trim();
   const isDrawn = hasDrawing();
 
   // 제목, 본문, 그림이 전부 비어 있을 때만 저장을 차단
   if (title === "" && body === "" && !isDrawn) {
-    alert("제목, 본문, 또는 그림 중 하나 이상을 입력하세요.");
-    titleInput.focus();
+    alert("본문 또는 그림을 입력하세요.");
+    bodyInput.focus();
     return;
+  }
+
+  // 제목이 비어있으면 "M/D 오늘의 일기"로 자동 완성
+  if (!title) {
+    const now = new Date();
+    title = `${now.getMonth() + 1}/${now.getDate()} 오늘의 일기`;
   }
 
   saveButton.disabled = true;
@@ -59,11 +69,13 @@ async function onSave() {
       image = exportImage();
     }
 
-    await addEntry({ title, body, image });
+    await addEntry({ title, body, image, mood: selectedMood });
 
-    // 입력 필드 및 그림판 초기화
+    // 입력 필드, 기분 선택 및 그림판 초기화
     titleInput.value = "";
     bodyInput.value = "";
+    selectedMood = null;
+    moodBtns.forEach((btn) => btn.classList.remove("active"));
     resetCanvas();
     if (drawingContainer) {
       drawingContainer.hidden = true;
@@ -84,6 +96,22 @@ async function onSave() {
  * 에디터 및 그림판 이벤트 리스너를 초기화합니다.
  */
 export function initEditor() {
+  // 오늘의 기분 선택 버튼 이벤트 배선
+  moodBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const mood = btn.dataset.mood;
+      if (selectedMood === mood) {
+        // 이미 선택된 기분을 다시 누르면 선택 해제
+        selectedMood = null;
+        btn.classList.remove("active");
+      } else {
+        selectedMood = mood;
+        moodBtns.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+      }
+    });
+  });
+
   // 그림판 캔버스 초기화
   if (drawingCanvas) {
     initCanvas(drawingCanvas);
