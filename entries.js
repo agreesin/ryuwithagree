@@ -74,7 +74,7 @@ async function onSave() {
 
     // 상대방에게 백그라운드 웹 푸시 발송 시도
     sendPushToPartner({
-      title: "📖 다이어리 새 일기",
+      title: "📖 류이어리 새 일기",
       message: `새로운 일기가 도착했습니다: "${title}"`,
     });
 

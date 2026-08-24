@@ -174,7 +174,7 @@ export function createCommentsSection(entry) {
         try {
           await addComment(entry.id, text, comment.id);
           sendPushToPartner({
-            title: "💬 다이어리 새 답글",
+            title: "💬 류이어리 새 답글",
             message: `새 답글이 달렸습니다: "${text}"`,
           });
           replyInput.value = "";
@@ -316,7 +316,7 @@ export function createCommentsSection(entry) {
     try {
       await addComment(entry.id, text);
       sendPushToPartner({
-        title: "💬 다이어리 새 댓글",
+        title: "💬 류이어리 새 댓글",
         message: `새 댓글이 달렸습니다: "${text}"`,
       });
       commentInput.value = "";

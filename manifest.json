@@ -1,6 +1,6 @@
 {
-  "name": "다이어리",
-  "short_name": "다이어리",
+  "name": "류이어리",
+  "short_name": "류이어리",
   "description": "우리들의 실시간 교환 일기장",
   "start_url": "./",
   "display": "standalone",

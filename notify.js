@@ -19,7 +19,7 @@ const notifBellBtn = document.getElementById("notif-bell-btn");
 let isInitialEntriesLoad = true;
 let knownEntryIds = new Set();
 let knownCommentIds = new Set();
-let originalDocumentTitle = document.title || "다이어리";
+let originalDocumentTitle = document.title || "류이어리";
 let unreadCount = 0;
 let titleInterval = null;
 
@@ -279,7 +279,7 @@ export function checkNewUpdates(entries) {
         const message = `${authorName}님이 새 일기를 남겼습니다: "${titleText}"`;
 
         showToastNotification(message, "📖");
-        showSystemNotification("📖 다이어리 새 일기", message);
+        showSystemNotification("📖 류이어리 새 일기", message);
         startTitleBlink("새 일기 도착!");
       }
     }
@@ -302,7 +302,7 @@ export function checkNewUpdates(entries) {
           const message = `${authorName}님이 새 ${typeLabel}을 남겼습니다: "${comment.text}"`;
 
           showToastNotification(message, "💬");
-          showSystemNotification(`💬 다이어리 새 ${typeLabel}`, message);
+          showSystemNotification(`💬 류이어리 새 ${typeLabel}`, message);
           startTitleBlink(`새 ${typeLabel} 도착!`);
         }
       }

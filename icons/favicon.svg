@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bookGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff7b89" />
+      <stop offset="100%" stop-color="#e65768" />
+    </linearGradient>
+  </defs>
+  <!-- 다이어리 그림자 -->
+  <rect x="12" y="8" width="44" height="50" rx="6" fill="#f2c4cb" />
+  <!-- 다이어리 본체 -->
+  <rect x="10" y="6" width="44" height="50" rx="6" fill="url(#bookGrad)" />
+  <!-- 다이어리 책등 라인 -->
+  <rect x="10" y="6" width="8" height="50" rx="3" fill="#d44557" />
+  <line x1="18" y1="6" x2="18" y2="56" stroke="#c0384a" stroke-width="1.5" />
+  <!-- 속지 살짝 보임 -->
+  <rect x="52" y="9" width="3" height="44" rx="1" fill="#fff5f6" />
+  <!-- 다이어리 중앙 하트 장식 -->
+  <path d="M33 24 C30 19, 23 20, 23 26 C23 32, 33 38, 33 38 C33 38, 43 32, 43 26 C43 20, 36 19, 33 24 Z" fill="#ffffff" opacity="0.95" />
+  <!-- 다이어리 북마크 리본 -->
+  <path d="M22 6 L22 18 L25 15 L28 18 L28 6 Z" fill="#ffe3e8" />
+</svg>
