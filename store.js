@@ -258,7 +258,7 @@ export function subscribeNotices(onChange, onError) {
       if (snapshot.empty) {
         try {
           await addDoc(noticesRef, {
-            text: "만약 들어오신 분이 류진과 신동의가 아니라면,\n제발 비밀로 해주시고 조용히 나가주세요",
+            text: "만약 여기까지 들어왔더라도\n제발 비밀로 해주시고 조용히 나가주세요",
             author: "다이어리",
             uid: "system",
             createdAt: Date.now(),

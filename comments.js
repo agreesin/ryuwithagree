@@ -53,7 +53,7 @@ export function createCommentsSection(entry) {
       commentAuthor.textContent = commentAuthorDisplayName;
       commentAuthorWrapper.appendChild(commentAuthor);
 
-      // 관리자(ehd8109@gmail.com)에게만 댓글 작성자 이름 강제 변경 버튼 노출
+      // 관리자에게만 댓글 작성자 이름 강제 변경 버튼 노출
       if (isAdmin(currentUser)) {
         const editCommentAuthorBtn = document.createElement("button");
         editCommentAuthorBtn.className = "edit-author-btn";

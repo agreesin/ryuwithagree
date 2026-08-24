@@ -71,7 +71,7 @@ export function createEntryCard(entry) {
   entryAuthor.textContent = `작성자: ${authorDisplayName}`;
   authorWrapper.appendChild(entryAuthor);
 
-  // 관리자(ehd8109@gmail.com)에게만 작성자 이름 강제 변경 버튼 노출
+  // 관리자에게만 작성자 이름 강제 변경 버튼 노출
   if (isAdmin(currentUser)) {
     const editAuthorBtn = document.createElement("button");
     editAuthorBtn.className = "edit-author-btn";

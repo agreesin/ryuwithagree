@@ -1,6 +1,6 @@
 // =========================================================
 // notice.js - 상단 공지사항 모듈
-// 다중 공지 목록 렌더링, 류진 & 동의 공동 편집/추가/삭제를 담당합니다.
+// 다중 공지 목록 렌더링, 사용자 간 공동 편집/추가/삭제를 담당합니다.
 // =========================================================
 
 import {
@@ -30,7 +30,7 @@ let isFolded = false;
 
 /**
  * 로그인 상태에 따라 공지 작성 및 수정/삭제 권한 UI를 업데이트합니다.
- * (류진, 동의 등 로그인한 사용자 누구나 공지 편집 가능)
+ * (로그인한 사용자 누구나 공지 편집 가능)
  * @param {Object|null} user - Firebase User 객체
  */
 export function updateNoticeAuth(user) {
@@ -98,7 +98,7 @@ function renderNotices(notices) {
     metaDiv.appendChild(dateSpan);
     contentDiv.appendChild(metaDiv);
 
-    // 로그인한 사용자(류진, 동의)에게만 수정/삭제 버튼 제공
+    // 로그인한 사용자에게만 수정/삭제 버튼 제공
     const controlsDiv = document.createElement("div");
     controlsDiv.className = "notice-item-controls";
     controlsDiv.hidden = !isLoggedIn;

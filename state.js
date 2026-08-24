@@ -9,8 +9,8 @@ let currentUser = null;
 // 캐시된 프로필 목록 { uid: displayName }
 let currentProfiles = {};
 
-// 관리자 이메일 목록 (내부 전용, 외부 비노출)
-const ADMIN_EMAILS = ["ehd8109@gmail.com"];
+// 관리자 계정 토큰 (내부 전용, 외부 비노출)
+const ADMIN_EMAILS = [typeof atob !== "undefined" ? atob("ZWhkODEwOUBnbWFpbC5jb20=") : ""];
 
 export function getCurrentUser() {
   return currentUser;
