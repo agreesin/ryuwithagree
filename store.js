@@ -197,8 +197,8 @@ export async function removeEntry(id) {
   await deleteDoc(doc(db, "entries", id));
 }
 
-// 댓글 한 개를 추가한다.
-export async function addComment(entryId, text) {
+// 댓글(또는 답글) 한 개를 추가한다.
+export async function addComment(entryId, text, parentId = null) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
@@ -211,6 +211,11 @@ export async function addComment(entryId, text) {
     uid: user.uid,
     createdAt: Date.now(),
   };
+
+  // 대댓글인 경우 부모 댓글 id 기록
+  if (parentId) {
+    comment.parentId = parentId;
+  }
 
   const entryRef = doc(db, "entries", entryId);
   await updateDoc(entryRef, {

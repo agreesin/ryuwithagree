@@ -1,42 +1,49 @@
 // =========================================================
-// comments.js - 일기 댓글 컴포넌트 모듈
-// 댓글 목록 렌더링, 댓글 작성자 이름 변경, 댓글 작성 폼 배선을 담당합니다.
+// comments.js - 일기 댓글 및 대댓글(답글) 컴포넌트 모듈
+// 댓글/답글 목록 렌더링 및 등록 폼 배선을 담당합니다.
 // ★ 목록 갱신은 Firestore onSnapshot이 담당하므로 수동 render 호출은 불필요하며 render.js를 import하지 않습니다.
 // =========================================================
 
-import {
-  addComment,
-  updateCommentAuthor,
-  setUserDisplayName,
-} from "./store.js";
-import { getCurrentUser, getCurrentProfiles, isAdmin } from "./state.js";
+import { addComment } from "./store.js";
+import { getCurrentProfiles } from "./state.js";
 import { showError } from "./ui.js";
 
 /**
- * 개별 일기 카드의 댓글 영역 DOM 요소를 생성하여 반환합니다.
+ * 개별 일기 카드의 댓글/답글 영역 DOM 요소를 생성하여 반환합니다.
  * @param {Object} entry - 일기 문서 객체
  * @returns {HTMLElement} 댓글 섹션 div 요소
  */
 export function createCommentsSection(entry) {
-  const currentUser = getCurrentUser();
   const currentProfiles = getCurrentProfiles();
 
   const commentsSection = document.createElement("div");
   commentsSection.className = "comments-section";
 
-  const comments = entry.comments || [];
+  const allComments = entry.comments || [];
 
   const commentsHeader = document.createElement("div");
   commentsHeader.className = "comments-header";
-  commentsHeader.textContent = `댓글 ${comments.length > 0 ? `(${comments.length})` : ""}`;
+  commentsHeader.textContent = `댓글 ${allComments.length > 0 ? `(${allComments.length})` : ""}`;
   commentsSection.appendChild(commentsHeader);
 
-  // 댓글 목록
-  if (comments.length > 0) {
+  // 부모 댓글(루트 댓글)과 대댓글(답글) 분류
+  const rootComments = allComments.filter((c) => !c.parentId);
+  const repliesByParent = {};
+  allComments
+    .filter((c) => c.parentId)
+    .forEach((c) => {
+      if (!repliesByParent[c.parentId]) {
+        repliesByParent[c.parentId] = [];
+      }
+      repliesByParent[c.parentId].push(c);
+    });
+
+  // 댓글 목록 렌더링
+  if (rootComments.length > 0) {
     const commentsList = document.createElement("ul");
     commentsList.className = "comments-list";
 
-    for (const comment of comments) {
+    for (const comment of rootComments) {
       const commentItem = document.createElement("li");
       commentItem.className = "comment-item";
 
@@ -52,40 +59,6 @@ export function createCommentsSection(entry) {
       commentAuthor.className = "comment-author";
       commentAuthor.textContent = commentAuthorDisplayName;
       commentAuthorWrapper.appendChild(commentAuthor);
-
-      // 관리자에게만 댓글 작성자 이름 강제 변경 버튼 노출
-      if (isAdmin(currentUser)) {
-        const editCommentAuthorBtn = document.createElement("button");
-        editCommentAuthorBtn.className = "edit-author-btn";
-        editCommentAuthorBtn.type = "button";
-        editCommentAuthorBtn.textContent = "✏️";
-        editCommentAuthorBtn.title = "댓글 작성자 이름 자체를 변경 (관리자 전용)";
-        editCommentAuthorBtn.addEventListener("click", async () => {
-          const currentAuthorName = (comment.uid && currentProfiles[comment.uid]) ? currentProfiles[comment.uid] : comment.author;
-          const newName = prompt(
-            `댓글 작성자 '${currentAuthorName}'님의 이름 자체를 무엇으로 변경할까요?\n(해당 사용자의 프로필 및 모든 글/댓글에 적용됩니다)`,
-            currentAuthorName
-          );
-          if (newName === null) return;
-          const trimmed = newName.trim();
-          if (!trimmed) {
-            alert("이름을 입력해주세요.");
-            return;
-          }
-          try {
-            if (comment.uid) {
-              await setUserDisplayName(comment.uid, trimmed);
-            } else {
-              await updateCommentAuthor(entry.id, comment.id, trimmed);
-            }
-            alert(`'${currentAuthorName}'님의 이름이 '${trimmed}'(으)로 변경되었습니다!`);
-          } catch (err) {
-            console.error(err);
-            showError("댓글 작성자 이름 변경에 실패했습니다: " + err.message);
-          }
-        });
-        commentAuthorWrapper.appendChild(editCommentAuthorBtn);
-      }
 
       const commentDate = document.createElement("span");
       commentDate.className = "comment-date";
@@ -106,15 +79,128 @@ export function createCommentsSection(entry) {
       commentText.className = "comment-text";
       commentText.textContent = comment.text;
 
+      // 댓글 하단 액션 영역 (답글 버튼)
+      const commentActions = document.createElement("div");
+      commentActions.className = "comment-actions";
+
+      const replyToggleBtn = document.createElement("button");
+      replyToggleBtn.type = "button";
+      replyToggleBtn.className = "comment-reply-btn";
+      replyToggleBtn.textContent = "💬 답글";
+
+      commentActions.appendChild(replyToggleBtn);
+
+      // 인라인 답글 작성 폼
+      const replyForm = document.createElement("form");
+      replyForm.className = "reply-form";
+      replyForm.hidden = true;
+
+      const replyInput = document.createElement("input");
+      replyInput.className = "reply-input";
+      replyInput.type = "text";
+      replyInput.placeholder = `${commentAuthorDisplayName}님에게 답글 작성...`;
+      replyInput.required = true;
+
+      const replySubmitBtn = document.createElement("button");
+      replySubmitBtn.className = "reply-submit-btn";
+      replySubmitBtn.type = "submit";
+      replySubmitBtn.textContent = "등록";
+
+      replyForm.appendChild(replyInput);
+      replyForm.appendChild(replySubmitBtn);
+
+      replyToggleBtn.addEventListener("click", () => {
+        replyForm.hidden = !replyForm.hidden;
+        if (!replyForm.hidden) {
+          replyInput.focus();
+        }
+      });
+
+      replyForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const text = replyInput.value.trim();
+        if (!text) return;
+
+        replySubmitBtn.disabled = true;
+        try {
+          await addComment(entry.id, text, comment.id);
+          replyInput.value = "";
+          replyForm.hidden = true;
+        } catch (error) {
+          console.error(error);
+          showError("답글을 저장하지 못했습니다. 연결을 확인하세요.");
+        } finally {
+          replySubmitBtn.disabled = false;
+        }
+      });
+
       commentItem.appendChild(commentMeta);
       commentItem.appendChild(commentText);
+      commentItem.appendChild(commentActions);
+      commentItem.appendChild(replyForm);
+
+      // 해당 댓글에 달린 대댓글 목록 렌더링
+      const replies = repliesByParent[comment.id] || [];
+      if (replies.length > 0) {
+        const repliesList = document.createElement("ul");
+        repliesList.className = "comment-replies-list";
+
+        for (const reply of replies) {
+          const replyItem = document.createElement("li");
+          replyItem.className = "comment-reply-item";
+
+          const replyMeta = document.createElement("div");
+          replyMeta.className = "comment-meta";
+
+          const replyAuthorWrapper = document.createElement("span");
+          replyAuthorWrapper.className = "comment-author-wrapper";
+
+          const replyPrefix = document.createElement("span");
+          replyPrefix.className = "comment-reply-prefix";
+          replyPrefix.textContent = "↳ ";
+          replyAuthorWrapper.appendChild(replyPrefix);
+
+          const replyAuthorDisplayName = (reply.uid && currentProfiles[reply.uid]) ? currentProfiles[reply.uid] : reply.author;
+
+          const replyAuthor = document.createElement("span");
+          replyAuthor.className = "comment-author";
+          replyAuthor.textContent = replyAuthorDisplayName;
+          replyAuthorWrapper.appendChild(replyAuthor);
+
+          const replyDate = document.createElement("span");
+          replyDate.className = "comment-date";
+          if (reply.createdAt) {
+            const rd = new Date(reply.createdAt);
+            replyDate.textContent = rd.toLocaleString("ko-KR", {
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+          }
+
+          replyMeta.appendChild(replyAuthorWrapper);
+          replyMeta.appendChild(replyDate);
+
+          const replyText = document.createElement("p");
+          replyText.className = "comment-text";
+          replyText.textContent = reply.text;
+
+          replyItem.appendChild(replyMeta);
+          replyItem.appendChild(replyText);
+          repliesList.appendChild(replyItem);
+        }
+
+        commentItem.appendChild(repliesList);
+      }
+
       commentsList.appendChild(commentItem);
     }
 
     commentsSection.appendChild(commentsList);
   }
 
-  // 댓글 작성 폼
+  // 기본 댓글 작성 폼
   const commentForm = document.createElement("form");
   commentForm.className = "comment-form";
   commentForm.addEventListener("submit", async (e) => {

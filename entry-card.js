@@ -1,15 +1,11 @@
 // =========================================================
 // entry-card.js - 일기 카드 단일 컴포넌트 모듈
-// 개별 일기 카드의 헤더, 삭제 버튼, 작성자 변경, 본문, 그림 및 댓글을 조립합니다.
+// 개별 일기 카드의 헤더, 삭제 버튼, 본문, 그림 및 댓글을 조립합니다.
 // ★ 목록 갱신은 Firestore onSnapshot이 담당하므로 수동 render 호출은 불필요하며 render.js를 import하지 않습니다.
 // =========================================================
 
-import {
-  removeEntry,
-  updateEntryAuthor,
-  setUserDisplayName,
-} from "./store.js";
-import { getCurrentUser, getCurrentProfiles, isAdmin } from "./state.js";
+import { removeEntry } from "./store.js";
+import { getCurrentUser, getCurrentProfiles } from "./state.js";
 import { showError } from "./ui.js";
 import { createCommentsSection } from "./comments.js";
 
@@ -70,40 +66,6 @@ export function createEntryCard(entry) {
   entryAuthor.className = "entry-author";
   entryAuthor.textContent = `작성자: ${authorDisplayName}`;
   authorWrapper.appendChild(entryAuthor);
-
-  // 관리자에게만 작성자 이름 강제 변경 버튼 노출
-  if (isAdmin(currentUser)) {
-    const editAuthorBtn = document.createElement("button");
-    editAuthorBtn.className = "edit-author-btn";
-    editAuthorBtn.type = "button";
-    editAuthorBtn.textContent = "✏️";
-    editAuthorBtn.title = "작성자 이름 자체를 변경 (관리자 전용)";
-    editAuthorBtn.addEventListener("click", async () => {
-      const currentAuthorName = (entry.uid && currentProfiles[entry.uid]) ? currentProfiles[entry.uid] : entry.author;
-      const newName = prompt(
-        `'${currentAuthorName}'님의 이름 자체를 무엇으로 변경할까요?\n(해당 사용자의 프로필, 모든 글과 앞으로 작성할 글의 이름이 변경됩니다)`,
-        currentAuthorName
-      );
-      if (newName === null) return;
-      const trimmed = newName.trim();
-      if (!trimmed) {
-        alert("이름을 입력해주세요.");
-        return;
-      }
-      try {
-        if (entry.uid) {
-          await setUserDisplayName(entry.uid, trimmed);
-        } else {
-          await updateEntryAuthor(entry.id, trimmed);
-        }
-        alert(`'${currentAuthorName}'님의 이름이 '${trimmed}'(으)로 변경되었습니다!`);
-      } catch (err) {
-        console.error(err);
-        showError("작성자 이름을 변경하지 못했습니다: " + err.message);
-      }
-    });
-    authorWrapper.appendChild(editAuthorBtn);
-  }
 
   // 작성 날짜 보여주기
   const entryDate = document.createElement("span");
