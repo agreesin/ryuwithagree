@@ -7,6 +7,7 @@
 import { addComment, updateComment, removeComment } from "./store.js";
 import { getCurrentUser, getCurrentProfiles } from "./state.js";
 import { showError } from "./ui.js";
+import { sendPushToPartner } from "./notify.js";
 
 /**
  * 개별 일기 카드의 댓글/답글 영역 DOM 요소를 생성하여 반환합니다.
@@ -172,6 +173,10 @@ export function createCommentsSection(entry) {
         replySubmitBtn.disabled = true;
         try {
           await addComment(entry.id, text, comment.id);
+          sendPushToPartner({
+            title: "💬 다이어리 새 답글",
+            message: `새 답글이 달렸습니다: "${text}"`,
+          });
           replyInput.value = "";
           replyForm.hidden = true;
         } catch (error) {
@@ -310,6 +315,10 @@ export function createCommentsSection(entry) {
     commentSubmitBtn.disabled = true;
     try {
       await addComment(entry.id, text);
+      sendPushToPartner({
+        title: "💬 다이어리 새 댓글",
+        message: `새 댓글이 달렸습니다: "${text}"`,
+      });
       commentInput.value = "";
     } catch (error) {
       console.error(error);

@@ -20,7 +20,11 @@ import { showError, hideError } from "./ui.js";
 import { updateProfileButtonsVisibility } from "./profile.js";
 import { render } from "./render.js";
 import { updateNoticeAuth } from "./notice.js";
-import { checkNewUpdates, requestNotificationPermission } from "./notify.js";
+import {
+  checkNewUpdates,
+  requestNotificationPermission,
+  syncUserWithOneSignal,
+} from "./notify.js";
 
 // 화면 요소
 const loginButton = document.getElementById("login-button");
@@ -67,8 +71,9 @@ function grantAccess(user) {
   // 공지사항 편집 권한 갱신 (로그인 사용자에게 편집 버튼 노출)
   updateNoticeAuth(user);
 
-  // 알림 권한 자동 요청
+  // 알림 권한 자동 요청 및 OneSignal 기기 연결
   requestNotificationPermission();
+  syncUserWithOneSignal(user);
 
   if (!stopWatchingProfiles) {
     stopWatchingProfiles = subscribeProfiles((profiles) => {

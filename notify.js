@@ -1,16 +1,21 @@
 // =========================================================
-// notify.js - 실시간 알림 모듈
-// 브라우저 시스템 알림(Web Notification), 앱 내 토스트 팝업 및
-// 상대방의 신규 일기/댓글 감지를 담당합니다.
+// notify.js - 실시간 알림 및 PWA/OneSignal 웹 푸시 모듈
+// 브라우저 시스템 알림, 앱 내 토스트 팝업, 탭 제목 깜빡임 및
+// 아이폰/스마트폰 백그라운드 웹 푸시(PWA + OneSignal)를 담당합니다.
 // =========================================================
 
 import { getCurrentUser, getCurrentProfiles } from "./state.js";
+
+// OneSignal 설정 상수 (추후 발급받은 키를 여기에 넣거나 기본 동작)
+const ONESIGNAL_APP_ID = "33682be7-5d07-4228-b807-79aa2fbe4e59";
+// REST API Key (선택 사항: 클라이언트 발송용)
+const ONESIGNAL_REST_API_KEY = "";
 
 // 화면 요소
 const toastContainer = document.getElementById("toast-container");
 const notifBellBtn = document.getElementById("notif-bell-btn");
 
-// 내부 상태 (초기 로딩 여부 및 ID 캐시)
+// 내부 상태
 let isInitialEntriesLoad = true;
 let knownEntryIds = new Set();
 let knownCommentIds = new Set();
@@ -19,11 +24,67 @@ let unreadCount = 0;
 let titleInterval = null;
 
 /**
- * 브라우저 알림 권한을 요청합니다.
+ * OneSignal SDK를 초기화합니다.
+ */
+function initOneSignal() {
+  if (typeof window === "undefined") return;
+
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  window.OneSignalDeferred.push(async function (OneSignal) {
+    try {
+      await OneSignal.init({
+        appId: ONESIGNAL_APP_ID || "33682be7-5d07-4228-b807-79aa2fbe4e59",
+        allowLocalhostAsSecureOrigin: true,
+        notifyButton: {
+          enable: false, // 우리 커스텀 벨 버튼 사용
+        },
+      });
+
+      // OneSignal 구독 상태 변화 리스너
+      OneSignal.User.PushSubscription.addEventListener("change", (event) => {
+        const isOptedIn = event.current.optedIn;
+        updateBellIcon(isOptedIn ? "granted" : "default");
+      });
+    } catch (err) {
+      console.warn("[notify] OneSignal 초기화 경고:", err);
+    }
+  });
+}
+
+/**
+ * 로그인한 사용자의 UID를 OneSignal에 등록하여 기기와 연결합니다.
+ * @param {Object} user - Firebase User 객체
+ */
+export function syncUserWithOneSignal(user) {
+  if (!user || !window.OneSignalDeferred) return;
+
+  window.OneSignalDeferred.push(async function (OneSignal) {
+    try {
+      await OneSignal.login(user.uid);
+      console.log("[notify] OneSignal 사용자 연결 완료:", user.uid);
+    } catch (err) {
+      console.warn("[notify] OneSignal 로그인 실패:", err);
+    }
+  });
+}
+
+/**
+ * 브라우저 및 OneSignal 알림 권한을 요청합니다.
  */
 export async function requestNotificationPermission() {
+  // 1. OneSignal 알림 요청 (PWA / 모바일 웹 푸시)
+  if (window.OneSignalDeferred) {
+    window.OneSignalDeferred.push(async function (OneSignal) {
+      try {
+        await OneSignal.Slidedown.promptPush();
+      } catch (e) {
+        console.log("[notify] OneSignal prompt:", e);
+      }
+    });
+  }
+
+  // 2. 표준 Web Notification 권한 요청
   if (!("Notification" in window)) {
-    console.log("[notify] 이 브라우저는 알림을 지원하지 않습니다.");
     return false;
   }
 
@@ -109,8 +170,8 @@ function showSystemNotification(title, body) {
   try {
     const notification = new Notification(title, {
       body: body,
-      icon: "https://cdn-icons-png.flaticon.com/512/3208/3208676.png",
-      badge: "https://cdn-icons-png.flaticon.com/512/3208/3208676.png",
+      icon: "icons/icon-192.png",
+      badge: "icons/icon-192.png",
       tag: "diary-update",
     });
 
@@ -120,6 +181,39 @@ function showSystemNotification(title, body) {
     };
   } catch (err) {
     console.warn("[notify] 시스템 알림 발생 실패:", err);
+  }
+}
+
+/**
+ * 상대방의 스마트폰/아이폰으로 백그라운드 웹 푸시 알림을 전송합니다.
+ * (OneSignal REST API 연동)
+ */
+export async function sendPushToPartner({ title, message }) {
+  if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
+    // API 키 미설정 시 브라우저 내 실시간 동기화 알림으로 대체
+    return;
+  }
+
+  try {
+    const url = window.location.origin + window.location.pathname;
+    await fetch("https://api.onesignal.com/notifications", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${ONESIGNAL_REST_API_KEY}`,
+      },
+      body: JSON.stringify({
+        app_id: ONESIGNAL_APP_ID,
+        included_segments: ["Total Subscriptions"],
+        headings: { en: title, ko: title },
+        contents: { en: message, ko: message },
+        url: url,
+        web_url: url,
+      }),
+    });
+    console.log("[notify] OneSignal 백그라운드 푸시 발송 성공");
+  } catch (err) {
+    console.warn("[notify] OneSignal 푸시 발송 실패:", err);
   }
 }
 
@@ -220,6 +314,9 @@ export function checkNewUpdates(entries) {
  * 알림 모듈을 초기화하고 이벤트 리스너를 바인딩합니다.
  */
 export function initNotify() {
+  // OneSignal SDK 초기화
+  initOneSignal();
+
   // 알림 종 버튼 클릭 시 권한 요청
   if (notifBellBtn) {
     if ("Notification" in window) {
