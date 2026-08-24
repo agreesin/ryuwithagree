@@ -27,7 +27,8 @@ const logoutButton = document.getElementById("logout-button");
 const loginArea = document.getElementById("login-area");
 const appArea = document.getElementById("app-area");
 const whoAmI = document.getElementById("who-am-i");
-const listElement = document.getElementById("entry-list");
+const othersList = document.getElementById("others-entry-list");
+const myList = document.getElementById("my-entry-list");
 
 // 암호 모달 화면 요소
 const passcodeModal = document.getElementById("passcode-modal");
@@ -190,7 +191,8 @@ export function initAuth() {
       }
       if (loginArea) loginArea.hidden = false;
       if (appArea) appArea.hidden = true;
-      if (listElement) listElement.innerHTML = "";
+      if (othersList) othersList.innerHTML = "";
+      if (myList) myList.innerHTML = "";
       updateNoticeAuth(null);
       hideError();
     }

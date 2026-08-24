@@ -152,10 +152,36 @@
           </button>
         </section>
 
-        <!-- 쓴 글이 쌓이는 곳 -->
+        <!-- 쓴 글이 쌓이는 곳 (좌우 2분할) -->
         <section class="entries">
-          <p id="empty-message" class="empty-message">아직 쓴 글이 없습니다.</p>
-          <ul id="entry-list" class="entry-list"></ul>
+          <p id="empty-message" class="empty-message" hidden>아직 쓴 글이 없습니다.</p>
+          <div class="entries-split-container">
+            <!-- 왼쪽: 상대의 일기 -->
+            <div class="entries-column others-column">
+              <div class="column-header">
+                <div class="column-title-wrap">
+                  <span class="column-icon">📝</span>
+                  <span class="column-title">상대의 일기</span>
+                </div>
+                <span id="others-count" class="column-count">0</span>
+              </div>
+              <p id="others-empty" class="column-empty" hidden>아직 상대가 쓴 일기가 없습니다.</p>
+              <ul id="others-entry-list" class="entry-list"></ul>
+            </div>
+
+            <!-- 오른쪽: 내가 쓴 일기 -->
+            <div class="entries-column my-column">
+              <div class="column-header">
+                <div class="column-title-wrap">
+                  <span class="column-icon">📝</span>
+                  <span class="column-title">내가 쓴 일기</span>
+                </div>
+                <span id="my-count" class="column-count">0</span>
+              </div>
+              <p id="my-empty" class="column-empty" hidden>아직 내가 쓴 일기가 없습니다.</p>
+              <ul id="my-entry-list" class="entry-list"></ul>
+            </div>
+          </div>
         </section>
       </div>
     </main>

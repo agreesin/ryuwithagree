@@ -46,7 +46,7 @@ body {
 }
 
 .main {
-  max-width: 600px;
+  max-width: 1180px;
   margin: 0 auto;
 }
 
@@ -602,6 +602,88 @@ body {
   text-align: center;
   color: var(--text-muted);
   padding: 32px 0;
+}
+
+/* =========================================================
+   다이어리 좌우 2분할 레이아웃
+   ========================================================= */
+
+.entries-split-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.entries-column {
+  background: #fffbfc;
+  border: 1.5px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 220px;
+  box-shadow: 0 4px 18px rgba(230, 109, 123, 0.06);
+}
+
+.others-column,
+.my-column {
+  border-color: #f7bec8;
+  background: #fff8f9;
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.column-title-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.column-icon {
+  font-size: 1.2rem;
+}
+
+.column-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.column-count {
+  background: var(--primary-color);
+  color: white;
+  border: 1px solid var(--primary-color);
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(230, 109, 123, 0.25);
+}
+
+.column-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 36px 16px;
+  font-size: 0.92rem;
+  margin: 0;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 10px;
+  border: 1.5px dashed var(--border-color);
+}
+
+@media (max-width: 768px) {
+  .entries-split-container {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
 }
 
 .entry-list {
