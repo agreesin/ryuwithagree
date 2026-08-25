@@ -8,14 +8,15 @@ import { getCurrentUser, getCurrentProfiles } from "./state.js";
 
 // OneSignal 설정 상수
 const ONESIGNAL_APP_ID = "5405c7d7-4164-4bc8-af32-7863626eaa06";
-// 안전한 Cloudflare Worker 푸시 중계 엔드포인트 (REST API Key는 Worker 내부에 안전하게 보관됨)
-const PUSH_PROXY_URL = "https://ryuwithagree.ehd8109.workers.dev";
+// 안전한 Cloudflare Pages Functions 푸시 중계 엔드포인트
+const PUSH_PROXY_URL = "https://ryuwithagree.ehd8109.workers.dev/notify";
 
 // 화면 요소
 const toastContainer = document.getElementById("toast-container");
 const notifBellBtn = document.getElementById("notif-bell-btn");
 
 // 내부 상태
+const appStartTime = Date.now();
 let isInitialEntriesLoad = true;
 let knownEntryIds = new Set();
 let knownCommentIds = new Set();
@@ -272,13 +273,14 @@ export function checkNewUpdates(entries) {
     if (!knownEntryIds.has(entry.id)) {
       knownEntryIds.add(entry.id);
 
-      // 내가 쓴 글이 아닌 경우에만 알림
+      // 내가 쓴 글이 아니고, 앱 실행 이후에 등록된 새 글일 때만 알림
       const isMyEntry = currentUser && (
         (entry.uid && entry.uid === currentUser.uid) ||
         (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
       );
 
-      if (!isMyEntry) {
+      const isRecent = entry.createdAt && entry.createdAt >= appStartTime - 3000;
+      if (!isMyEntry && isRecent) {
         const message = "당신의 반쪽이 새 일기를 남겼습니다.";
 
         showToastNotification(message, "📖");
@@ -298,7 +300,8 @@ export function checkNewUpdates(entries) {
           (comment.author && currentUser.displayName && comment.author === currentUser.displayName)
         );
 
-        if (!isMyComment) {
+        const isRecent = comment.createdAt && comment.createdAt >= appStartTime - 3000;
+        if (!isMyComment && isRecent) {
           const isReply = Boolean(comment.parentId);
           const typeLabel = isReply ? "답글" : "댓글";
           const message = `당신의 반쪽이 새 ${typeLabel}을 남겼습니다.`;
