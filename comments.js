@@ -175,7 +175,7 @@ export function createCommentsSection(entry) {
           await addComment(entry.id, text, comment.id);
           sendPushToPartner({
             title: "💬 류이어리 새 답글",
-            message: `새 답글이 달렸습니다: "${text}"`,
+            message: `당신의 반쪽이 새 답글을 남겼습니다: "${text}"`,
           });
           replyInput.value = "";
           replyForm.hidden = true;
@@ -317,7 +317,7 @@ export function createCommentsSection(entry) {
       await addComment(entry.id, text);
       sendPushToPartner({
         title: "💬 류이어리 새 댓글",
-        message: `새 댓글이 달렸습니다: "${text}"`,
+        message: `당신의 반쪽이 새 댓글을 남겼습니다: "${text}"`,
       });
       commentInput.value = "";
     } catch (error) {

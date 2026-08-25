@@ -8,8 +8,8 @@ import { getCurrentUser, getCurrentProfiles } from "./state.js";
 
 // OneSignal 설정 상수 (추후 발급받은 키를 여기에 넣거나 기본 동작)
 const ONESIGNAL_APP_ID = "33682be7-5d07-4228-b807-79aa2fbe4e59";
-// REST API Key (선택 사항: 클라이언트 발송용)
-const ONESIGNAL_REST_API_KEY = "";
+// REST API Key
+const ONESIGNAL_REST_API_KEY = "ituqhqaspe6uedxqrbe7r7tjz";
 
 // 화면 요소
 const toastContainer = document.getElementById("toast-container");
@@ -196,7 +196,7 @@ export async function sendPushToPartner({ title, message }) {
 
   try {
     const url = window.location.origin + window.location.pathname;
-    await fetch("https://api.onesignal.com/notifications", {
+    const res = await fetch("https://api.onesignal.com/notifications", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -211,9 +211,15 @@ export async function sendPushToPartner({ title, message }) {
         web_url: url,
       }),
     });
-    console.log("[notify] OneSignal 백그라운드 푸시 발송 성공");
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn("[notify] OneSignal 푸시 발송 실패 응답:", res.status, errText);
+    } else {
+      console.log("[notify] OneSignal 백그라운드 푸시 발송 완료");
+    }
   } catch (err) {
-    console.warn("[notify] OneSignal 푸시 발송 실패:", err);
+    console.warn("[notify] OneSignal 푸시 발송 네트워크 오류:", err);
   }
 }
 
@@ -274,9 +280,8 @@ export function checkNewUpdates(entries) {
       );
 
       if (!isMyEntry) {
-        const authorName = (entry.uid && currentProfiles[entry.uid]) ? currentProfiles[entry.uid] : (entry.author || "상대방");
         const titleText = entry.title || "새로운 일기";
-        const message = `${authorName}님이 새 일기를 남겼습니다: "${titleText}"`;
+        const message = `당신의 반쪽이 새 일기를 남겼습니다: "${titleText}"`;
 
         showToastNotification(message, "📖");
         showSystemNotification("📖 류이어리 새 일기", message);
@@ -296,10 +301,9 @@ export function checkNewUpdates(entries) {
         );
 
         if (!isMyComment) {
-          const authorName = (comment.uid && currentProfiles[comment.uid]) ? currentProfiles[comment.uid] : (comment.author || "상대방");
           const isReply = Boolean(comment.parentId);
           const typeLabel = isReply ? "답글" : "댓글";
-          const message = `${authorName}님이 새 ${typeLabel}을 남겼습니다: "${comment.text}"`;
+          const message = `당신의 반쪽이 새 ${typeLabel}을 남겼습니다: "${comment.text}"`;
 
           showToastNotification(message, "💬");
           showSystemNotification(`💬 류이어리 새 ${typeLabel}`, message);

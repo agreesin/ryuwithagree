@@ -9,8 +9,9 @@ import {
   updateNotice,
   removeNotice,
 } from "./store.js";
-import { getCurrentUser } from "./state.js";
+import { getCurrentUser, getCurrentProfiles } from "./state.js";
 import { showError } from "./ui.js";
+import { sendPushToPartner } from "./notify.js";
 
 // 화면 요소
 const noticeArea = document.getElementById("notice-area");
@@ -210,6 +211,10 @@ export function initNotices() {
           await updateNotice(editingNoticeId, text);
         } else {
           await addNotice(text);
+          sendPushToPartner({
+            title: "📢 류이어리 새 공지",
+            message: `당신의 반쪽이 새 공지를 남겼습니다: "${text}"`,
+          });
         }
 
         noticeFormWrapper.hidden = true;

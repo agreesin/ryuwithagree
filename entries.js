@@ -17,6 +17,7 @@ import {
 } from "./draw.js";
 import { showError } from "./ui.js";
 import { sendPushToPartner } from "./notify.js";
+import { getCurrentUser, getCurrentProfiles } from "./state.js";
 
 // 입력 요소
 const titleInput = document.getElementById("title-input");
@@ -75,7 +76,7 @@ async function onSave() {
     // 상대방에게 백그라운드 웹 푸시 발송 시도
     sendPushToPartner({
       title: "📖 류이어리 새 일기",
-      message: `새로운 일기가 도착했습니다: "${title}"`,
+      message: `당신의 반쪽이 새 일기를 남겼습니다: "${title}"`,
     });
 
     // 입력 필드, 기분 선택 및 그림판 초기화
