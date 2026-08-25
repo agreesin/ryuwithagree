@@ -415,13 +415,12 @@ export function subscribeDday(onChange) {
 }
 
 // 디데이 설정을 저장한다.
-export async function saveDdayConfig({ startDate, title }) {
+export async function saveDdayConfig(configData) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
   await setDoc(metaRef, {
-    startDate,
-    title: title || "함께한 지",
+    ...configData,
     updatedAt: Date.now(),
     updatedBy: user.uid,
   });

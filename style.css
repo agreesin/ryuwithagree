@@ -1582,35 +1582,279 @@ body {
   border-color: var(--primary-color);
 }
 
-/* D-Day 모달 폼 */
-.dday-modal-card .form-group {
-  margin-bottom: 14px;
+/* =========================================================
+   다중 기념일 & 일정 관리 모달 스타일
+   ========================================================= */
+
+.dday-modal-card {
+  max-width: 480px;
+  width: 92%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 18px;
+}
+
+.dday-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.dday-close-btn {
+  background: #f8f9fa;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.dday-close-btn:hover {
+  background: #e9ecef;
+  color: var(--text-main);
+}
+
+.dday-list-container {
+  max-height: 38vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 12px 0 16px;
+  padding-right: 2px;
+}
+
+.dday-empty-text {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding: 24px 0;
+  margin: 0;
+}
+
+.dday-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dday-card-item {
+  background: #ffffff;
+  border: 1.5px solid #faedf0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.dday-card-item:hover {
+  border-color: #f8c9d2;
+  background: #fffbfc;
+}
+
+.dday-card-item.main-item {
+  background: #fff8f9;
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(230, 109, 123, 0.15);
+}
+
+.dday-card-left {
   text-align: left;
 }
 
-.dday-modal-card .form-label {
+.dday-card-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+
+.dday-type-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #fdfafb;
+  border: 1px solid #fce3e7;
+}
+
+.dday-type-tag.count_up {
+  color: #d45665;
+  background: #ffe8ec;
+}
+
+.dday-type-tag.birthday {
+  color: #b45309;
+  background: #fef3c7;
+  border-color: #fde68a;
+}
+
+.dday-type-tag.event {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #dbeafe;
+}
+
+.dday-main-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #ffffff;
+  background: var(--primary-color);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.dday-card-date {
+  font-size: 0.72rem;
+  color: #a39297;
+}
+
+.dday-card-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #333333;
+}
+
+.dday-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.dday-card-calc {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.dday-card-calc.count_up {
+  color: #d45665;
+}
+
+.dday-card-calc.birthday {
+  color: #d97706;
+}
+
+.dday-card-calc.event {
+  color: #2563eb;
+}
+
+.dday-card-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.dday-action-btn {
+  background: #f8f9fa;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 0.68rem;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dday-action-btn:hover {
+  background: #e9ecef;
+  color: #222;
+}
+
+.dday-action-btn.delete-dday-btn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.dday-action-btn.set-main-btn {
+  color: #d45665;
+  border-color: #f8c9d2;
+}
+
+.dday-action-btn.set-main-btn:hover {
+  background: #ffe8ec;
+}
+
+/* 새 기념일 추가 폼 */
+.dday-add-form {
+  background: #fffbfc;
+  border: 1px dashed #f8c9d2;
+  border-radius: 12px;
+  padding: 14px 12px;
+  text-align: left;
+}
+
+.dday-form-title {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #d45665;
+}
+
+.dday-form-row {
+  display: flex;
+  gap: 8px;
+}
+
+.dday-form-group {
+  margin-bottom: 10px;
+}
+
+.dday-form-group.flex-1 {
+  flex: 1;
+}
+
+.dday-label {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-muted);
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
-.dday-modal-card .form-input {
+.dday-input, .dday-select {
   width: 100%;
-  padding: 10px 12px;
-  border: 1.5px solid var(--border-color);
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   outline: none;
-  background: #fffbfc;
-  transition: border-color 0.2s;
+  background: #ffffff;
   box-sizing: border-box;
+  transition: border-color 0.2s;
 }
 
-.dday-modal-card .form-input:focus {
+.dday-input:focus, .dday-select:focus {
   border-color: var(--primary-color);
-  background: #ffffff;
+}
+
+.dday-submit-btn {
+  width: 100%;
+  padding: 9px;
+  background: var(--button-gloss);
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(230, 109, 123, 0.2);
+  transition: all 0.15s;
+}
+
+.dday-submit-btn:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
 }
 
 /* 작성 폼 미디어 버튼 (사진 / 그림) */
@@ -2050,8 +2294,16 @@ body {
 
 .cal-entry-badges {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 2px;
   margin-top: 3px;
+}
+
+.cal-event-dot {
+  font-size: 0.85rem;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
 }
 
 .cal-mood-dot {
@@ -2065,6 +2317,11 @@ body {
   font-weight: 800;
 }
 
+.cal-day-cell.has-event {
+  background: #fff8f9;
+  border-color: #ffd9e0;
+}
+
 .cal-selected-section {
   background: #ffffff;
   border: 1.5px solid #f8c9d2;
@@ -2074,12 +2331,72 @@ body {
 }
 
 .cal-selected-date-title {
-  margin: 0 0 14px 0;
+  margin: 0 0 12px 0;
   font-size: 1.05rem;
   color: #d45665;
   font-weight: 700;
   border-bottom: 2px solid #fff0f3;
   padding-bottom: 8px;
+}
+
+/* 선택된 날짜의 기념일/여행 배너 */
+.cal-selected-events-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.cal-date-event-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #fff5f7;
+  border: 1.5px solid #f8c9d2;
+  box-shadow: 0 2px 8px rgba(230, 109, 123, 0.1);
+}
+
+.cal-date-event-card.birthday {
+  background: #fefce8;
+  border-color: #fde047;
+}
+
+.cal-date-event-card.event {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.cal-event-card-icon {
+  font-size: 1.4rem;
+}
+
+.cal-event-card-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1;
+}
+
+.cal-event-card-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #333333;
+}
+
+.cal-event-card-calc {
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--primary-color);
+}
+
+.cal-date-event-card.birthday .cal-event-card-calc {
+  color: #ca8a04;
+}
+
+.cal-date-event-card.event .cal-event-card-calc {
+  color: #2563eb;
 }
 
 .cal-selected-empty {

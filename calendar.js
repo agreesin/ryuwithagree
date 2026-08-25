@@ -1,8 +1,9 @@
 // =========================================================
-// calendar.js - 캘린더(달력) 뷰 모드 및 날짜별 일기 감상 모듈
+// calendar.js - 캘린더(달력) 뷰 모드 및 날짜별 일기/기념일(생일·여행) 감상 모듈
 // =========================================================
 
 import { createEntryCard } from "./entry-card.js";
+import { getDdayItems, calculateDdayInfo } from "./dday.js";
 
 // 화면 요소
 const viewTabFeed = document.getElementById("view-tab-feed");
@@ -16,6 +17,7 @@ const calNextBtn = document.getElementById("cal-next-btn");
 const calTodayBtn = document.getElementById("cal-today-btn");
 const calDaysGrid = document.getElementById("cal-days-grid");
 const calSelectedDateTitle = document.getElementById("cal-selected-date-title");
+const calSelectedEventsWrap = document.getElementById("cal-selected-events-wrap");
 const calSelectedEntriesList = document.getElementById("cal-selected-entries-list");
 const calSelectedEmpty = document.getElementById("cal-selected-empty");
 
@@ -48,6 +50,49 @@ export function updateCalendarEntries(entries) {
 }
 
 /**
+ * 기념일 설정 변경 시 캘린더를 갱신합니다.
+ */
+export function notifyCalendarDdayChange() {
+  if (calViewSection && !calViewSection.hidden) {
+    renderCalendar();
+  }
+}
+
+/**
+ * 특정 날짜(YYYY-MM-DD)에 해당하는 기념일/생일/여행 일정 목록을 반환합니다.
+ */
+function getEventsForDate(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const allItems = getDdayItems();
+  const matchingEvents = [];
+
+  for (const item of allItems) {
+    if (!item.date) continue;
+    const [itemY, itemM, itemD] = item.date.split("-").map(Number);
+    const type = item.type || "count_up";
+
+    if (type === "birthday") {
+      // 매년 반복 생일: 월, 일이 같으면 매칭
+      if (m === itemM && d === itemD) {
+        matchingEvents.push({ ...item, isBirthday: true });
+      }
+    } else if (type === "event") {
+      // 여행/일정: 년, 월, 일이 정확히 같으면 매칭
+      if (y === itemY && m === itemM && d === itemD) {
+        matchingEvents.push({ ...item, isEvent: true });
+      }
+    } else if (type === "count_up") {
+      // 함께한 날 시작일
+      if (y === itemY && m === itemM && d === itemD) {
+        matchingEvents.push({ ...item, isAnniversary: true });
+      }
+    }
+  }
+
+  return matchingEvents;
+}
+
+/**
  * 캘린더 그리드를 렌더링합니다.
  */
 export function renderCalendar() {
@@ -70,7 +115,7 @@ export function renderCalendar() {
 
   // 이번 달 1일의 요일 (0: 일요일 ~ 6: 토요일)
   const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
-  // 이번 달 마지막 날짜 (예: 31)
+  // 이번 달 마지막 날짜
   const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate();
   // 지난 달 마지막 날짜
   const prevLastDate = new Date(currentYear, currentMonth, 0).getDate();
@@ -91,11 +136,12 @@ export function renderCalendar() {
     const dateKey = `${currentYear}-${mStr}-${dStr}`;
 
     const dateEntries = entriesByDate[dateKey] || [];
+    const dateEvents = getEventsForDate(dateKey);
     const isToday = dateKey === todayStr;
     const isSelected = dateKey === selectedDateStr;
 
     const cell = document.createElement("div");
-    cell.className = `cal-day-cell current-month ${isToday ? "today" : ""} ${isSelected ? "selected" : ""} ${dateEntries.length > 0 ? "has-entry" : ""}`;
+    cell.className = `cal-day-cell current-month ${isToday ? "today" : ""} ${isSelected ? "selected" : ""} ${dateEntries.length > 0 ? "has-entry" : ""} ${dateEvents.length > 0 ? "has-event" : ""}`;
 
     // 상단 날짜 번호
     const numSpan = document.createElement("span");
@@ -103,26 +149,43 @@ export function renderCalendar() {
     numSpan.textContent = String(date);
     cell.appendChild(numSpan);
 
-    // 일기 기분 이모지 및 사진 표시 컨테이너
-    if (dateEntries.length > 0) {
-      const badgesWrap = document.createElement("div");
-      badgesWrap.className = "cal-entry-badges";
+    // 뱃지 표시 영역 (기념일/생일/여행 뱃지 + 일기 기분 이모지)
+    const badgesWrap = document.createElement("div");
+    badgesWrap.className = "cal-entry-badges";
 
-      // 최대 2개의 대표 이모지 또는 도트 표시
-      dateEntries.slice(0, 2).forEach((e) => {
-        const badge = document.createElement("span");
-        badge.className = "cal-mood-dot";
-        badge.textContent = e.mood || "📖";
-        badgesWrap.appendChild(badge);
-      });
-
-      if (dateEntries.length > 2) {
-        const moreSpan = document.createElement("span");
-        moreSpan.className = "cal-more-dot";
-        moreSpan.textContent = `+${dateEntries.length - 2}`;
-        badgesWrap.appendChild(moreSpan);
+    // 1) 기념일/일정 뱃지 우선 표시 (🎂, ✈️, 💖)
+    dateEvents.forEach((ev) => {
+      const evSpan = document.createElement("span");
+      evSpan.className = "cal-event-dot";
+      if (ev.isBirthday) {
+        evSpan.textContent = "🎂";
+        evSpan.title = `[생일] ${ev.title}`;
+      } else if (ev.isEvent) {
+        evSpan.textContent = "✈️";
+        evSpan.title = `[여행/일정] ${ev.title}`;
+      } else {
+        evSpan.textContent = "💖";
+        evSpan.title = `[기념일] ${ev.title}`;
       }
+      badgesWrap.appendChild(evSpan);
+    });
 
+    // 2) 일기 기분 이모지 표시
+    dateEntries.slice(0, 2).forEach((e) => {
+      const badge = document.createElement("span");
+      badge.className = "cal-mood-dot";
+      badge.textContent = e.mood || "📖";
+      badgesWrap.appendChild(badge);
+    });
+
+    if (dateEntries.length + dateEvents.length > 3) {
+      const moreSpan = document.createElement("span");
+      moreSpan.className = "cal-more-dot";
+      moreSpan.textContent = "+";
+      badgesWrap.appendChild(moreSpan);
+    }
+
+    if (badgesWrap.children.length > 0) {
       cell.appendChild(badgesWrap);
     }
 
@@ -130,13 +193,13 @@ export function renderCalendar() {
     cell.addEventListener("click", () => {
       selectedDateStr = dateKey;
       renderCalendar();
-      renderSelectedDateEntries(dateKey, dateEntries);
+      renderSelectedDateEntries(dateKey, dateEntries, dateEvents);
     });
 
     calDaysGrid.appendChild(cell);
   }
 
-  // 3. 다음 달 날짜들로 42칸(6주) 또는 35칸(5주) 채우기
+  // 3. 다음 달 날짜들로 채우기
   const totalCells = firstDayIndex + lastDate;
   const remainingCells = (totalCells > 35 ? 42 : 35) - totalCells;
   for (let i = 1; i <= remainingCells; i++) {
@@ -146,32 +209,69 @@ export function renderCalendar() {
     calDaysGrid.appendChild(cell);
   }
 
-  // 기본적으로 오늘 날짜가 선택되어 있으면 오늘 일기 렌더링
+  // 선택된 날짜 일기 & 기념일 렌더링
   if (selectedDateStr) {
-    renderSelectedDateEntries(selectedDateStr, entriesByDate[selectedDateStr] || []);
+    renderSelectedDateEntries(
+      selectedDateStr,
+      entriesByDate[selectedDateStr] || [],
+      getEventsForDate(selectedDateStr)
+    );
   } else {
-    // 최초에는 오늘 날짜 선택
     selectedDateStr = todayStr;
-    renderSelectedDateEntries(todayStr, entriesByDate[todayStr] || []);
+    renderSelectedDateEntries(
+      todayStr,
+      entriesByDate[todayStr] || [],
+      getEventsForDate(todayStr)
+    );
   }
 }
 
 /**
- * 선택된 날짜의 일기들을 하단에 렌더링합니다.
+ * 선택된 날짜의 일기 및 기념일/여행 일정을 하단에 렌더링합니다.
  */
-function renderSelectedDateEntries(dateKey, entries) {
+function renderSelectedDateEntries(dateKey, entries, events = []) {
   if (!calSelectedDateTitle || !calSelectedEntriesList || !calSelectedEmpty) return;
 
   const [y, m, d] = dateKey.split("-").map(Number);
-  calSelectedDateTitle.textContent = `📅 ${y}년 ${m}월 ${d}일의 일기 (${entries.length}편)`;
+  calSelectedDateTitle.textContent = `📅 ${y}년 ${m}월 ${d}일의 기록 (${entries.length}편)`;
+
+  // 1. 기념일 / 생일 / 여행 배너 렌더링
+  if (calSelectedEventsWrap) {
+    calSelectedEventsWrap.innerHTML = "";
+    if (events.length > 0) {
+      calSelectedEventsWrap.hidden = false;
+      events.forEach((ev) => {
+        const { ddayText } = calculateDdayInfo(ev);
+        const banner = document.createElement("div");
+        banner.className = `cal-date-event-card ${ev.type || "count_up"}`;
+
+        let icon = "💖";
+        if (ev.type === "birthday") icon = "🎂";
+        if (ev.type === "event") icon = "✈️";
+
+        banner.innerHTML = `
+          <span class="cal-event-card-icon">${icon}</span>
+          <div class="cal-event-card-body">
+            <span class="cal-event-card-title">${ev.title}</span>
+            <span class="cal-event-card-calc">${ddayText}</span>
+          </div>
+        `;
+        calSelectedEventsWrap.appendChild(banner);
+      });
+    } else {
+      calSelectedEventsWrap.hidden = true;
+    }
+  }
+
+  // 2. 일기 카드 렌더링
   calSelectedEntriesList.innerHTML = "";
 
-  if (entries.length === 0) {
+  if (entries.length === 0 && events.length === 0) {
     calSelectedEmpty.hidden = false;
     return;
   }
 
-  calSelectedEmpty.hidden = true;
+  calSelectedEmpty.hidden = entries.length > 0;
   for (const entry of entries) {
     const card = createEntryCard(entry);
     calSelectedEntriesList.appendChild(card);

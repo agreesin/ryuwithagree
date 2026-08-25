@@ -69,25 +69,48 @@
       </div>
     </header>
 
-    <!-- 디데이(기념일) 설정 모달 -->
+    <!-- 디데이(기념일 & 일정) 다중 관리 모달 -->
     <div id="dday-modal" class="modal-overlay" hidden>
       <div class="modal-content dday-modal-card">
-        <div class="modal-icon">💖</div>
-        <h2 class="modal-title">기념일(D-Day) 설정</h2>
-        <p class="modal-desc">우리가 처음 만난 날 또는 특별한 기념일을 설정하세요.</p>
-        <form id="dday-form" class="dday-form">
+        <div class="dday-modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-icon">📅</span>
+            <h2 class="modal-title">기념일 & 일정 관리</h2>
+          </div>
+          <button id="dday-close-btn" class="dday-close-btn" type="button" title="닫기">✕</button>
+        </div>
+        <p class="modal-desc">우리의 소중한 기념일, 매년 생일 및 여행 일정을 등록해 보세요.</p>
+
+        <!-- 등록된 기념일 목록 -->
+        <div class="dday-list-container">
+          <p id="dday-empty-text" class="dday-empty-text" hidden>등록된 기념일이 없습니다. 아래에서 추가해 보세요! 🎈</p>
+          <div id="dday-list" class="dday-list"></div>
+        </div>
+
+        <!-- 새 기념일 추가 폼 -->
+        <form id="dday-add-form" class="dday-add-form">
+          <h3 class="dday-form-title">+ 새 기념일 / 일정 추가</h3>
           <div class="form-group">
-            <label for="dday-title-input" class="form-label">기념일 제목</label>
-            <input type="text" id="dday-title-input" class="form-input" placeholder="예: 함께한 지, 만난 지" value="함께한 지" required />
+            <label for="dday-title-input" class="form-label">제목</label>
+            <input type="text" id="dday-title-input" class="form-input" placeholder="예: 함께한 날, 류의 생일, 제주도 여행" required maxlength="20" />
           </div>
-          <div class="form-group">
-            <label for="dday-date-input" class="form-label">시작 날짜 (1일째)</label>
-            <input type="date" id="dday-date-input" class="form-input" required />
+
+          <div class="dday-form-row">
+            <div class="form-group flex-1">
+              <label for="dday-date-input" class="form-label">날짜</label>
+              <input type="date" id="dday-date-input" class="form-input" required />
+            </div>
+            <div class="form-group flex-1">
+              <label for="dday-type-select" class="form-label">유형</label>
+              <select id="dday-type-select" class="form-input dday-select">
+                <option value="count_up">💖 함께한 날 (D+ 카운트)</option>
+                <option value="birthday">🎂 매년 생일 (매년 반복 D-)</option>
+                <option value="event">✈️ 여행 / 일정 (목표 D- 카운트다운)</option>
+              </select>
+            </div>
           </div>
-          <div class="modal-actions">
-            <button type="button" id="dday-close-btn" class="modal-btn cancel">닫기</button>
-            <button type="submit" id="dday-save-btn" class="modal-btn submit">저장하기</button>
-          </div>
+
+          <button type="submit" id="dday-submit-btn" class="modal-btn submit dday-submit-btn">기념일 추가하기</button>
         </form>
       </div>
     </div>
@@ -353,10 +376,11 @@
             <div id="cal-days-grid" class="cal-days-grid"></div>
           </div>
 
-          <!-- 선택된 날짜의 일기 목록 -->
+          <!-- 선택된 날짜의 일기 및 일정 목록 -->
           <div class="cal-selected-section">
-            <h3 id="cal-selected-date-title" class="cal-selected-date-title">📅 선택된 날짜의 일기</h3>
-            <p id="cal-selected-empty" class="cal-selected-empty" hidden>이 날짜에 작성된 일기가 없습니다. 🍃</p>
+            <h3 id="cal-selected-date-title" class="cal-selected-date-title">📅 선택된 날짜의 기록</h3>
+            <div id="cal-selected-events-wrap" class="cal-selected-events-wrap" hidden></div>
+            <p id="cal-selected-empty" class="cal-selected-empty" hidden>이 날짜에 작성된 일기나 일정이 없습니다. 🍃</p>
             <ul id="cal-selected-entries-list" class="cal-selected-entries-list"></ul>
           </div>
         </section>
@@ -388,6 +412,6 @@
     </div>
 
     <!-- type="module" 을 지우면 앱이 통째로 죽습니다 -->
-    <script type="module" src="app.js?v=2.5.4"></script>
+    <script type="module" src="app.js?v=2.6.0"></script>
   </body>
 </html>
