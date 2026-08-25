@@ -1,5 +1,5 @@
 // =========================================================
-// dday.js - 다중 기념일, 매년 반복 생일 및 여행/일정 D-Day 관리 모듈
+// dday.js - 다중 기념일, 매년 반복 생일 및 맞춤 데이트/일정 D-Day 관리 모듈
 // =========================================================
 
 import { subscribeDday, saveDdayConfig } from "./store.js";
@@ -21,18 +21,34 @@ const ddayTitleInput = document.getElementById("dday-title-input");
 const ddayDateInput = document.getElementById("dday-date-input");
 const ddayTypeSelect = document.getElementById("dday-type-select");
 const ddaySubmitBtn = document.getElementById("dday-submit-btn");
+const ddayIconBtns = document.querySelectorAll(".dday-icon-btn");
 
 // 내부 상태: { mainId: string, items: Array<DdayItem> }
 let currentDdayConfig = { mainId: null, items: [] };
+let selectedIcon = "💖";
+
+/**
+ * 아이콘 선택기에서 특정 아이콘을 활성화합니다.
+ */
+function setActiveIcon(icon) {
+  selectedIcon = icon;
+  ddayIconBtns.forEach((btn) => {
+    if (btn.dataset.icon === icon) {
+      btn.classList.add("active");
+    } else {
+      btn.classList.remove("active");
+    }
+  });
+}
 
 /**
  * 기념일 항목에 대한 D-Day 계산
- * @param {Object} item - { id, title, date, type }
- * @returns {Object} - { ddayText, tagLabel, tagClass, sortDiff }
+ * @param {Object} item - { id, title, date, type, icon }
+ * @returns {Object} - { ddayText, tagLabel, tagClass, tagIcon, sortDiff }
  */
 export function calculateDdayInfo(item) {
   if (!item || !item.date) {
-    return { ddayText: "", tagLabel: "기념일", tagClass: "count_up", sortDiff: 99999 };
+    return { ddayText: "", tagLabel: "기념일", tagClass: "count_up", tagIcon: "💖", sortDiff: 99999 };
   }
 
   const now = new Date();
@@ -41,6 +57,7 @@ export function calculateDdayInfo(item) {
   const oneDayMs = 1000 * 60 * 60 * 24;
 
   const type = item.type || "count_up";
+  const icon = item.icon || (type === "birthday" ? "🎂" : type === "event" ? "🌟" : "💖");
 
   if (type === "count_up") {
     // 1. 함께한 날 (D+)
@@ -49,40 +66,41 @@ export function calculateDdayInfo(item) {
     const count = diffDays >= 0 ? diffDays + 1 : diffDays;
     return {
       ddayText: count >= 0 ? `D+${count}` : `D${count}`,
-      tagLabel: "💖 함께한 날",
+      tagLabel: `${icon} 함께한 날`,
       tagClass: "count_up",
+      tagIcon: icon,
       sortDiff: count,
     };
   } else if (type === "birthday") {
     // 2. 매년 반복 생일/기념일
     let thisYearBirthday = new Date(now.getFullYear(), m - 1, d).getTime();
     if (thisYearBirthday < today) {
-      // 올해 생일이 이미 지났으면 내년 생일로 계산
       thisYearBirthday = new Date(now.getFullYear() + 1, m - 1, d).getTime();
     }
     const diffDays = Math.round((thisYearBirthday - today) / oneDayMs);
 
     let ddayText = "";
     if (diffDays === 0) {
-      ddayText = "🎂 오늘 생일!";
+      ddayText = `${icon} 오늘 생일!`;
     } else {
       ddayText = `D-${diffDays}`;
     }
 
     return {
       ddayText,
-      tagLabel: "🎂 매년 생일",
+      tagLabel: `${icon} 매년 생일`,
       tagClass: "birthday",
+      tagIcon: icon,
       sortDiff: diffDays,
     };
   } else {
-    // 3. 여행 / 예정된 일정 (D-)
+    // 3. 데이트 / 여행 / 예정된 일정 (D-)
     const targetDate = new Date(y, m - 1, d).getTime();
     const diffDays = Math.round((targetDate - today) / oneDayMs);
 
     let ddayText = "";
     if (diffDays === 0) {
-      ddayText = "✈️ D-DAY 오늘!";
+      ddayText = `${icon} 오늘 데이트!`;
     } else if (diffDays > 0) {
       ddayText = `D-${diffDays}`;
     } else {
@@ -91,8 +109,9 @@ export function calculateDdayInfo(item) {
 
     return {
       ddayText,
-      tagLabel: "✈️ 여행/일정",
+      tagLabel: `${icon} 일정/데이트`,
       tagClass: "event",
+      tagIcon: icon,
       sortDiff: diffDays,
     };
   }
@@ -125,7 +144,8 @@ function updateHeaderBadge() {
   }
 
   const { ddayText } = calculateDdayInfo(mainItem);
-  ddayBadgeText.textContent = `${mainItem.title} ${ddayText}`;
+  const icon = mainItem.icon || (mainItem.type === "birthday" ? "🎂" : mainItem.type === "event" ? "🌟" : "💖");
+  ddayBadgeText.textContent = `${icon} ${mainItem.title} ${ddayText}`;
   ddayBadgeBtn.title = `${mainItem.title} (${mainItem.date}) ${ddayText} - 클릭하여 전체 목록 보기`;
 }
 
@@ -184,7 +204,7 @@ function renderDdayList() {
     const deleteBtn = card.querySelector(".delete-dday-btn");
     if (deleteBtn) {
       deleteBtn.addEventListener("click", async () => {
-        if (!confirm(`"${item.title}" 기념일을 삭제하시겠습니까?`)) return;
+        if (!confirm(`"${item.title}" 일정을 삭제하시겠습니까?`)) return;
         currentDdayConfig.items = currentDdayConfig.items.filter((it) => it.id !== item.id);
         if (currentDdayConfig.mainId === item.id) {
           currentDdayConfig.mainId = currentDdayConfig.items[0]?.id || null;
@@ -244,16 +264,38 @@ export function initDday() {
     });
   }
 
-  // 3. 새 기념일 추가 폼 제출
+  // 3. 아이콘 선택 팔레트 버튼 이벤트
+  ddayIconBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setActiveIcon(btn.dataset.icon);
+    });
+  });
+
+  // 4. 유형 변경 시 추천 기본 아이콘 자동 활성화
+  if (ddayTypeSelect) {
+    ddayTypeSelect.addEventListener("change", (e) => {
+      const type = e.target.value;
+      if (type === "birthday") {
+        setActiveIcon("🎂");
+      } else if (type === "event") {
+        setActiveIcon("🍿");
+      } else {
+        setActiveIcon("💖");
+      }
+    });
+  }
+
+  // 5. 새 기념일 추가 폼 제출
   if (ddayAddForm) {
     ddayAddForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const title = ddayTitleInput.value.trim();
       const date = ddayDateInput.value;
       const type = ddayTypeSelect ? ddayTypeSelect.value : "count_up";
+      const icon = selectedIcon || "💖";
 
       if (!title || !date) {
-        alert("기념일 제목과 날짜를 입력해 주세요!");
+        alert("일정 제목과 날짜를 입력해 주세요!");
         return;
       }
 
@@ -265,6 +307,7 @@ export function initDday() {
           title,
           date,
           type,
+          icon,
         };
 
         if (!currentDdayConfig.items) currentDdayConfig.items = [];
@@ -291,10 +334,9 @@ export function initDday() {
     });
   }
 
-  // 4. Firestore 실시간 구독
+  // 6. Firestore 실시간 구독
   subscribeDday((config) => {
     if (config) {
-      // 기존 단일 dday 구조와의 하위 호환성 처리
       if (!config.items && config.startDate) {
         currentDdayConfig = {
           mainId: "dday_legacy",
@@ -304,6 +346,7 @@ export function initDday() {
               title: config.title || "함께한 지",
               date: config.startDate,
               type: "count_up",
+              icon: "💖",
             },
           ],
         };

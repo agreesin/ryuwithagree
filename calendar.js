@@ -153,20 +153,13 @@ export function renderCalendar() {
     const badgesWrap = document.createElement("div");
     badgesWrap.className = "cal-entry-badges";
 
-    // 1) 기념일/일정 뱃지 우선 표시 (🎂, ✈️, 💖)
+    // 1) 기념일/일정 뱃지 우선 표시 (사용자가 지정한 아이콘)
     dateEvents.forEach((ev) => {
       const evSpan = document.createElement("span");
       evSpan.className = "cal-event-dot";
-      if (ev.isBirthday) {
-        evSpan.textContent = "🎂";
-        evSpan.title = `[생일] ${ev.title}`;
-      } else if (ev.isEvent) {
-        evSpan.textContent = "✈️";
-        evSpan.title = `[여행/일정] ${ev.title}`;
-      } else {
-        evSpan.textContent = "💖";
-        evSpan.title = `[기념일] ${ev.title}`;
-      }
+      const icon = ev.icon || (ev.isBirthday ? "🎂" : ev.isEvent ? "🌟" : "💖");
+      evSpan.textContent = icon;
+      evSpan.title = `[${ev.title}]`;
       badgesWrap.appendChild(evSpan);
     });
 
@@ -245,9 +238,7 @@ function renderSelectedDateEntries(dateKey, entries, events = []) {
         const banner = document.createElement("div");
         banner.className = `cal-date-event-card ${ev.type || "count_up"}`;
 
-        let icon = "💖";
-        if (ev.type === "birthday") icon = "🎂";
-        if (ev.type === "event") icon = "✈️";
+        const icon = ev.icon || (ev.type === "birthday" ? "🎂" : ev.type === "event" ? "🌟" : "💖");
 
         banner.innerHTML = `
           <span class="cal-event-card-icon">${icon}</span>

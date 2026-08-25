@@ -1838,6 +1838,43 @@ body {
   border-color: var(--primary-color);
 }
 
+/* 감성 아이콘 선택 팔레트 */
+.dday-icon-picker {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  background: #ffffff;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.dday-icon-btn {
+  background: #fffbfc;
+  border: 1px solid #fce3e7;
+  border-radius: 8px;
+  padding: 6px 0;
+  font-size: 1.15rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.dday-icon-btn:hover {
+  background: #ffe8ec;
+  border-color: #f8c9d2;
+  transform: scale(1.1);
+}
+
+.dday-icon-btn.active {
+  background: #ffe8ec;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(230, 109, 123, 0.25);
+  transform: scale(1.12);
+}
+
 .dday-submit-btn {
   width: 100%;
   padding: 9px;
