@@ -8,8 +8,8 @@ import { getCurrentUser, getCurrentProfiles } from "./state.js";
 
 // OneSignal 설정 상수
 const ONESIGNAL_APP_ID = "5405c7d7-4164-4bc8-af32-7863626eaa06";
-// 안전한 Cloudflare Pages Functions 푸시 중계 엔드포인트
-const PUSH_PROXY_URL = "https://ryuwithagree.ehd8109.workers.dev/notify";
+// 안전한 Cloudflare Worker 푸시 중계 엔드포인트
+const PUSH_PROXY_URL = "https://ryuwithagree.ehd8109.workers.dev";
 
 // 화면 요소
 const toastContainer = document.getElementById("toast-container");
