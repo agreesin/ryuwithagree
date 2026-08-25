@@ -254,35 +254,109 @@
           </button>
         </section>
 
-        <!-- 쓴 글이 쌓이는 곳 (좌우 2분할) -->
-        <section class="entries">
-          <p id="empty-message" class="empty-message" hidden>아직 쓴 글이 없습니다.</p>
-          <div class="entries-split-container">
-            <!-- 왼쪽: 상대의 일기 -->
-            <div class="entries-column others-column">
-              <div class="column-header">
-                <div class="column-title-wrap">
-                  <span class="column-icon">📝</span>
-                  <span class="column-title">상대의 일기</span>
-                </div>
-                <span id="others-count" class="column-count">0</span>
-              </div>
-              <p id="others-empty" class="column-empty" hidden>아직 상대가 쓴 일기가 없습니다.</p>
-              <ul id="others-entry-list" class="entry-list"></ul>
+        <!-- 뷰 모드 전환 탭 (피드 보기 / 달력 보기) -->
+        <div class="view-mode-tabs">
+          <button id="view-tab-feed" class="view-tab-btn active" type="button">📜 피드 보기</button>
+          <button id="view-tab-cal" class="view-tab-btn" type="button">📅 달력 보기</button>
+        </div>
+
+        <!-- 1. 피드 뷰 모드 섹션 -->
+        <div id="feed-view-section">
+          <!-- 실시간 검색 및 필터 바 -->
+          <section class="search-filter-section">
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="search-input" class="search-input" placeholder="제목이나 내용으로 검색..." autocomplete="off" />
+              <button id="search-clear-btn" class="search-clear-btn" type="button" hidden title="검색어 지우기">✕</button>
             </div>
 
-            <!-- 오른쪽: 내가 쓴 일기 -->
-            <div class="entries-column my-column">
-              <div class="column-header">
-                <div class="column-title-wrap">
-                  <span class="column-icon">📝</span>
-                  <span class="column-title">내가 쓴 일기</span>
-                </div>
-                <span id="my-count" class="column-count">0</span>
+            <div class="filter-group-wrap">
+              <!-- 기분 필터 -->
+              <div class="filter-chips mood-chips">
+                <button type="button" class="filter-chip filter-mood-btn active" data-mood="all">전체 기분</button>
+                <button type="button" class="filter-chip filter-mood-btn" data-mood="😁">😁</button>
+                <button type="button" class="filter-chip filter-mood-btn" data-mood="🥰">🥰</button>
+                <button type="button" class="filter-chip filter-mood-btn" data-mood="😭">😭</button>
+                <button type="button" class="filter-chip filter-mood-btn" data-mood="🤬">🤬</button>
+                <button type="button" class="filter-chip filter-mood-btn" data-mood="🫪">🫪</button>
+                <button type="button" class="filter-chip filter-mood-btn" data-mood="😴">😴</button>
               </div>
-              <p id="my-empty" class="column-empty" hidden>아직 내가 쓴 일기가 없습니다.</p>
-              <ul id="my-entry-list" class="entry-list"></ul>
+
+              <!-- 작성자 필터 -->
+              <div class="filter-chips author-chips">
+                <button type="button" class="filter-chip filter-author-btn active" data-author="all">모든 글</button>
+                <button type="button" class="filter-chip filter-author-btn" data-author="other">상대 글</button>
+                <button type="button" class="filter-chip filter-author-btn" data-author="my">내 글</button>
+              </div>
             </div>
+
+            <p id="search-result-count" class="search-result-count" hidden></p>
+          </section>
+
+          <!-- 쓴 글이 쌓이는 곳 (좌우 2분할) -->
+          <section class="entries">
+            <p id="empty-message" class="empty-message" hidden>아직 쓴 글이 없습니다.</p>
+            <div class="entries-split-container">
+              <!-- 왼쪽: 상대의 일기 -->
+              <div class="entries-column others-column">
+                <div class="column-header">
+                  <div class="column-title-wrap">
+                    <span class="column-icon">📝</span>
+                    <span class="column-title">상대의 일기</span>
+                  </div>
+                  <span id="others-count" class="column-count">0</span>
+                </div>
+                <p id="others-empty" class="column-empty" hidden>아직 상대가 쓴 일기가 없습니다.</p>
+                <ul id="others-entry-list" class="entry-list"></ul>
+              </div>
+
+              <!-- 오른쪽: 내가 쓴 일기 -->
+              <div class="entries-column my-column">
+                <div class="column-header">
+                  <div class="column-title-wrap">
+                    <span class="column-icon">📝</span>
+                    <span class="column-title">내가 쓴 일기</span>
+                  </div>
+                  <span id="my-count" class="column-count">0</span>
+                </div>
+                <p id="my-empty" class="column-empty" hidden>아직 내가 쓴 일기가 없습니다.</p>
+                <ul id="my-entry-list" class="entry-list"></ul>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- 2. 캘린더(달력) 뷰 모드 섹션 -->
+        <section id="calendar-view-section" class="calendar-view-section" hidden>
+          <div class="calendar-card">
+            <!-- 캘린더 상단 네비게이션 -->
+            <div class="cal-nav-bar">
+              <button type="button" id="cal-prev-btn" class="cal-nav-btn" title="이전 달">◀</button>
+              <h2 id="cal-month-title" class="cal-month-title">2026년 8월</h2>
+              <button type="button" id="cal-next-btn" class="cal-nav-btn" title="다음 달">▶</button>
+              <button type="button" id="cal-today-btn" class="cal-today-btn">오늘</button>
+            </div>
+
+            <!-- 요일 헤더 -->
+            <div class="cal-weekdays-grid">
+              <span class="cal-weekday sun">일</span>
+              <span class="cal-weekday">월</span>
+              <span class="cal-weekday">화</span>
+              <span class="cal-weekday">수</span>
+              <span class="cal-weekday">목</span>
+              <span class="cal-weekday">금</span>
+              <span class="cal-weekday sat">토</span>
+            </div>
+
+            <!-- 날짜 그리드 -->
+            <div id="cal-days-grid" class="cal-days-grid"></div>
+          </div>
+
+          <!-- 선택된 날짜의 일기 목록 -->
+          <div class="cal-selected-section">
+            <h3 id="cal-selected-date-title" class="cal-selected-date-title">📅 선택된 날짜의 일기</h3>
+            <p id="cal-selected-empty" class="cal-selected-empty" hidden>이 날짜에 작성된 일기가 없습니다. 🍃</p>
+            <ul id="cal-selected-entries-list" class="cal-selected-entries-list"></ul>
           </div>
         </section>
       </div>
