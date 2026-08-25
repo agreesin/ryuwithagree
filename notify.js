@@ -6,10 +6,10 @@
 
 import { getCurrentUser, getCurrentProfiles } from "./state.js";
 
-// OneSignal 설정 상수 (추후 발급받은 키를 여기에 넣거나 기본 동작)
-const ONESIGNAL_APP_ID = "33682be7-5d07-4228-b807-79aa2fbe4e59";
-// REST API Key
-const ONESIGNAL_REST_API_KEY = "ituqhqaspe6uedxqrbe7r7tjz";
+// OneSignal 설정 상수
+const ONESIGNAL_APP_ID = "5405c7d7-4164-4bc8-af32-7863626eaa06";
+// REST API Key (보안을 위해 클라이언트 코드에 노출하지 않고 서버리스 프록시를 통해 발송)
+const ONESIGNAL_REST_API_KEY = "";
 
 // 화면 요소
 const toastContainer = document.getElementById("toast-container");
@@ -32,9 +32,15 @@ function initOneSignal() {
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   window.OneSignalDeferred.push(async function (OneSignal) {
     try {
+      const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/") + 1);
+
       await OneSignal.init({
-        appId: ONESIGNAL_APP_ID || "33682be7-5d07-4228-b807-79aa2fbe4e59",
+        appId: ONESIGNAL_APP_ID || "5405c7d7-4164-4bc8-af32-7863626eaa06",
         allowLocalhostAsSecureOrigin: true,
+        serviceWorkerPath: `${basePath}OneSignalSDKWorker.js`,
+        serviceWorkerParam: {
+          scope: basePath,
+        },
         notifyButton: {
           enable: false, // 우리 커스텀 벨 버튼 사용
         },
