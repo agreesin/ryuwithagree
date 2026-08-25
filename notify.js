@@ -79,34 +79,47 @@ export function syncUserWithOneSignal(user) {
  * 브라우저 및 OneSignal 알림 권한을 요청합니다.
  */
 export async function requestNotificationPermission() {
-  // 1. OneSignal 알림 요청 (PWA / 모바일 웹 푸시)
+  // 1. OneSignal v16 User Opt-in 요청
   if (window.OneSignalDeferred) {
     window.OneSignalDeferred.push(async function (OneSignal) {
       try {
-        await OneSignal.Slidedown.promptPush();
+        await OneSignal.User.PushSubscription.optIn();
+        console.log("[notify] OneSignal optIn 요청 완료");
       } catch (e) {
-        console.log("[notify] OneSignal prompt:", e);
+        console.log("[notify] OneSignal optIn:", e);
       }
     });
   }
 
   // 2. 표준 Web Notification 권한 요청
   if (!("Notification" in window)) {
+    alert("현재 브라우저에서는 웹 알림을 지원하지 않습니다. (iOS 16.4+ 홈 화면 추가 필요)");
     return false;
   }
 
   if (Notification.permission === "granted") {
     updateBellIcon("granted");
+    showToastNotification("알림이 켜져 있습니다! 🔔", "🔔");
     return true;
   }
 
-  if (Notification.permission !== "denied") {
+  if (Notification.permission === "denied") {
+    updateBellIcon("denied");
+    alert("알림이 차단되어 있습니다.\n아이폰 [설정] -> [알림] -> [류이어리]에서 알림을 허용해주세요!");
+    return false;
+  }
+
+  try {
     const permission = await Notification.requestPermission();
     updateBellIcon(permission);
     if (permission === "granted") {
       showToastNotification("알림이 켜졌습니다! 상대방이 글을 쓰면 알려드릴게요 🔔", "🔔");
       return true;
+    } else {
+      showToastNotification("알림이 허용되지 않았습니다.", "🔕");
     }
+  } catch (err) {
+    console.warn("[notify] 권한 요청 오류:", err);
   }
 
   updateBellIcon(Notification.permission);
