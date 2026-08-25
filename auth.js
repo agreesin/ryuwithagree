@@ -178,12 +178,13 @@ export function initAuth() {
   }
 
   // ---------------------------------------------------------
-  // 로그인 상태가 바뀔 때마다 실행됨
+  // 로그인 상태가 바뀔 때마다 실행됨 (자동 로그인 세션 감지)
   // ---------------------------------------------------------
   watchLogin((user) => {
     setCurrentUser(user);
     if (user) {
-      // 로그인됨 -> 2차 암호 검증 확인
+      if (loginArea) loginArea.hidden = true;
+      // 구글 로그인 유지됨 -> 2차 암호 검증 상태 확인
       const isVerified = sessionStorage.getItem(`diary_passcode_${user.uid}`) === "verified";
       if (isVerified) {
         grantAccess(user);
@@ -191,7 +192,7 @@ export function initAuth() {
         promptPasscode();
       }
     } else {
-      // 로그아웃됨
+      // 완전 로그아웃된 상태 -> 구글 로그인 버튼 표시
       if (passcodeModal) passcodeModal.hidden = true;
       if (stopWatchingEntries) {
         stopWatchingEntries();
