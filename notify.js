@@ -1,7 +1,7 @@
 // =========================================================
-// notify.js - 실시간 알림 및 PWA/OneSignal 웹 푸시 모듈
-// 브라우저 시스템 알림, 앱 내 토스트 팝업, 탭 제목 깜빡임 및
-// 아이폰/스마트폰 백그라운드 웹 푸시(PWA + OneSignal)를 담당합니다.
+// notify.js - 실시간 알림, 알림 센터 드롭다운 및 PWA/OneSignal 웹 푸시 모듈
+// 브라우저 시스템 알림, 앱 내 토스트 팝업, 탭 제목 깜빡임,
+// 상단 종 아이콘 클릭 시 알림 내역 목록 확인 및 클릭 시 해당 글/댓글로 스크롤 이동을 담당합니다.
 // =========================================================
 
 import { getCurrentUser, getCurrentProfiles } from "./state.js";
@@ -14,6 +14,15 @@ const PUSH_PROXY_URL = "https://silent-mud-06b5.ehd8109.workers.dev";
 // 화면 요소
 const toastContainer = document.getElementById("toast-container");
 const notifBellBtn = document.getElementById("notif-bell-btn");
+const notifBellIcon = document.getElementById("notif-bell-icon");
+const notifBadge = document.getElementById("notif-badge");
+const notifDropdown = document.getElementById("notif-dropdown");
+const notifUnreadCount = document.getElementById("notif-unread-count");
+const notifMarkAllBtn = document.getElementById("notif-mark-all-btn");
+const notifPushStatusText = document.getElementById("notif-push-status-text");
+const notifPushToggleBtn = document.getElementById("notif-push-toggle-btn");
+const notifList = document.getElementById("notif-list");
+const notifEmpty = document.getElementById("notif-empty");
 
 // 내부 상태
 const appStartTime = Date.now();
@@ -23,6 +32,55 @@ let knownCommentIds = new Set();
 let originalDocumentTitle = document.title || "류이어리";
 let unreadCount = 0;
 let titleInterval = null;
+let cachedEntries = [];
+
+// 읽은 알림 ID 목록 (localStorage 보관)
+const STORAGE_KEY_READ_NOTIFS = "diary_read_notification_ids";
+let readNotificationIds = new Set();
+
+try {
+  const saved = localStorage.getItem(STORAGE_KEY_READ_NOTIFS);
+  if (saved) {
+    readNotificationIds = new Set(JSON.parse(saved));
+  }
+} catch (e) {
+  readNotificationIds = new Set();
+}
+
+function saveReadNotificationIds() {
+  try {
+    localStorage.setItem(STORAGE_KEY_READ_NOTIFS, JSON.stringify(Array.from(readNotificationIds)));
+  } catch (e) {
+    // LocalStorage 용량 초과 또는 제한 방지
+  }
+}
+
+/**
+ * 상대 시간 포맷 헬퍼 (예: "방금 전", "5분 전", "2시간 전", "어제")
+ */
+function formatRelativeTime(timestamp) {
+  if (!timestamp) return "";
+  const now = Date.now();
+  const diffMs = now - timestamp;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffSec < 60) return "방금 전";
+  if (diffMin < 60) return `${diffMin}분 전`;
+  if (diffHour < 24) return `${diffHour}시간 전`;
+  if (diffDay === 1) return "어제";
+  if (diffDay < 7) return `${diffDay}일 전`;
+
+  const d = new Date(timestamp);
+  return d.toLocaleDateString("ko-KR", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 /**
  * OneSignal SDK를 초기화합니다.
@@ -43,14 +101,14 @@ function initOneSignal() {
           scope: basePath,
         },
         notifyButton: {
-          enable: false, // 우리 커스텀 벨 버튼 사용
+          enable: false,
         },
       });
 
       // OneSignal 구독 상태 변화 리스너
       OneSignal.User.PushSubscription.addEventListener("change", (event) => {
         const isOptedIn = event.current.optedIn;
-        updateBellIcon(isOptedIn ? "granted" : "default");
+        updatePushStatusUI(isOptedIn ? "granted" : "default");
       });
     } catch (err) {
       console.warn("[notify] OneSignal 초기화 경고:", err);
@@ -98,20 +156,20 @@ export async function requestNotificationPermission() {
   }
 
   if (Notification.permission === "granted") {
-    updateBellIcon("granted");
-    showToastNotification("알림이 켜져 있습니다! 🔔", "🔔");
+    updatePushStatusUI("granted");
+    showToastNotification("알림이 이미 켜져 있습니다! 🔔", "🔔");
     return true;
   }
 
   if (Notification.permission === "denied") {
-    updateBellIcon("denied");
+    updatePushStatusUI("denied");
     alert("알림이 차단되어 있습니다.\n아이폰 [설정] -> [알림] -> [류이어리]에서 알림을 허용해주세요!");
     return false;
   }
 
   try {
     const permission = await Notification.requestPermission();
-    updateBellIcon(permission);
+    updatePushStatusUI(permission);
     if (permission === "granted") {
       showToastNotification("알림이 켜졌습니다! 상대방이 글을 쓰면 알려드릴게요 🔔", "🔔");
       return true;
@@ -122,23 +180,31 @@ export async function requestNotificationPermission() {
     console.warn("[notify] 권한 요청 오류:", err);
   }
 
-  updateBellIcon(Notification.permission);
+  updatePushStatusUI(Notification.permission);
   return false;
 }
 
 /**
- * 상단 알림 종(🔔) 버튼의 상태 아이콘을 갱신합니다.
+ * 푸시 알림 상태 UI 갱신
  */
-function updateBellIcon(permission) {
-  if (!notifBellBtn) return;
+function updatePushStatusUI(permission) {
+  if (!notifPushStatusText || !notifPushToggleBtn) return;
+
   if (permission === "granted") {
-    notifBellBtn.textContent = "🔔";
-    notifBellBtn.title = "알림이 켜져 있습니다";
-    notifBellBtn.classList.add("enabled");
+    notifPushStatusText.textContent = "기기 푸시 알림 켜짐 🔔";
+    notifPushToggleBtn.textContent = "설정됨";
+    notifPushToggleBtn.disabled = true;
+    if (notifBellBtn) notifBellBtn.classList.add("enabled");
+  } else if (permission === "denied") {
+    notifPushStatusText.textContent = "기기 알림 차단됨 🔕";
+    notifPushToggleBtn.textContent = "설정 안내";
+    notifPushToggleBtn.disabled = false;
+    if (notifBellBtn) notifBellBtn.classList.remove("enabled");
   } else {
-    notifBellBtn.textContent = "🔕";
-    notifBellBtn.title = "클릭하여 새 글/댓글 알림을 켜세요";
-    notifBellBtn.classList.remove("enabled");
+    notifPushStatusText.textContent = "기기 푸시 알림 꺼짐";
+    notifPushToggleBtn.textContent = "알림 켜기";
+    notifPushToggleBtn.disabled = false;
+    if (notifBellBtn) notifBellBtn.classList.remove("enabled");
   }
 }
 
@@ -262,13 +328,201 @@ function stopTitleBlink() {
   document.title = originalDocumentTitle;
 }
 
+// =========================================================
+// 알림 센터 (Notification Center) 데이터 & 드롭다운 관리
+// =========================================================
+
+/**
+ * 상대방이 작성한 모든 일기, 댓글, 답글을 시간순으로 정렬한 알림 목록을 생성합니다.
+ */
+export function getNotificationItems(entries = cachedEntries) {
+  const currentUser = getCurrentUser();
+  const items = [];
+
+  for (const entry of entries) {
+    // 1. 상대방이 쓴 일기
+    const isMyEntry = currentUser && (
+      (entry.uid && entry.uid === currentUser.uid) ||
+      (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
+    );
+
+    if (!isMyEntry && entry.createdAt) {
+      items.push({
+        id: `entry_${entry.id}`,
+        type: "entry",
+        icon: "📖",
+        text: "당신의 반쪽이 새 일기를 남겼습니다.",
+        createdAt: entry.createdAt,
+        entryId: entry.id,
+        targetId: `entry-${entry.id}`,
+      });
+    }
+
+    // 2. 상대방이 쓴 댓글 / 답글
+    const comments = entry.comments || [];
+    for (const comment of comments) {
+      const isMyComment = currentUser && (
+        (comment.uid && comment.uid === currentUser.uid) ||
+        (comment.author && currentUser.displayName && comment.author === currentUser.displayName)
+      );
+
+      if (!isMyComment && comment.createdAt) {
+        const isReply = Boolean(comment.parentId);
+        const typeLabel = isReply ? "답글" : "댓글";
+        items.push({
+          id: `comment_${comment.id}`,
+          type: isReply ? "reply" : "comment",
+          icon: "💬",
+          text: `당신의 반쪽이 새 ${typeLabel}을 남겼습니다.`,
+          createdAt: comment.createdAt,
+          entryId: entry.id,
+          commentId: comment.id,
+          targetId: `comment-${comment.id}`,
+        });
+      }
+    }
+  }
+
+  // 최신순 정렬
+  items.sort((a, b) => b.createdAt - a.createdAt);
+  return items;
+}
+
+/**
+ * 읽지 않은 알림 개수를 계산하여 상단 종 뱃지를 갱신합니다.
+ */
+export function updateNotificationBadge() {
+  const items = getNotificationItems();
+  const unreadItems = items.filter((item) => !readNotificationIds.has(item.id));
+  const unreadLen = unreadItems.length;
+
+  if (notifBadge) {
+    if (unreadLen > 0) {
+      notifBadge.textContent = unreadLen > 99 ? "99+" : String(unreadLen);
+      notifBadge.hidden = false;
+    } else {
+      notifBadge.hidden = true;
+    }
+  }
+
+  if (notifUnreadCount) {
+    notifUnreadCount.textContent = unreadLen > 0 ? `(${unreadLen}개 안읽음)` : "";
+  }
+}
+
+/**
+ * 알림 내역 드롭다운 목록을 렌더링합니다.
+ */
+export function renderNotificationDropdown() {
+  if (!notifList || !notifEmpty) return;
+
+  const items = getNotificationItems();
+  notifList.innerHTML = "";
+
+  if (items.length === 0) {
+    notifEmpty.hidden = false;
+    return;
+  }
+
+  notifEmpty.hidden = true;
+
+  for (const item of items) {
+    const isUnread = !readNotificationIds.has(item.id);
+
+    const li = document.createElement("li");
+    li.className = `notif-item ${isUnread ? "unread" : "read"}`;
+
+    const iconSpan = document.createElement("span");
+    iconSpan.className = "notif-item-icon";
+    iconSpan.textContent = item.icon;
+
+    const contentDiv = document.createElement("div");
+    contentDiv.className = "notif-item-content";
+
+    const textP = document.createElement("p");
+    textP.className = "notif-item-text";
+    textP.textContent = item.text;
+
+    const timeSpan = document.createElement("span");
+    timeSpan.className = "notif-item-time";
+    timeSpan.textContent = formatRelativeTime(item.createdAt);
+
+    contentDiv.appendChild(textP);
+    contentDiv.appendChild(timeSpan);
+
+    li.appendChild(iconSpan);
+    li.appendChild(contentDiv);
+
+    // 알림 클릭 시 해당 글/댓글로 스크롤 이동
+    li.addEventListener("click", () => {
+      // 1. 해당 알림 읽음 처리
+      readNotificationIds.add(item.id);
+      saveReadNotificationIds();
+      updateNotificationBadge();
+      li.classList.remove("unread");
+      li.classList.add("read");
+
+      // 2. 드롭다운 닫기
+      if (notifDropdown) notifDropdown.hidden = true;
+
+      // 3. 해당 위치로 스크롤 및 강조
+      scrollToNotificationTarget(item);
+    });
+
+    notifList.appendChild(li);
+  }
+}
+
+/**
+ * 알림 대상 요소로 스크롤 이동 및 반짝임 하이라이트 효과 부여
+ */
+function scrollToNotificationTarget(item) {
+  let targetEl = null;
+
+  if (item.targetId) {
+    targetEl = document.getElementById(item.targetId);
+  }
+
+  // 만약 댓글 요소를 직접 찾지 못했다면 부모 일기 카드로 fallback
+  if (!targetEl && item.entryId) {
+    targetEl = document.getElementById(`entry-${item.entryId}`);
+  }
+
+  if (targetEl) {
+    targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    // 반짝이는 하이라이트 애니메이션
+    targetEl.classList.remove("highlight-flash");
+    void targetEl.offsetWidth; // CSS 애니메이션 재시작 트릭
+    targetEl.classList.add("highlight-flash");
+
+    setTimeout(() => {
+      targetEl.classList.remove("highlight-flash");
+    }, 1800);
+  } else {
+    showToastNotification("해당 글 또는 댓글을 찾을 수 없습니다.", "🔍");
+  }
+}
+
+/**
+ * 모든 알림을 읽음 상태로 변경합니다.
+ */
+function markAllNotificationsAsRead() {
+  const items = getNotificationItems();
+  items.forEach((item) => readNotificationIds.add(item.id));
+  saveReadNotificationIds();
+  updateNotificationBadge();
+  renderNotificationDropdown();
+  showToastNotification("모든 알림을 읽음 처리했습니다. ✨", "💌");
+}
+
 /**
  * Firestore 일기 목록이 갱신될 때 새로 추가된 글/댓글을 감지하여 알림을 발송합니다.
  * @param {Array<Object>} entries - 일기 목록
  */
 export function checkNewUpdates(entries) {
+  cachedEntries = entries;
   const currentUser = getCurrentUser();
-  const currentProfiles = getCurrentProfiles();
 
   // 1. 첫 로딩 시점에는 기존 항목 ID들만 기록하고 알림 건너뜀
   if (isInitialEntriesLoad) {
@@ -278,6 +532,7 @@ export function checkNewUpdates(entries) {
     entries.forEach((e) => {
       (e.comments || []).forEach((c) => knownCommentIds.add(c.id));
     });
+    updateNotificationBadge();
     return;
   }
 
@@ -326,6 +581,12 @@ export function checkNewUpdates(entries) {
       }
     }
   }
+
+  // 뱃지 및 드롭다운 목록 갱신
+  updateNotificationBadge();
+  if (notifDropdown && !notifDropdown.hidden) {
+    renderNotificationDropdown();
+  }
 }
 
 /**
@@ -335,17 +596,52 @@ export function initNotify() {
   // OneSignal SDK 초기화
   initOneSignal();
 
-  // 알림 종 버튼 클릭 시 권한 요청
-  if (notifBellBtn) {
-    if ("Notification" in window) {
-      updateBellIcon(Notification.permission);
+  // 1. 상단 종 버튼 클릭 시 알림 센터 드롭다운 토글
+  if (notifBellBtn && notifDropdown) {
+    notifBellBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isHidden = notifDropdown.hidden;
+      notifDropdown.hidden = !isHidden;
+
+      if (!notifDropdown.hidden) {
+        // 열릴 때 최신 알림 목록 렌더링 및 푸시 상태 확인
+        renderNotificationDropdown();
+        if ("Notification" in window) {
+          updatePushStatusUI(Notification.permission);
+        }
+      }
+    });
+  }
+
+  // 2. 드롭다운 내부 클릭 시 외부 닫힘 방지
+  if (notifDropdown) {
+    notifDropdown.addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
+  }
+
+  // 3. 화면 바깥 영역 클릭 시 드롭다운 닫기
+  document.addEventListener("click", () => {
+    if (notifDropdown && !notifDropdown.hidden) {
+      notifDropdown.hidden = true;
     }
-    notifBellBtn.addEventListener("click", () => {
+  });
+
+  // 4. "모두 읽음" 버튼
+  if (notifMarkAllBtn) {
+    notifMarkAllBtn.addEventListener("click", () => {
+      markAllNotificationsAsRead();
+    });
+  }
+
+  // 5. 드롭다운 내부 푸시 알림 설정 버튼
+  if (notifPushToggleBtn) {
+    notifPushToggleBtn.addEventListener("click", () => {
       requestNotificationPermission();
     });
   }
 
-  // 창이 다시 활성화되면 탭 제목 복구
+  // 6. 브라우저 창 복구 시 탭 제목 복구
   window.addEventListener("focus", () => {
     stopTitleBlink();
   });

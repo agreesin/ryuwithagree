@@ -48,6 +48,7 @@ export function createCommentsSection(entry) {
     for (const comment of rootComments) {
       const commentItem = document.createElement("li");
       commentItem.className = "comment-item";
+      commentItem.id = `comment-${comment.id}`;
 
       const commentMeta = document.createElement("div");
       commentMeta.className = "comment-meta";
@@ -201,6 +202,7 @@ export function createCommentsSection(entry) {
         for (const reply of replies) {
           const replyItem = document.createElement("li");
           replyItem.className = "comment-reply-item";
+          replyItem.id = `comment-${reply.id}`;
 
           const replyMeta = document.createElement("div");
           replyMeta.className = "comment-meta";

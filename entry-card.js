@@ -20,6 +20,7 @@ export function createEntryCard(entry) {
 
   const item = document.createElement("li");
   item.className = "entry";
+  item.id = `entry-${entry.id}`;
 
   const headerDiv = document.createElement("div");
   headerDiv.className = "entry-header";

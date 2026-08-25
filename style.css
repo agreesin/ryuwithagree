@@ -44,9 +44,15 @@ body {
   letter-spacing: -0.5px;
 }
 
-.notif-bell-btn {
+.notif-wrapper {
   position: absolute;
   right: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.notif-bell-btn {
+  position: relative;
   background: white;
   border: 1px solid var(--border-color);
   border-radius: 50%;
@@ -69,6 +75,217 @@ body {
 .notif-bell-btn.enabled {
   background: #fff0f3;
   border-color: var(--primary-color);
+}
+
+.notif-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--primary-color);
+  color: #ffffff;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(230, 109, 123, 0.4);
+}
+
+/* 알림 내역 드롭다운 패널 */
+.notif-dropdown {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  background: #ffffff;
+  border: 1.5px solid #f8c9d2;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(230, 109, 123, 0.22);
+  z-index: 10000;
+  overflow: hidden;
+  animation: notifDropIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+}
+
+@keyframes notifDropIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.notif-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #fff5f7;
+  border-bottom: 1px solid #fce3e7;
+}
+
+.notif-dropdown-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notif-dropdown-title {
+  font-weight: 700;
+  color: #d45665;
+  font-size: 0.95rem;
+}
+
+.notif-unread-count {
+  font-size: 0.75rem;
+  color: #847278;
+  font-weight: 600;
+}
+
+.notif-action-btn {
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  color: #847278;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.notif-action-btn:hover {
+  color: var(--primary-color);
+  background: #fce8ec;
+}
+
+.notif-push-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #fdfafb;
+  border-bottom: 1px solid #f9ebed;
+  font-size: 0.75rem;
+  color: #847278;
+}
+
+.notif-push-toggle-btn {
+  background: #ffffff;
+  border: 1px solid #f8c9d2;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  color: #d45665;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.notif-push-toggle-btn:hover {
+  background: #fff0f3;
+  border-color: var(--primary-color);
+}
+
+.notif-list-wrapper {
+  max-height: 360px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.notif-empty {
+  padding: 36px 16px;
+  text-align: center;
+  color: #847278;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.notif-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #faedf0;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.notif-item:last-child {
+  border-bottom: none;
+}
+
+.notif-item:hover {
+  background: #fff5f7;
+}
+
+.notif-item.unread {
+  background: #fff0f3;
+}
+
+.notif-item-icon {
+  font-size: 1.15rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.notif-item-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.notif-item-text {
+  font-size: 0.85rem;
+  color: #333333;
+  line-height: 1.35;
+  margin: 0;
+  word-break: break-word;
+}
+
+.notif-item.unread .notif-item-text {
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.notif-item-time {
+  font-size: 0.7rem;
+  color: #a39297;
+}
+
+/* 알림 항목 클릭 시 해당 카드로 스크롤 후 강조 효과 */
+@keyframes highlightFlash {
+  0% {
+    box-shadow: 0 0 0 4px #e66d7b, 0 8px 24px rgba(230, 109, 123, 0.3);
+    transform: scale(1.015);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(230, 109, 123, 0.4), 0 8px 24px rgba(230, 109, 123, 0.2);
+  }
+  100% {
+    box-shadow: none;
+    transform: scale(1);
+  }
+}
+
+.highlight-flash {
+  animation: highlightFlash 1.6s ease-out;
+  border-radius: 12px;
 }
 
 /* =========================================================

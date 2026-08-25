@@ -34,7 +34,33 @@
 
     <header class="header">
       <h1 class="header-title">류이어리</h1>
-      <button id="notif-bell-btn" class="notif-bell-btn" type="button" title="새 글/댓글 알림 켜기">🔔</button>
+      <div class="notif-wrapper">
+        <button id="notif-bell-btn" class="notif-bell-btn" type="button" title="알림 센터">
+          <span id="notif-bell-icon" class="notif-bell-icon">🔔</span>
+          <span id="notif-badge" class="notif-badge" hidden>0</span>
+        </button>
+
+        <!-- 알림 내역 드롭다운 패널 -->
+        <div id="notif-dropdown" class="notif-dropdown" hidden>
+          <div class="notif-dropdown-header">
+            <div class="notif-dropdown-title-wrap">
+              <span class="notif-dropdown-title">🔔 알림 센터</span>
+              <span id="notif-unread-count" class="notif-unread-count"></span>
+            </div>
+            <div class="notif-dropdown-actions">
+              <button id="notif-mark-all-btn" class="notif-action-btn" type="button">모두 읽음</button>
+            </div>
+          </div>
+          <div class="notif-push-status-bar">
+            <span id="notif-push-status-text" class="notif-push-status-text">기기 푸시 알림 확인 중...</span>
+            <button id="notif-push-toggle-btn" class="notif-push-toggle-btn" type="button">알림 켜기</button>
+          </div>
+          <div id="notif-list-wrapper" class="notif-list-wrapper">
+            <p id="notif-empty" class="notif-empty">최근 알림이 없습니다 💌</p>
+            <ul id="notif-list" class="notif-list"></ul>
+          </div>
+        </div>
+      </div>
     </header>
 
     <main class="main">
