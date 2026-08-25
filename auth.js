@@ -44,7 +44,7 @@ const passcodeError = document.getElementById("passcode-error");
 const passcodeCancelBtn = document.getElementById("passcode-cancel-btn");
 
 // 2차 암호 SHA-256 단방향 해시 (원문 역추적 및 복호화 절대 불가)
-const PASSCODE_HASH = "0bcfa32b853fa62ed6b69490c97fa23df49b9b580ca927d2467c3f0f167aacce";
+const PASSCODE_HASH = "f4b440c146ce37b3aba11158aa3d7157c0f9a2fd4f33de0145d9dd3c0f6f83fc";
 
 /**
  * 사용자가 입력한 암호의 SHA-256 해시를 검증합니다.
