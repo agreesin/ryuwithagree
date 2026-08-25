@@ -42,6 +42,18 @@ body {
   color: var(--primary-color);
   font-size: 1.8rem;
   letter-spacing: -0.5px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.header-title:hover {
+  transform: scale(1.04);
+  color: var(--primary-hover);
+}
+
+.header-title:active {
+  transform: scale(0.96);
 }
 
 .header-actions {
