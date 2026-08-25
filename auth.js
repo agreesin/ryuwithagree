@@ -1,6 +1,6 @@
 // =========================================================
-// auth.js - 구글 로그인 및 세션/구독 관리 모듈
-// 로그인/로그아웃 처리, 화면 전환, 실시간 데이터 구독을 담당합니다.
+// auth.js - 구글 로그인, 2단계 보안 및 세션/구독 관리 모듈
+// 로그인/로그아웃 처리, 화면 전환, SHA-256 단방향 암호 검증 및 실시간 데이터 구독을 담당합니다.
 // =========================================================
 
 import {
@@ -15,6 +15,7 @@ import {
   setCurrentProfiles,
   getCurrentUser,
   getCurrentProfiles,
+  checkAdminStatus,
 } from "./state.js";
 import { showError, hideError } from "./ui.js";
 import { updateProfileButtonsVisibility } from "./profile.js";
@@ -42,12 +43,21 @@ const passcodeInput = document.getElementById("passcode-input");
 const passcodeError = document.getElementById("passcode-error");
 const passcodeCancelBtn = document.getElementById("passcode-cancel-btn");
 
-// 암호 인코딩 토큰 (깃허브 소스코드에서 평문 암호 노출 방지)
-const PASSCODE_TOKEN = "7Iug7KeE64yA7IKs";
+// 2차 암호 SHA-256 단방향 해시 (원문 역추적 및 복호화 절대 불가)
+const PASSCODE_HASH = "0bcfa32b853fa62ed6b69490c97fa23df49b9b580ca927d2467c3f0f167aacce";
 
-function verifyPasscode(input) {
+/**
+ * 사용자가 입력한 암호의 SHA-256 해시를 검증합니다.
+ */
+async function verifyPasscode(input) {
   try {
-    return btoa(unescape(encodeURIComponent(input.trim()))) === PASSCODE_TOKEN;
+    if (!input || typeof crypto === "undefined" || !crypto.subtle) return false;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input.trim());
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+    return hashHex === PASSCODE_HASH;
   } catch {
     return false;
   }
@@ -60,15 +70,16 @@ let stopWatchingProfiles = null;
 /**
  * 암호 검증 완료 후 다이어리 진입 및 실시간 데이터 구독을 시작합니다.
  */
-function grantAccess(user) {
+async function grantAccess(user) {
   if (passcodeModal) passcodeModal.hidden = true;
   if (loginArea) loginArea.hidden = true;
   if (appArea) appArea.hidden = false;
   if (whoAmI) whoAmI.textContent = getCurrentProfiles()[user.uid] || user.displayName || "이름 없음";
 
-  // 관리자 권한에 따른 이름 변경 버튼 표시 갱신
+  // 관리자 권한 비동기 검증 및 버튼 표시 갱신
+  await checkAdminStatus(user);
   updateProfileButtonsVisibility(user);
-  // 공지사항 편집 권한 갱신 (로그인 사용자에게 편집 버튼 노출)
+  // 공지사항 편집 권한 갱신
   updateNoticeAuth(user);
 
   // 알림 권한 자동 요청 및 OneSignal 기기 연결
@@ -140,12 +151,13 @@ export function initAuth() {
 
   // 암호 모달 이벤트 배선
   if (passcodeForm) {
-    passcodeForm.addEventListener("submit", (e) => {
+    passcodeForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const entered = passcodeInput.value.trim();
       const curUser = getCurrentUser();
 
-      if (verifyPasscode(entered)) {
+      const isValid = await verifyPasscode(entered);
+      if (isValid) {
         if (curUser) {
           sessionStorage.setItem(`diary_passcode_${curUser.uid}`, "verified");
           grantAccess(curUser);

@@ -6,6 +6,14 @@
 // 업데이트 히스토리 데이터 (최신순)
 export const CHANGELOG_DATA = [
   {
+    version: "v2.5.3",
+    date: "2026.08.25",
+    type: "patch",
+    tag: "보안 강화",
+    title: "SHA-256 단방향 암호화 적용 및 레거시 파일 정리",
+    desc: "관리자 식별 및 2차 암호 검증을 복호화 불가능한 SHA-256 단방향 해시로 전면 교체하여 완전한 100% 익명성과 보안을 강화했습니다.",
+  },
+  {
     version: "v2.5.2",
     date: "2026.08.25",
     type: "patch",
