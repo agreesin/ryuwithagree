@@ -36,6 +36,12 @@ const whoAmI = document.getElementById("who-am-i");
 const othersList = document.getElementById("others-entry-list");
 const myList = document.getElementById("my-entry-list");
 
+// 보호 대상 요소들 (로그인 사용자 전용)
+const ddayBadgeBtn = document.getElementById("dday-badge-btn");
+const ddayModal = document.getElementById("dday-modal");
+const appFooter = document.getElementById("app-footer");
+const changelogModal = document.getElementById("changelog-modal");
+
 // 암호 모달 화면 요소
 const passcodeModal = document.getElementById("passcode-modal");
 const passcodeForm = document.getElementById("passcode-form");
@@ -43,7 +49,7 @@ const passcodeInput = document.getElementById("passcode-input");
 const passcodeError = document.getElementById("passcode-error");
 const passcodeCancelBtn = document.getElementById("passcode-cancel-btn");
 
-// 2차 암호 SHA-256 단방향 해시 (원문 역추적 및 복호화 절대 불가)
+// 2차 암호 SHA-256 단방향 해시 ('신진대사', 원문 역추적 및 복호화 절대 불가)
 const PASSCODE_HASH = "f4b440c146ce37b3aba11158aa3d7157c0f9a2fd4f33de0145d9dd3c0f6f83fc";
 
 /**
@@ -75,6 +81,10 @@ async function grantAccess(user) {
   if (loginArea) loginArea.hidden = true;
   if (appArea) appArea.hidden = false;
   if (whoAmI) whoAmI.textContent = getCurrentProfiles()[user.uid] || user.displayName || "이름 없음";
+
+  // 인증 완료 사용자에게만 기념일 뱃지 및 업데이트 내역 버튼 표시
+  if (ddayBadgeBtn) ddayBadgeBtn.hidden = false;
+  if (appFooter) appFooter.hidden = false;
 
   // 관리자 권한 비동기 검증 및 버튼 표시 갱신
   await checkAdminStatus(user);
@@ -113,6 +123,11 @@ function promptPasscode() {
   if (loginArea) loginArea.hidden = true;
   if (appArea) appArea.hidden = true;
   if (passcodeModal) passcodeModal.hidden = false;
+  if (ddayBadgeBtn) ddayBadgeBtn.hidden = true;
+  if (appFooter) appFooter.hidden = true;
+  if (ddayModal) ddayModal.hidden = true;
+  if (changelogModal) changelogModal.hidden = true;
+
   if (passcodeError) {
     passcodeError.hidden = true;
     passcodeError.textContent = "";
@@ -204,8 +219,13 @@ export function initAuth() {
         promptPasscode();
       }
     } else {
-      // 완전 로그아웃된 상태 -> 구글 로그인 버튼 표시
+      // 완전 로그아웃된 상태 -> 구글 로그인 버튼 표시 및 보안 대상 은닉
       if (passcodeModal) passcodeModal.hidden = true;
+      if (ddayBadgeBtn) ddayBadgeBtn.hidden = true;
+      if (appFooter) appFooter.hidden = true;
+      if (ddayModal) ddayModal.hidden = true;
+      if (changelogModal) changelogModal.hidden = true;
+
       if (stopWatchingEntries) {
         stopWatchingEntries();
         stopWatchingEntries = null;

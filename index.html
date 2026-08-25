@@ -35,7 +35,7 @@
     <header class="header">
       <h1 class="header-title" id="header-home-btn" title="홈으로 이동 / 새로고침">류이어리</h1>
       <div class="header-actions">
-        <button id="dday-badge-btn" class="dday-badge-btn" type="button" title="기념일 설정">
+        <button id="dday-badge-btn" class="dday-badge-btn" type="button" title="기념일 설정" hidden>
           <span id="dday-badge-text">D-Day 설정</span>
         </button>
 
@@ -364,7 +364,7 @@
     </main>
 
     <!-- 하단 푸터 (업데이트 내역 버튼) -->
-    <footer class="app-footer">
+    <footer id="app-footer" class="app-footer" hidden>
       <button id="changelog-btn" class="changelog-btn" type="button">
         ✨ 업데이트 내역
       </button>
@@ -388,6 +388,6 @@
     </div>
 
     <!-- type="module" 을 지우면 앱이 통째로 죽습니다 -->
-    <script type="module" src="app.js"></script>
+    <script type="module" src="app.js?v=2.5.4"></script>
   </body>
 </html>
