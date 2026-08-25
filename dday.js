@@ -46,10 +46,10 @@ function updateDdayUI(config) {
   if (config && config.startDate) {
     const ddayStr = calculateDday(config.startDate);
     const title = config.title || "함께한 지";
-    ddayBadgeText.textContent = `💖 ${title} ${ddayStr}`;
+    ddayBadgeText.textContent = `${title} ${ddayStr}`;
     ddayBadgeBtn.title = `${config.startDate} 시작 (${title} ${ddayStr}) - 클릭하여 수정`;
   } else {
-    ddayBadgeText.textContent = "💖 기념일 설정";
+    ddayBadgeText.textContent = "기념일 설정";
     ddayBadgeBtn.title = "클릭하여 시작일(기념일)을 설정하세요";
   }
 }

@@ -33,36 +33,37 @@
     <div id="toast-container" class="toast-container"></div>
 
     <header class="header">
-      <div class="header-left">
-        <button id="dday-badge-btn" class="dday-badge-btn" type="button" title="기념일 설정">
-          <span id="dday-badge-text">💖 D-Day 설정</span>
-        </button>
-      </div>
       <h1 class="header-title">류이어리</h1>
-      <div class="notif-wrapper">
-        <button id="notif-bell-btn" class="notif-bell-btn" type="button" title="알림 센터">
-          <span id="notif-bell-icon" class="notif-bell-icon">🔔</span>
-          <span id="notif-badge" class="notif-badge" hidden>0</span>
+      <div class="header-actions">
+        <button id="dday-badge-btn" class="dday-badge-btn" type="button" title="기념일 설정">
+          <span id="dday-badge-text">D-Day 설정</span>
         </button>
 
-        <!-- 알림 내역 드롭다운 패널 -->
-        <div id="notif-dropdown" class="notif-dropdown" hidden>
-          <div class="notif-dropdown-header">
-            <div class="notif-dropdown-title-wrap">
-              <span class="notif-dropdown-title">🔔 알림 센터</span>
-              <span id="notif-unread-count" class="notif-unread-count"></span>
+        <div class="notif-wrapper">
+          <button id="notif-bell-btn" class="notif-bell-btn" type="button" title="알림 센터">
+            <span id="notif-bell-icon" class="notif-bell-icon">🔔</span>
+            <span id="notif-badge" class="notif-badge" hidden>0</span>
+          </button>
+
+          <!-- 알림 내역 드롭다운 패널 -->
+          <div id="notif-dropdown" class="notif-dropdown" hidden>
+            <div class="notif-dropdown-header">
+              <div class="notif-dropdown-title-wrap">
+                <span class="notif-dropdown-title">🔔 알림 센터</span>
+                <span id="notif-unread-count" class="notif-unread-count"></span>
+              </div>
+              <div class="notif-dropdown-actions">
+                <button id="notif-mark-all-btn" class="notif-action-btn" type="button">모두 읽음</button>
+              </div>
             </div>
-            <div class="notif-dropdown-actions">
-              <button id="notif-mark-all-btn" class="notif-action-btn" type="button">모두 읽음</button>
+            <div class="notif-push-status-bar">
+              <span id="notif-push-status-text" class="notif-push-status-text">기기 푸시 알림 확인 중...</span>
+              <button id="notif-push-toggle-btn" class="notif-push-toggle-btn" type="button">알림 켜기</button>
             </div>
-          </div>
-          <div class="notif-push-status-bar">
-            <span id="notif-push-status-text" class="notif-push-status-text">기기 푸시 알림 확인 중...</span>
-            <button id="notif-push-toggle-btn" class="notif-push-toggle-btn" type="button">알림 켜기</button>
-          </div>
-          <div id="notif-list-wrapper" class="notif-list-wrapper">
-            <p id="notif-empty" class="notif-empty">최근 알림이 없습니다 💌</p>
-            <ul id="notif-list" class="notif-list"></ul>
+            <div id="notif-list-wrapper" class="notif-list-wrapper">
+              <p id="notif-empty" class="notif-empty">최근 알림이 없습니다 💌</p>
+              <ul id="notif-list" class="notif-list"></ul>
+            </div>
           </div>
         </div>
       </div>
@@ -361,6 +362,31 @@
         </section>
       </div>
     </main>
+
+    <!-- 하단 푸터 (업데이트 내역 버튼) -->
+    <footer class="app-footer">
+      <button id="changelog-btn" class="changelog-btn" type="button">
+        ✨ 업데이트 내역
+      </button>
+      <p class="footer-copy">류이어리 · 우리들의 소중한 교환 일기장</p>
+    </footer>
+
+    <!-- 업데이트 내역 팝업 모달 -->
+    <div id="changelog-modal" class="modal-overlay" hidden>
+      <div class="modal-content changelog-modal-card">
+        <div class="changelog-modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-icon">✨</span>
+            <h2 class="modal-title">업데이트 내역</h2>
+          </div>
+          <button id="changelog-close-btn" class="changelog-close-btn" type="button" title="닫기">✕</button>
+        </div>
+        <p class="modal-desc">류이어리가 발전해 온 소중한 기록들입니다.</p>
+        <div class="changelog-list-wrap">
+          <ul id="changelog-list" class="changelog-list"></ul>
+        </div>
+      </div>
+    </div>
 
     <!-- type="module" 을 지우면 앱이 통째로 죽습니다 -->
     <script type="module" src="app.js"></script>

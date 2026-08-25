@@ -44,9 +44,16 @@ body {
   letter-spacing: -0.5px;
 }
 
-.notif-wrapper {
+.header-actions {
   position: absolute;
   right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notif-wrapper {
+  position: relative;
   display: flex;
   align-items: center;
 }
@@ -2078,6 +2085,180 @@ body {
   flex-direction: column;
   gap: 16px;
 }
+
+/* =========================================================
+   하단 푸터 & 업데이트 내역 (Changelog) 모달 스타일
+   ========================================================= */
+
+.app-footer {
+  text-align: center;
+  margin-top: 40px;
+  padding: 24px 0 32px;
+  border-top: 1px dashed #fce3e7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.changelog-btn {
+  background: #ffffff;
+  border: 1.5px solid #f8c9d2;
+  border-radius: 20px;
+  padding: 7px 16px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #d45665;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(230, 109, 123, 0.12);
+  transition: all 0.2s ease;
+}
+
+.changelog-btn:hover {
+  background: #fff0f3;
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(230, 109, 123, 0.22);
+}
+
+.footer-copy {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #a39297;
+}
+
+/* 업데이트 내역 모달 카드 */
+.changelog-modal-card {
+  max-width: 480px;
+  width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 20px;
+}
+
+.changelog-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.changelog-close-btn {
+  background: #f8f9fa;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.changelog-close-btn:hover {
+  background: #e9ecef;
+  color: var(--text-main);
+}
+
+.changelog-list-wrap {
+  max-height: 52vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 14px;
+  padding-right: 4px;
+}
+
+.changelog-list {
+  list-style: none;
+  padding: 0 0 0 10px;
+  margin: 0;
+  text-align: left;
+}
+
+.changelog-item {
+  position: relative;
+  padding-left: 20px;
+  border-left: 2px solid #f8c9d2;
+  padding-bottom: 20px;
+}
+
+.changelog-item:last-child {
+  border-left: 2px solid transparent;
+  padding-bottom: 0;
+}
+
+.changelog-item::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  box-shadow: 0 0 0 3px #ffe8ec;
+}
+
+.changelog-item.major::before {
+  background: #d45665;
+  box-shadow: 0 0 0 4px #ffccd5;
+}
+
+.changelog-header-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.changelog-version {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #d45665;
+  letter-spacing: -0.3px;
+}
+
+.changelog-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #fff0f3;
+  color: var(--primary-color);
+  border: 1px solid #fce3e7;
+}
+
+.changelog-tag.major {
+  background: #ffe4e8;
+  color: #c9302c;
+  border-color: #f8c9d2;
+}
+
+.changelog-date {
+  font-size: 0.72rem;
+  color: #a39297;
+  margin-left: auto;
+}
+
+.changelog-item-title {
+  margin: 2px 0 4px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #2b2b2b;
+}
+
+.changelog-item-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #666666;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
 
 
 
