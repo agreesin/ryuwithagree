@@ -1530,4 +1530,218 @@ body {
   40%, 80% { transform: translateX(6px); }
 }
 
+/* =========================================================
+   추가 기능 스타일: D-Day 뱃지, 사진 첨부, 공감 리액션 바
+   ========================================================= */
+
+/* 헤더 좌측 D-Day 뱃지 */
+.header-left {
+  position: absolute;
+  left: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.dday-badge-btn {
+  background: linear-gradient(135deg, #fff0f3 0%, #ffe4e8 100%);
+  border: 1.5px solid #f8c9d2;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #d45665;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(230, 109, 123, 0.15);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dday-badge-btn:hover {
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 4px 10px rgba(230, 109, 123, 0.25);
+  border-color: var(--primary-color);
+}
+
+/* D-Day 모달 폼 */
+.dday-modal-card .form-group {
+  margin-bottom: 14px;
+  text-align: left;
+}
+
+.dday-modal-card .form-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.dday-modal-card .form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  background: #fffbfc;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.dday-modal-card .form-input:focus {
+  border-color: var(--primary-color);
+  background: #ffffff;
+}
+
+/* 작성 폼 미디어 버튼 (사진 / 그림) */
+.editor-media-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.media-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.media-btn.photo-btn {
+  background: #ffffff;
+  border: 1.5px solid #f8c9d2;
+  color: #d45665;
+}
+
+.media-btn.photo-btn:hover {
+  background: #fff5f7;
+  border-color: var(--primary-color);
+}
+
+.media-btn.draw-btn {
+  background: #ffffff;
+  border: 1.5px solid var(--border-color);
+  color: var(--text-main);
+}
+
+.media-btn.draw-btn:hover {
+  background: #fff5f7;
+  border-color: var(--primary-color);
+}
+
+/* 사진 첨부 미리보기 박스 */
+.photo-preview-wrap {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.photo-preview-box {
+  position: relative;
+  max-width: 240px;
+  max-height: 200px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 2px solid #f8c9d2;
+}
+
+.photo-preview-img {
+  width: 100%;
+  height: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
+.photo-remove-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ffffff;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.photo-remove-btn:hover {
+  background: var(--danger-color);
+}
+
+.photo-compressed-badge {
+  font-size: 0.75rem;
+  color: #10b981;
+  font-weight: 600;
+}
+
+/* 공감 리액션 바 */
+.reaction-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0;
+  margin-top: 8px;
+  border-top: 1px dashed #fce3e7;
+}
+
+.reaction-btn {
+  background: #ffffff;
+  border: 1px solid #faedf0;
+  border-radius: 16px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.reaction-btn:hover {
+  background: #fff5f7;
+  border-color: #f8c9d2;
+  transform: translateY(-1px);
+}
+
+.reaction-btn.active {
+  background: #ffe8ec;
+  border-color: var(--primary-color);
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(230, 109, 123, 0.2);
+}
+
+.reaction-emoji {
+  font-size: 1rem;
+}
+
+.reaction-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.reaction-btn.active .reaction-count {
+  color: var(--primary-color);
+}
+
+
 

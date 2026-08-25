@@ -366,4 +366,66 @@ export async function removeNotice(id) {
   await deleteDoc(doc(db, "notices", id));
 }
 
+// =========================================================
+// 공감 리액션 (Reactions)
+// =========================================================
+
+// 일기에 이모지 리액션을 토글(추가/취소)한다.
+export async function toggleReaction(entryId, emoji) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("로그인이 필요합니다.");
+
+  const entryRef = doc(db, "entries", entryId);
+  const snap = await getDoc(entryRef);
+  if (!snap.exists()) return null;
+
+  const data = snap.data();
+  const reactions = data.reactions || {};
+  const currentUids = reactions[emoji] || [];
+
+  let nextUids;
+  let isAdded = false;
+  if (currentUids.includes(user.uid)) {
+    nextUids = currentUids.filter((uid) => uid !== user.uid);
+  } else {
+    nextUids = [...currentUids, user.uid];
+    isAdded = true;
+  }
+
+  const newReactions = { ...reactions, [emoji]: nextUids };
+  await updateDoc(entryRef, { reactions: newReactions });
+  return { isAdded, emoji, author: data.author, uid: data.uid };
+}
+
+// =========================================================
+// 디데이 (D-Day) 설정 관리
+// =========================================================
+
+const metaRef = doc(db, "profiles", "app_meta_dday");
+
+// 디데이 설정을 실시간 구독한다.
+export function subscribeDday(onChange) {
+  return onSnapshot(metaRef, (snapshot) => {
+    if (snapshot.exists()) {
+      onChange(snapshot.data());
+    } else {
+      onChange(null);
+    }
+  });
+}
+
+// 디데이 설정을 저장한다.
+export async function saveDdayConfig({ startDate, title }) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("로그인이 필요합니다.");
+
+  await setDoc(metaRef, {
+    startDate,
+    title: title || "함께한 지",
+    updatedAt: Date.now(),
+    updatedBy: user.uid,
+  });
+}
+
+
 

@@ -1,13 +1,64 @@
 // =========================================================
 // entry-card.js - 일기 카드 단일 컴포넌트 모듈
-// 개별 일기 카드의 헤더, 삭제 버튼, 본문, 그림 및 댓글을 조립합니다.
+// 개별 일기 카드의 헤더, 삭제 버튼, 본문, 그림/사진, 공감 리액션 및 댓글을 조립합니다.
 // ★ 목록 갱신은 Firestore onSnapshot이 담당하므로 수동 render 호출은 불필요하며 render.js를 import하지 않습니다.
 // =========================================================
 
-import { removeEntry } from "./store.js";
+import { removeEntry, toggleReaction } from "./store.js";
 import { getCurrentUser, getCurrentProfiles } from "./state.js";
 import { showError } from "./ui.js";
 import { createCommentsSection } from "./comments.js";
+import { sendPushToPartner } from "./notify.js";
+
+const REACTION_EMOJIS = ["❤️", "🥰", "🥺", "👏", "🔥"];
+
+/**
+ * 리액션 바 DOM 요소를 생성합니다.
+ */
+function createReactionBar(entry) {
+  const currentUser = getCurrentUser();
+  const reactionWrap = document.createElement("div");
+  reactionWrap.className = "reaction-bar";
+
+  const reactions = entry.reactions || {};
+
+  REACTION_EMOJIS.forEach((emoji) => {
+    const uids = reactions[emoji] || [];
+    const count = uids.length;
+    const isMyReaction = currentUser && uids.includes(currentUser.uid);
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `reaction-btn ${isMyReaction ? "active" : ""}`;
+    btn.innerHTML = `<span class="reaction-emoji">${emoji}</span><span class="reaction-count">${count > 0 ? count : ""}</span>`;
+    btn.title = isMyReaction ? `${emoji} 공감 취소` : `${emoji} 공감하기`;
+
+    btn.addEventListener("click", async () => {
+      try {
+        const res = await toggleReaction(entry.id, emoji);
+        if (res && res.isAdded) {
+          // 내가 쓴 글이 아닌 상대방 글에 리액션을 남겼을 때 푸시 발송
+          const isMyEntry = currentUser && (
+            (entry.uid && entry.uid === currentUser.uid) ||
+            (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
+          );
+          if (!isMyEntry) {
+            sendPushToPartner({
+              title: "💌 류이어리 새 반응",
+              message: `당신의 반쪽이 일기에 ${emoji} 리액션을 남겼습니다.`,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("[entry-card] 리액션 실패:", err);
+      }
+    });
+
+    reactionWrap.appendChild(btn);
+  });
+
+  return reactionWrap;
+}
 
 /**
  * 일기 1건에 대한 카드 DOM 요소를 생성하여 반환합니다.
@@ -109,14 +160,18 @@ export function createEntryCard(entry) {
     item.appendChild(entryBody);
   }
 
-  // 그림 렌더링 (하위 호환: image 필드가 존재할 때만 렌더링)
+  // 그림/사진 렌더링 (하위 호환: image 필드가 존재할 때만 렌더링)
   if (entry.image) {
     const entryImg = document.createElement("img");
     entryImg.className = "entry-image";
     entryImg.src = entry.image;
-    entryImg.alt = entry.title ? `${entry.title} 그림` : "일기 그림";
+    entryImg.alt = entry.title ? `${entry.title} 이미지` : "일기 이미지";
     item.appendChild(entryImg);
   }
+
+  // 공감 리액션 바 추가
+  const reactionSection = createReactionBar(entry);
+  item.appendChild(reactionSection);
 
   // 댓글 영역 생성 및 추가
   const commentsSection = createCommentsSection(entry);

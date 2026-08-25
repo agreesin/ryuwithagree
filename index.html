@@ -33,6 +33,11 @@
     <div id="toast-container" class="toast-container"></div>
 
     <header class="header">
+      <div class="header-left">
+        <button id="dday-badge-btn" class="dday-badge-btn" type="button" title="기념일 설정">
+          <span id="dday-badge-text">💖 D-Day 설정</span>
+        </button>
+      </div>
       <h1 class="header-title">류이어리</h1>
       <div class="notif-wrapper">
         <button id="notif-bell-btn" class="notif-bell-btn" type="button" title="알림 센터">
@@ -62,6 +67,29 @@
         </div>
       </div>
     </header>
+
+    <!-- 디데이(기념일) 설정 모달 -->
+    <div id="dday-modal" class="modal-overlay" hidden>
+      <div class="modal-content dday-modal-card">
+        <div class="modal-icon">💖</div>
+        <h2 class="modal-title">기념일(D-Day) 설정</h2>
+        <p class="modal-desc">우리가 처음 만난 날 또는 특별한 기념일을 설정하세요.</p>
+        <form id="dday-form" class="dday-form">
+          <div class="form-group">
+            <label for="dday-title-input" class="form-label">기념일 제목</label>
+            <input type="text" id="dday-title-input" class="form-input" placeholder="예: 함께한 지, 만난 지" value="함께한 지" required />
+          </div>
+          <div class="form-group">
+            <label for="dday-date-input" class="form-label">시작 날짜 (1일째)</label>
+            <input type="date" id="dday-date-input" class="form-input" required />
+          </div>
+          <div class="modal-actions">
+            <button type="button" id="dday-close-btn" class="modal-btn cancel">닫기</button>
+            <button type="submit" id="dday-save-btn" class="modal-btn submit">저장하기</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <main class="main">
       <!-- 문제가 생기면 여기에 표시됨 -->
@@ -171,10 +199,25 @@
             placeholder="오늘 있었던 일"
           ></textarea>
 
-          <!-- 그림 그리기 토글 버튼 -->
-          <button id="draw-toggle-btn" class="draw-toggle-btn" type="button">
-            🎨 그림 그리기
-          </button>
+          <!-- 미디어 첨부 버튼 그룹 (사진 첨부 / 그림 그리기) -->
+          <div class="editor-media-buttons">
+            <button id="photo-toggle-btn" class="media-btn photo-btn" type="button">
+              📷 사진 첨부
+            </button>
+            <input type="file" id="photo-file-input" accept="image/*" style="display: none;" />
+            <button id="draw-toggle-btn" class="media-btn draw-btn" type="button">
+              🎨 그림 그리기
+            </button>
+          </div>
+
+          <!-- 첨부된 사진 미리보기 영역 -->
+          <div id="photo-preview-wrap" class="photo-preview-wrap" hidden>
+            <div class="photo-preview-box">
+              <img id="photo-preview-img" class="photo-preview-img" alt="첨부 사진 미리보기" />
+              <button id="photo-remove-btn" class="photo-remove-btn" type="button" title="사진 제거">✕</button>
+            </div>
+            <span class="photo-compressed-badge">✨ 자동 최적화 완료</span>
+          </div>
 
           <!-- 접이식 그림판 영역 -->
           <div id="drawing-container" class="drawing-container" hidden>

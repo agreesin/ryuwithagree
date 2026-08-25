@@ -9,6 +9,7 @@ import { initEditor } from "./entries.js";
 import { initProfileHandlers } from "./profile.js";
 import { initNotices } from "./notice.js";
 import { initNotify } from "./notify.js";
+import { initDday } from "./dday.js";
 import { initAuth } from "./auth.js";
 
 // ---------------------------------------------------------
@@ -27,7 +28,10 @@ initNotices();
 // 4. 실시간 알림 모듈 초기화 (브라우저 알림 & 토스트)
 initNotify();
 
-// 5. 인증 배선 및 로그인 상태 감시 시작
+// 5. 디데이(D-Day) 기념일 모듈 초기화
+initDday();
+
+// 6. 인증 배선 및 로그인 상태 감시 시작
 // initAuth()는 반드시 마지막에 호출한다. onAuthStateChanged 콜백이
 // DOM 이벤트 배선보다 먼저 발동하면 안 되기 때문이다. 순서를 바꾸지 말 것.
 initAuth();
