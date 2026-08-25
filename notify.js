@@ -8,8 +8,8 @@ import { getCurrentUser, getCurrentProfiles } from "./state.js";
 
 // OneSignal 설정 상수
 const ONESIGNAL_APP_ID = "5405c7d7-4164-4bc8-af32-7863626eaa06";
-// REST API Key (보안을 위해 클라이언트 코드에 노출하지 않고 서버리스 프록시를 통해 발송)
-const ONESIGNAL_REST_API_KEY = "";
+// 안전한 Cloudflare Worker 푸시 중계 엔드포인트 (REST API Key는 Worker 내부에 안전하게 보관됨)
+const PUSH_PROXY_URL = "https://ryuwithagree.ehd8109.workers.dev";
 
 // 화면 요소
 const toastContainer = document.getElementById("toast-container");
@@ -192,40 +192,33 @@ function showSystemNotification(title, body) {
 
 /**
  * 상대방의 스마트폰/아이폰으로 백그라운드 웹 푸시 알림을 전송합니다.
- * (OneSignal REST API 연동)
+ * (Cloudflare Worker 서버리스 중계 연동)
  */
 export async function sendPushToPartner({ title, message }) {
-  if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
-    // API 키 미설정 시 브라우저 내 실시간 동기화 알림으로 대체
+  if (!PUSH_PROXY_URL) {
     return;
   }
 
   try {
-    const url = window.location.origin + window.location.pathname;
-    const res = await fetch("https://api.onesignal.com/notifications", {
+    const res = await fetch(PUSH_PROXY_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Basic ${ONESIGNAL_REST_API_KEY}`,
       },
       body: JSON.stringify({
-        app_id: ONESIGNAL_APP_ID,
-        included_segments: ["Total Subscriptions"],
-        headings: { en: title, ko: title },
-        contents: { en: message, ko: message },
-        url: url,
-        web_url: url,
+        title: title,
+        message: message,
       }),
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      console.warn("[notify] OneSignal 푸시 발송 실패 응답:", res.status, errText);
+      console.warn("[notify] 푸시 중계 서버 응답 실패:", res.status, errText);
     } else {
       console.log("[notify] OneSignal 백그라운드 푸시 발송 완료");
     }
   } catch (err) {
-    console.warn("[notify] OneSignal 푸시 발송 네트워크 오류:", err);
+    console.warn("[notify] 푸시 중계 서버 네트워크 오류:", err);
   }
 }
 
