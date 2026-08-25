@@ -76,7 +76,7 @@ async function onSave() {
     // 상대방에게 백그라운드 웹 푸시 발송 시도
     sendPushToPartner({
       title: "📖 류이어리 새 일기",
-      message: `당신의 반쪽이 새 일기를 남겼습니다: "${title}"`,
+      message: "당신의 반쪽이 새 일기를 남겼습니다.",
     });
 
     // 입력 필드, 기분 선택 및 그림판 초기화

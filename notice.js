@@ -213,7 +213,7 @@ export function initNotices() {
           await addNotice(text);
           sendPushToPartner({
             title: "📢 류이어리 새 공지",
-            message: `당신의 반쪽이 새 공지를 남겼습니다: "${text}"`,
+            message: "당신의 반쪽이 새 공지를 남겼습니다.",
           });
         }
 

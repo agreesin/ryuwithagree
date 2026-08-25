@@ -279,8 +279,7 @@ export function checkNewUpdates(entries) {
       );
 
       if (!isMyEntry) {
-        const titleText = entry.title || "새로운 일기";
-        const message = `당신의 반쪽이 새 일기를 남겼습니다: "${titleText}"`;
+        const message = "당신의 반쪽이 새 일기를 남겼습니다.";
 
         showToastNotification(message, "📖");
         showSystemNotification("📖 류이어리 새 일기", message);
@@ -302,7 +301,7 @@ export function checkNewUpdates(entries) {
         if (!isMyComment) {
           const isReply = Boolean(comment.parentId);
           const typeLabel = isReply ? "답글" : "댓글";
-          const message = `당신의 반쪽이 새 ${typeLabel}을 남겼습니다: "${comment.text}"`;
+          const message = `당신의 반쪽이 새 ${typeLabel}을 남겼습니다.`;
 
           showToastNotification(message, "💬");
           showSystemNotification(`💬 류이어리 새 ${typeLabel}`, message);
