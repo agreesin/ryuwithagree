@@ -4,11 +4,11 @@
 // ★ 목록 갱신은 Firestore onSnapshot이 담당하므로 수동 render 호출은 불필요하며 render.js를 import하지 않습니다.
 // =========================================================
 
-import { removeEntry, toggleReaction } from "./store.js?v=2.7.7";
-import { getCurrentUser, getCurrentProfiles } from "./state.js?v=2.7.7";
-import { showError } from "./ui.js?v=2.7.7";
-import { createCommentsSection } from "./comments.js?v=2.7.7";
-import { sendPushToPartner } from "./notify.js?v=2.7.7";
+import { removeEntry, toggleReaction } from "./store.js?v=2.7.8";
+import { getCurrentUser, getCurrentProfiles } from "./state.js?v=2.7.8";
+import { showError } from "./ui.js?v=2.7.8";
+import { createCommentsSection } from "./comments.js?v=2.7.8";
+import { sendPushToPartner } from "./notify.js?v=2.7.8";
 
 const REACTION_EMOJIS = ["❤️", "🥰", "🥺", "👏", "🔥"];
 

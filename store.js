@@ -7,7 +7,11 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
 import {
-  getAuth,
+  initializeAuth,
+  browserLocalPersistence,
+  indexedDBLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence,
   GoogleAuthProvider,
   signInWithPopup,
   signOut,
@@ -41,7 +45,9 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence],
+});
 const db = getFirestore(app);
 
 // app, auth, db 내보내기

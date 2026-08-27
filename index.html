@@ -49,7 +49,13 @@
         }, true);
         window.addEventListener("unhandledrejection", function (e) {
           var r = e.reason;
-          show("promise", (r && (r.stack || r.message)) || String(r));
+          var msg = (r && (r.stack || r.message)) || String(r);
+          // Firebase Auth 내부의 비치명적 IndexedDB fallback 경고는 무시
+          if (msg.includes("_openDb") || msg.includes("indexedDB") || msg.includes("_withPendingWrite")) {
+            console.warn("[boot] Firebase Auth 비치명적 IndexedDB fallback:", msg);
+            return;
+          }
+          show("promise", msg);
         });
       })();
     </script>
@@ -459,6 +465,6 @@
     </div>
 
     <!-- type="module" 을 지우면 앱이 통째로 죽습니다 -->
-    <script type="module" src="./app.js?v=2.7.7"></script>
+    <script type="module" src="./app.js?v=2.7.8"></script>
   </body>
 </html>
