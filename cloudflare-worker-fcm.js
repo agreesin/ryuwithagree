@@ -121,8 +121,14 @@ async function getGoogleAccessToken() {
 
 export default {
   async fetch(request, env, ctx) {
+    const origin = request.headers.get("Origin") || "";
+    const isAllowed =
+      origin === "https://agreesin.github.io" ||
+      origin.includes("localhost") ||
+      origin.includes("127.0.0.1");
+
     const corsHeaders = {
-      "Access-Control-Allow-Origin": "https://agreesin.github.io",
+      "Access-Control-Allow-Origin": isAllowed ? origin : "https://agreesin.github.io",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     };

@@ -477,9 +477,15 @@ export function getNotificationItems(entries = cachedEntries) {
   if (!entries || !Array.isArray(entries)) return items;
 
   entries.forEach((entry) => {
-    // 1. 상대방이 작성한 새 일기 알림
-    if (currentUser && entry.authorUid !== currentUser.uid) {
-      const authorName = currentProfiles[entry.authorUid] || entry.author || "상대방";
+    const entryUid = entry.uid || entry.authorUid;
+    const isMyEntry = currentUser && (
+      (entryUid && entryUid === currentUser.uid) ||
+      (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
+    );
+
+    // 1. 상대방이 작성한 새 일기 알림 (내 글은 제외)
+    if (currentUser && !isMyEntry) {
+      const authorName = (entryUid && currentProfiles[entryUid]) ? currentProfiles[entryUid] : (entry.author || "상대방");
       items.push({
         id: `entry-${entry.id}`,
         type: "entry",
@@ -494,13 +500,18 @@ export function getNotificationItems(entries = cachedEntries) {
 
     // 2. 일기에 달린 댓글 및 대댓글 알림
     (entry.comments || []).forEach((comment) => {
-      // 내가 쓴 댓글은 제외
-      if (currentUser && comment.authorUid !== currentUser.uid) {
-        const commentAuthor = currentProfiles[comment.authorUid] || comment.author || "상대방";
-        const isMyEntry = currentUser && entry.authorUid === currentUser.uid;
+      const commentUid = comment.uid || comment.authorUid;
+      const isMyComment = currentUser && (
+        (commentUid && commentUid === currentUser.uid) ||
+        (comment.author && currentUser.displayName && comment.author === currentUser.displayName)
+      );
+
+      // 내가 쓴 댓글은 알림에서 제외
+      if (currentUser && !isMyComment) {
+        const commentAuthor = (commentUid && currentProfiles[commentUid]) ? currentProfiles[commentUid] : (comment.author || "상대방");
 
         let text = "";
-        if (comment.parentCommentId) {
+        if (comment.parentCommentId || comment.parentId) {
           text = `💬 <b>${commentAuthor}</b>님이 답글을 남겼습니다: "${comment.text.substring(0, 20)}${comment.text.length > 20 ? "..." : ""}"`;
         } else if (isMyEntry) {
           text = `💌 <b>${commentAuthor}</b>님이 내 일기에 댓글을 남겼습니다: "${comment.text.substring(0, 20)}${comment.text.length > 20 ? "..." : ""}"`;
@@ -679,9 +690,15 @@ export function checkNewUpdates(entries) {
     if (!knownEntryIds.has(entry.id)) {
       knownEntryIds.add(entry.id);
 
+      const entryUid = entry.uid || entry.authorUid;
+      const isMyEntry = currentUser && (
+        (entryUid && entryUid === currentUser.uid) ||
+        (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
+      );
+
       // 내가 쓴 글이 아니고, 앱 켜진 이후에 작성된 글인 경우에만 알림
-      if (currentUser && entry.authorUid !== currentUser.uid && entry.createdAt > appStartTime - 5000) {
-        const authorName = getCurrentProfiles()[entry.authorUid] || entry.author || "상대방";
+      if (currentUser && !isMyEntry && entry.createdAt > appStartTime - 5000) {
+        const authorName = (entryUid && getCurrentProfiles()[entryUid]) ? getCurrentProfiles()[entryUid] : (entry.author || "상대방");
         const title = "📖 새로운 일기 등록!";
         const body = `${authorName}님이 새 일기를 남겼습니다.`;
 
@@ -696,8 +713,14 @@ export function checkNewUpdates(entries) {
       if (!knownCommentIds.has(comment.id)) {
         knownCommentIds.add(comment.id);
 
-        if (currentUser && comment.authorUid !== currentUser.uid && comment.createdAt > appStartTime - 5000) {
-          const commentAuthor = getCurrentProfiles()[comment.authorUid] || comment.author || "상대방";
+        const commentUid = comment.uid || comment.authorUid;
+        const isMyComment = currentUser && (
+          (commentUid && commentUid === currentUser.uid) ||
+          (comment.author && currentUser.displayName && comment.author === currentUser.displayName)
+        );
+
+        if (currentUser && !isMyComment && comment.createdAt > appStartTime - 5000) {
+          const commentAuthor = (commentUid && getCurrentProfiles()[commentUid]) ? getCurrentProfiles()[commentUid] : (comment.author || "상대방");
           const title = "💬 새로운 댓글 도착!";
           const body = `${commentAuthor}: ${comment.text.substring(0, 30)}${comment.text.length > 30 ? "..." : ""}`;
 
