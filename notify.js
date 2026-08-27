@@ -83,13 +83,80 @@ function formatRelativeTime(timestamp) {
 }
 
 /**
+ * OneSignal SDK 비동기 래퍼 (타임아웃 보장으로 UI 프리징 방지)
+ */
+function runWithOneSignal(fn, timeoutMs = 3500) {
+  return new Promise((resolve) => {
+    let resolved = false;
+    const timer = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        resolve(null);
+      }
+    }, timeoutMs);
+
+    if (typeof window !== "undefined" && window.OneSignal && typeof window.OneSignal.User !== "undefined") {
+      try {
+        Promise.resolve(fn(window.OneSignal))
+          .then((res) => {
+            if (!resolved) {
+              resolved = true;
+              clearTimeout(timer);
+              resolve(res);
+            }
+          })
+          .catch((err) => {
+            console.warn("[notify] OneSignal 즉시 실행 오류:", err);
+            if (!resolved) {
+              resolved = true;
+              clearTimeout(timer);
+              resolve(null);
+            }
+          });
+      } catch (err) {
+        console.warn("[notify] OneSignal 즉시 실행 예외:", err);
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          resolve(null);
+        }
+      }
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      window.OneSignalDeferred.push(async (OneSignal) => {
+        try {
+          const res = await fn(OneSignal);
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            resolve(res);
+          }
+        } catch (err) {
+          console.warn("[notify] OneSignal 지연 실행 오류:", err);
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            resolve(null);
+          }
+        }
+      });
+    } else {
+      clearTimeout(timer);
+      resolve(null);
+    }
+  });
+}
+
+/**
  * OneSignal SDK를 초기화합니다.
  */
 function initOneSignal() {
   if (typeof window === "undefined") return;
 
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  window.OneSignalDeferred.push(async function (OneSignal) {
+  runWithOneSignal(async (OneSignal) => {
     try {
       const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/") + 1);
 
@@ -106,7 +173,7 @@ function initOneSignal() {
       });
 
       // OneSignal 구독 상태 변화 리스너
-      OneSignal.User.PushSubscription.addEventListener("change", async () => {
+      OneSignal.User?.PushSubscription?.addEventListener("change", async () => {
         await refreshPushStatus();
       });
 
@@ -115,7 +182,7 @@ function initOneSignal() {
     } catch (err) {
       console.warn("[notify] OneSignal 초기화 경고:", err);
     }
-  });
+  }, 5000);
 }
 
 /**
@@ -124,41 +191,31 @@ function initOneSignal() {
 export async function refreshPushStatus() {
   if (typeof window === "undefined" || !("Notification" in window)) {
     updatePushStatusUI({ status: "unsupported", message: "웹 알림 미지원 브라우저" });
-    return;
+    return { status: "unsupported" };
   }
 
   const permission = Notification.permission;
   if (permission === "denied") {
     updatePushStatusUI({ status: "denied", message: "기기 알림 차단됨 🔕" });
-    return;
+    return { status: "denied" };
   }
 
-  if (window.OneSignalDeferred) {
-    window.OneSignalDeferred.push(async function (OneSignal) {
-      try {
-        const isOptedIn = Boolean(OneSignal.User?.PushSubscription?.optedIn);
-        const subId = OneSignal.User?.PushSubscription?.id;
+  const result = await runWithOneSignal(async (OneSignal) => {
+    const isOptedIn = Boolean(OneSignal.User?.PushSubscription?.optedIn);
+    const subId = OneSignal.User?.PushSubscription?.id;
+    return { isOptedIn, subId };
+  }, 2500);
 
-        if (isOptedIn && subId) {
-          updatePushStatusUI({ status: "granted", message: "기기 푸시 알림 켜짐 🔔", subId });
-        } else if (permission === "granted") {
-          // 브라우저 권한은 허용되었으나 OneSignal 서버에 토큰 미등록 상태
-          updatePushStatusUI({ status: "needs_resync", message: "푸시 토큰 재연동 필요 ⚠️", subId: null });
-        } else {
-          updatePushStatusUI({ status: "default", message: "기기 푸시 알림 꺼짐", subId: null });
-        }
-      } catch (e) {
-        updatePushStatusUI({
-          status: permission === "granted" ? "granted" : "default",
-          message: permission === "granted" ? "기기 알림 허용됨 🔔" : "기기 푸시 알림 꺼짐",
-        });
-      }
-    });
+  if (result?.isOptedIn && result?.subId) {
+    updatePushStatusUI({ status: "granted", message: "기기 푸시 알림 켜짐 🔔", subId: result.subId });
+    return { status: "granted", subId: result.subId };
+  } else if (permission === "granted") {
+    // 브라우저 권한은 허용되었으나 OneSignal 서버에 토큰 미등록 상태
+    updatePushStatusUI({ status: "needs_resync", message: "푸시 토큰 재연동 필요 ⚠️", subId: null });
+    return { status: "needs_resync" };
   } else {
-    updatePushStatusUI({
-      status: permission === "granted" ? "granted" : "default",
-      message: permission === "granted" ? "기기 알림 허용됨 🔔" : "기기 푸시 알림 꺼짐",
-    });
+    updatePushStatusUI({ status: "default", message: "기기 푸시 알림 꺼짐", subId: null });
+    return { status: "default" };
   }
 }
 
@@ -167,14 +224,13 @@ export async function refreshPushStatus() {
  * @param {Object} user - Firebase User 객체
  */
 export function syncUserWithOneSignal(user) {
-  if (!user || !window.OneSignalDeferred) return;
+  if (!user) return;
 
-  window.OneSignalDeferred.push(async function (OneSignal) {
+  runWithOneSignal(async (OneSignal) => {
     try {
       await OneSignal.login(user.uid);
       console.log("[notify] OneSignal 사용자 연결 완료:", user.uid);
 
-      // 이미 브라우저 알림 권한이 granted인데 optedIn이 아직 안 되어 있다면 optIn 시도
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         if (!OneSignal.User?.PushSubscription?.optedIn) {
           await OneSignal.User.PushSubscription.optIn();
@@ -184,7 +240,7 @@ export function syncUserWithOneSignal(user) {
     } catch (err) {
       console.warn("[notify] OneSignal 로그인 실패:", err);
     }
-  });
+  }, 4000);
 }
 
 /**
@@ -208,35 +264,40 @@ export async function requestNotificationPermission() {
       notifPushToggleBtn.textContent = "연동 중...";
     }
 
-    // 1. OneSignal v16 User Opt-in 요청
-    if (window.OneSignalDeferred) {
-      await new Promise((resolve) => {
-        window.OneSignalDeferred.push(async function (OneSignal) {
-          try {
-            await OneSignal.User.PushSubscription.optIn();
-            const curUser = getCurrentUser();
-            if (curUser) {
-              await OneSignal.login(curUser.uid);
-            }
-            console.log("[notify] OneSignal optIn 및 사용자 연동 완료");
-          } catch (e) {
-            console.warn("[notify] OneSignal optIn 에러:", e);
-          }
-          resolve();
-        });
-      });
+    // 1. 유저 제스처 컨텍스트에서 브라우저 알림 권한 즉시 요청
+    let permission = Notification.permission;
+    if (permission !== "granted") {
+      permission = await Notification.requestPermission();
     }
 
-    // 2. 표준 Web Notification 권한 요청
-    const permission = await Notification.requestPermission();
-    await refreshPushStatus();
+    if (permission !== "granted") {
+      showToastNotification("알림 권한이 허용되지 않았습니다.", "🔕");
+      await refreshPushStatus();
+      return false;
+    }
 
-    if (permission === "granted") {
+    // 2. 브라우저 권한 획득 후 OneSignal optIn 및 사용자 연동 수행
+    await runWithOneSignal(async (OneSignal) => {
+      try {
+        await OneSignal.User.PushSubscription.optIn();
+        const curUser = getCurrentUser();
+        if (curUser) {
+          await OneSignal.login(curUser.uid);
+        }
+        console.log("[notify] OneSignal optIn 및 사용자 연동 완료");
+      } catch (e) {
+        console.warn("[notify] OneSignal optIn 에러:", e);
+      }
+    }, 4000);
+
+    const status = await refreshPushStatus();
+
+    if (status?.status === "granted" || permission === "granted") {
       showToastNotification("기기 푸시 알림이 정상 연결되었습니다! 🔔", "🔔");
       return true;
     } else {
-      showToastNotification("알림 권한이 허용되지 않았습니다.", "🔕");
-      return false;
+      showToastNotification("푸시 연동 진행 중입니다. 잠시 후 상태를 확인하세요.", "🔔");
+      return true;
     }
   } catch (err) {
     console.warn("[notify] 권한 요청 오류:", err);
@@ -287,14 +348,14 @@ export async function sendTestPush() {
   const testBtn = document.getElementById("notif-test-push-btn");
   if (testBtn) testBtn.disabled = true;
 
-  showToastNotification("테스트 푸시 알림을 발송합니다... 🚀", "💌");
+  showToastNotification("테스트 푸시 발송을 요청했습니다... 🚀", "💌");
 
   try {
     await sendPushToPartner({
       title: "🔔 류이어리 푸시 알림 테스트",
       message: "정상적으로 알림이 잘 도착했습니다! ✨",
     });
-    showToastNotification("푸시 발송 요청 완료! 홈 화면을 닫고 5초 내로 알림을 확인하세요 🔔", "🔔");
+    showToastNotification("푸시 발송 완료! 앱을 닫고 3~5초 뒤 잠금화면을 확인하세요 🔔", "🔔");
   } catch (err) {
     console.error("[notify] 테스트 푸시 실패:", err);
     showToastNotification("푸시 발송에 실패했습니다.", "❌");
