@@ -1,18 +1,14 @@
 // =========================================================
-// notify.js - 실시간 알림, 알림 센터 드롭다운 및 PWA/OneSignal 웹 푸시 모듈
+// notify.js - 실시간 알림, 알림 센터 드롭다운 및 Firebase Cloud Messaging (FCM) 웹 푸시 모듈
 // 브라우저 시스템 알림, 앱 내 토스트 팝업, 탭 제목 깜빡임,
-// 상단 종 아이콘 클릭 시 알�import { getCurrentUser, getCurrentProfiles } from "./state.js";
-import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js";
-import {
-  getMessaging,
-  getToken,
-  onMessage,
-  isSupported,
-} from "https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging.js";
+// 상단 종 아이콘 클릭 시 알림 내역 목록 확인 및 클릭 시 해당 글/댓글로 스크롤 이동을 담당합니다.
+// =========================================================
 
-// Firebase Cloud Messaging (FCM) VAPID Key
+import { getCurrentUser, getCurrentProfiles } from "./state.js";
+import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js";
+
+const FIREBASE_MESSAGING_URL = "https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging.js";
 const FCM_VAPID_KEY = "BMwoxyNkaOfECoLOtTqhnVp76x2U3_7FgE4b08fKPSKxDxQ-EKCJb2z7cMaPjWNtjIPHXBaYbUhHLL1p0Gc1KNo";
-// Cloudflare Worker FCM 푸시 중계 엔드포인트
 const PUSH_PROXY_URL = "https://silent-mud-06b5.ehd8109.workers.dev";
 
 // 화면 요소
@@ -38,9 +34,11 @@ let unreadCount = 0;
 let titleInterval = null;
 let cachedEntries = [];
 
-// FCM 인스턴스 및 서비스워커 등록 객체
+// FCM 동적 인스턴스 및 서비스워커 등록 객체
+let messagingMod = null;
 let fcmMessaging = null;
 let swRegistration = null;
+let fcmInitPromise = null;
 
 // 읽은 알림 ID 목록 (localStorage 보관)
 const STORAGE_KEY_READ_NOTIFS = "diary_read_notification_ids";
@@ -90,43 +88,74 @@ function formatRelativeTime(timestamp) {
   });
 }
 
+function getBasePath() {
+  const isGitHubPages = typeof window !== "undefined" && window.location.pathname.includes("/ryuwithagree");
+  return isGitHubPages ? "/ryuwithagree/" : "/";
+}
+
+/** 이 브라우저에서 웹 푸시가 물리적으로 가능한지 (iOS 비-standalone이면 false) */
+function isPushCapable() {
+  return (
+    typeof window !== "undefined" &&
+    "serviceWorker" in navigator &&
+    "Notification" in window
+  );
+}
+
+/** Firebase Messaging 모듈을 동적 로드 → 실패해도 전체 모듈 그래프를 죽이지 않음 */
+async function loadMessaging() {
+  if (!messagingMod) {
+    messagingMod = await import(FIREBASE_MESSAGING_URL);
+  }
+  return messagingMod;
+}
+
 /**
  * Firebase Cloud Messaging (FCM) 초기화 및 서비스 워커 등록
  */
 async function initFcm() {
-  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
-
-  try {
-    const isGitHubPages = window.location.pathname.includes("/ryuwithagree");
-    const swPath = isGitHubPages ? "/ryuwithagree/firebase-messaging-sw.js" : "/firebase-messaging-sw.js";
-    const swScope = isGitHubPages ? "/ryuwithagree/" : "/";
-
-    swRegistration = await navigator.serviceWorker.register(swPath, { scope: swScope }).catch((e) => {
-      console.warn("[notify] FCM SW 등록 경고:", e);
-      return null;
-    });
-
-    const supported = await isSupported().catch(() => false);
-    if (!supported) {
-      console.log("[notify] 현재 브라우저 환경에서 FCM WebPush 미지원 (일반 브라우저/알림 허용 전)");
-      return;
-    }
-
-    fcmMessaging = getMessaging(app);
-
-    // 포그라운드(앱이 켜져 있을 때) 수신 리스너
-    onMessage(fcmMessaging, (payload) => {
-      console.log("[notify] FCM 포그라운드 메시지 수신:", payload);
-      const title = payload.notification?.title || payload.data?.title || "류이어리";
-      const message = payload.notification?.body || payload.data?.body || payload.data?.message || "새 소식이 도착했습니다 ✨";
-      showToastNotification(`${title}: ${message}`, "🔔");
-      showSystemNotification(title, message);
-    });
-
-    await refreshPushStatus();
-  } catch (err) {
-    console.warn("[notify] FCM 초기화 안전 처리:", err);
+  if (!isPushCapable()) {
+    console.info("[notify] 이 브라우저 환경에서는 웹 푸시를 사용할 수 없습니다.");
+    return;
   }
+
+  const base = getBasePath();
+  const swPath = `${base}firebase-messaging-sw.js`;
+  const swScope = `${base}`;
+
+  swRegistration = await navigator.serviceWorker.register(swPath, { scope: swScope });
+  console.log("[notify] FCM ServiceWorker 등록 성공:", swPath);
+
+  const { getMessaging, getToken, onMessage, isSupported } = await loadMessaging();
+
+  const supported = await isSupported().catch(() => false);
+  if (!supported) {
+    console.info("[notify] Firebase Messaging 미지원 환경");
+    return;
+  }
+
+  fcmMessaging = getMessaging(app);
+
+  // 포그라운드(앱이 켜져 있을 때) 수신 리스너
+  onMessage(fcmMessaging, (payload) => {
+    console.log("[notify] FCM 포그라운드 메시지 수신:", payload);
+    const title = payload.notification?.title || payload.data?.title || "류이어리";
+    const message = payload.notification?.body || payload.data?.body || payload.data?.message || "새 소식이 도착했습니다 ✨";
+    showToastNotification(`${title}: ${message}`, "🔔");
+    showSystemNotification(title, message);
+  });
+
+  await refreshPushStatus();
+}
+
+function ensureFcm() {
+  if (!fcmInitPromise) {
+    fcmInitPromise = initFcm().catch((err) => {
+      console.warn("[notify] FCM 초기화 안전 처리:", err);
+      fcmInitPromise = null;
+    });
+  }
+  return fcmInitPromise;
 }
 
 /**
@@ -154,31 +183,26 @@ export async function refreshPushStatus() {
 }
 
 /**
- * 로그인한 사용자의 UID와 FCM 토큰을 Firestore에 동기화합니다.
+ * 로그인한 사용자의 UID와 FCM 토큰을 Firestore에 동기화합니다 (호환용 함수명).
  * @param {Object} user - Firebase User 객체
  */
 export async function syncUserWithOneSignal(user) {
-  // 함수명 호환성 유지 (기존 auth.js 호출 호환)
   if (!user || !("Notification" in window) || Notification.permission !== "granted") return;
 
   try {
-    if (!fcmMessaging) fcmMessaging = getMessaging(app);
-    if (!swRegistration && "serviceWorker" in navigator) {
-      const isGitHubPages = window.location.pathname.includes("/ryuwithagree");
-      const swPath = isGitHubPages ? "/ryuwithagree/firebase-messaging-sw.js" : "/firebase-messaging-sw.js";
-      swRegistration = await navigator.serviceWorker.register(swPath, {
-        scope: isGitHubPages ? "/ryuwithagree/" : "/",
+    await ensureFcm();
+    const { getToken } = await loadMessaging();
+
+    if (fcmMessaging && swRegistration) {
+      const token = await getToken(fcmMessaging, {
+        vapidKey: FCM_VAPID_KEY,
+        serviceWorkerRegistration: swRegistration,
       });
-    }
 
-    const token = await getToken(fcmMessaging, {
-      vapidKey: FCM_VAPID_KEY,
-      serviceWorkerRegistration: swRegistration,
-    });
-
-    if (token) {
-      await saveUserFcmToken(user.uid, token, user.email || "");
-      console.log("[notify] FCM 토큰 Firestore 동기화 완료:", token.substring(0, 15) + "...");
+      if (token) {
+        await saveUserFcmToken(user.uid, token, user.email || "");
+        console.log("[notify] FCM 토큰 Firestore 동기화 완료:", token.substring(0, 15) + "...");
+      }
     }
   } catch (err) {
     console.warn("[notify] FCM 토큰 동기화 오류:", err);
@@ -213,13 +237,11 @@ export async function requestNotificationPermission() {
       return false;
     }
 
-    if (!fcmMessaging) fcmMessaging = getMessaging(app);
-    if (!swRegistration && "serviceWorker" in navigator) {
-      const isGitHubPages = window.location.pathname.includes("/ryuwithagree");
-      const swPath = isGitHubPages ? "/ryuwithagree/firebase-messaging-sw.js" : "/firebase-messaging-sw.js";
-      swRegistration = await navigator.serviceWorker.register(swPath, {
-        scope: isGitHubPages ? "/ryuwithagree/" : "/",
-      });
+    await ensureFcm();
+    const { getToken } = await loadMessaging();
+
+    if (!fcmMessaging || !swRegistration) {
+      throw new Error("FCM 서비스워커 등록에 실패했습니다.");
     }
 
     const token = await getToken(fcmMessaging, {
@@ -310,6 +332,67 @@ export async function sendTestPush() {
 }
 
 /**
+ * 앱 내 화면 상단에 핑크 토스트 알림을 띄웁니다.
+ * @param {string} message - 표시할 메시지
+ * @param {string} icon - 이모지 아이콘
+ */
+export function showToastNotification(message, icon = "💌") {
+  if (!toastContainer) return;
+
+  const toast = document.createElement("div");
+  toast.className = "toast-item";
+
+  const iconSpan = document.createElement("span");
+  iconSpan.className = "toast-icon";
+  iconSpan.textContent = icon;
+
+  const textSpan = document.createElement("span");
+  textSpan.className = "toast-text";
+  textSpan.textContent = message;
+
+  toast.appendChild(iconSpan);
+  toast.appendChild(textSpan);
+
+  toastContainer.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add("toast-hide");
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 400);
+  }, 4000);
+}
+
+/**
+ * 브라우저 시스템 푸시 알림을 띄웁니다.
+ * @param {string} title - 알림 제목
+ * @param {string} body - 알림 본문
+ */
+function showSystemNotification(title, body) {
+  if (!("Notification" in window) || Notification.permission !== "granted") {
+    return;
+  }
+
+  try {
+    const notification = new Notification(title, {
+      body: body,
+      icon: "icons/icon-192.png",
+      badge: "icons/icon-192.png",
+      tag: "diary-update",
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+  } catch (err) {
+    console.warn("[notify] 시스템 알림 발생 실패:", err);
+  }
+}
+
+/**
  * 상대방의 스마트폰/아이폰으로 백그라운드 웹 푸시 알림을 전송합니다.
  * (Cloudflare Worker -> Google FCM HTTP v1 API 직통 발송)
  */
@@ -352,21 +435,18 @@ export async function sendPushToPartner({ title, message, isTest = false }) {
  * 탭 제목 깜빡임 효과를 시작합니다.
  */
 function startTitleBlink(message) {
-  unreadCount++;
-  if (titleInterval) clearInterval(titleInterval);
-
-  let showMsg = true;
+  stopTitleBlink();
+  let isOriginal = false;
   titleInterval = setInterval(() => {
-    document.title = showMsg ? `(${unreadCount}) 💌 ${message}` : originalDocumentTitle;
-    showMsg = !showMsg;
+    document.title = isOriginal ? originalDocumentTitle : `🔔 ${message}`;
+    isOriginal = !isOriginal;
   }, 1000);
 }
 
 /**
- * 사용자가 페이지를 보게 되면 탭 제목을 원래대로 복구합니다.
+ * 탭 제목 깜빡임 효과를 정지합니다.
  */
 function stopTitleBlink() {
-  unreadCount = 0;
   if (titleInterval) {
     clearInterval(titleInterval);
     titleInterval = null;
@@ -374,77 +454,80 @@ function stopTitleBlink() {
   document.title = originalDocumentTitle;
 }
 
-// =========================================================
-// 알림 센터 (Notification Center) 데이터 & 드롭다운 관리
-// =========================================================
-
 /**
- * 상대방이 작성한 모든 일기, 댓글, 답글을 시간순으로 정렬한 알림 목록을 생성합니다.
+ * 전체 일기 목록에서 알림 항목(새 일기 + 새 댓글)을 시간 역순으로 추출합니다.
+ * @param {Array<Object>} entries - Firestore 일기 목록
+ * @returns {Array<Object>} 알림 아이템 목록
  */
 export function getNotificationItems(entries = cachedEntries) {
   const currentUser = getCurrentUser();
+  const currentProfiles = getCurrentProfiles();
   const items = [];
 
-  for (const entry of entries) {
-    // 1. 상대방이 쓴 일기
-    const isMyEntry = currentUser && (
-      (entry.uid && entry.uid === currentUser.uid) ||
-      (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
-    );
+  if (!entries || !Array.isArray(entries)) return items;
 
-    if (!isMyEntry && entry.createdAt) {
+  entries.forEach((entry) => {
+    // 1. 상대방이 작성한 새 일기 알림
+    if (currentUser && entry.authorUid !== currentUser.uid) {
+      const authorName = currentProfiles[entry.authorUid] || entry.author || "상대방";
       items.push({
-        id: `entry_${entry.id}`,
+        id: `entry-${entry.id}`,
         type: "entry",
-        icon: "📖",
-        text: "당신의 반쪽이 새 일기를 남겼습니다.",
-        createdAt: entry.createdAt,
         entryId: entry.id,
         targetId: `entry-${entry.id}`,
+        author: authorName,
+        text: `✏️ <b>${authorName}</b>님이 새 일기를 남겼습니다.`,
+        createdAt: entry.createdAt || 0,
+        icon: "📖",
       });
     }
 
-    // 2. 상대방이 쓴 댓글 / 답글
-    const comments = entry.comments || [];
-    for (const comment of comments) {
-      const isMyComment = currentUser && (
-        (comment.uid && comment.uid === currentUser.uid) ||
-        (comment.author && currentUser.displayName && comment.author === currentUser.displayName)
-      );
+    // 2. 일기에 달린 댓글 및 대댓글 알림
+    (entry.comments || []).forEach((comment) => {
+      // 내가 쓴 댓글은 제외
+      if (currentUser && comment.authorUid !== currentUser.uid) {
+        const commentAuthor = currentProfiles[comment.authorUid] || comment.author || "상대방";
+        const isMyEntry = currentUser && entry.authorUid === currentUser.uid;
 
-      if (!isMyComment && comment.createdAt) {
-        const isReply = Boolean(comment.parentId);
-        const typeLabel = isReply ? "답글" : "댓글";
+        let text = "";
+        if (comment.parentCommentId) {
+          text = `💬 <b>${commentAuthor}</b>님이 답글을 남겼습니다: "${comment.text.substring(0, 20)}${comment.text.length > 20 ? "..." : ""}"`;
+        } else if (isMyEntry) {
+          text = `💌 <b>${commentAuthor}</b>님이 내 일기에 댓글을 남겼습니다: "${comment.text.substring(0, 20)}${comment.text.length > 20 ? "..." : ""}"`;
+        } else {
+          text = `💬 <b>${commentAuthor}</b>님이 댓글을 남겼습니다: "${comment.text.substring(0, 20)}${comment.text.length > 20 ? "..." : ""}"`;
+        }
+
         items.push({
-          id: `comment_${comment.id}`,
-          type: isReply ? "reply" : "comment",
-          icon: "💬",
-          text: `당신의 반쪽이 새 ${typeLabel}을 남겼습니다.`,
-          createdAt: comment.createdAt,
+          id: `comment-${comment.id}`,
+          type: "comment",
           entryId: entry.id,
-          commentId: comment.id,
           targetId: `comment-${comment.id}`,
+          author: commentAuthor,
+          text: text,
+          createdAt: comment.createdAt || 0,
+          icon: "💬",
         });
       }
-    }
-  }
+    });
+  });
 
   // 최신순 정렬
-  items.sort((a, b) => b.createdAt - a.createdAt);
+  items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   return items;
 }
 
 /**
- * 읽지 않은 알림 개수를 계산하여 상단 종 뱃지를 갱신합니다.
+ * 상단 종 아이콘 옆의 빨간색 안 읽은 알림 뱃지 숫자를 갱신합니다.
  */
 export function updateNotificationBadge() {
   const items = getNotificationItems();
   const unreadItems = items.filter((item) => !readNotificationIds.has(item.id));
-  const unreadLen = unreadItems.length;
+  unreadCount = unreadItems.length;
 
   if (notifBadge) {
-    if (unreadLen > 0) {
-      notifBadge.textContent = unreadLen > 99 ? "99+" : String(unreadLen);
+    if (unreadCount > 0) {
+      notifBadge.textContent = unreadCount > 99 ? "99+" : unreadCount;
       notifBadge.hidden = false;
     } else {
       notifBadge.hidden = true;
@@ -452,7 +535,7 @@ export function updateNotificationBadge() {
   }
 
   if (notifUnreadCount) {
-    notifUnreadCount.textContent = unreadLen > 0 ? `(${unreadLen}개 안읽음)` : "";
+    notifUnreadCount.textContent = unreadCount;
   }
 }
 
@@ -487,7 +570,7 @@ export function renderNotificationDropdown() {
 
     const textP = document.createElement("p");
     textP.className = "notif-item-text";
-    textP.textContent = item.text;
+    textP.innerHTML = item.text;
 
     const timeSpan = document.createElement("span");
     timeSpan.className = "notif-item-time";
@@ -573,60 +656,48 @@ export function checkNewUpdates(entries) {
   // 1. 첫 로딩 시점에는 기존 항목 ID들만 기록하고 알림 건너뜀
   if (isInitialEntriesLoad) {
     isInitialEntriesLoad = false;
-    knownEntryIds = new Set(entries.map((e) => e.id));
-    knownCommentIds = new Set();
     entries.forEach((e) => {
+      knownEntryIds.add(e.id);
       (e.comments || []).forEach((c) => knownCommentIds.add(c.id));
     });
     updateNotificationBadge();
     return;
   }
 
-  // 2. 신규 일기 감지
-  for (const entry of entries) {
+  // 2. 새 일기 감지
+  entries.forEach((entry) => {
     if (!knownEntryIds.has(entry.id)) {
       knownEntryIds.add(entry.id);
 
-      // 내가 쓴 글이 아니고, 앱 실행 이후에 등록된 새 글일 때만 알림
-      const isMyEntry = currentUser && (
-        (entry.uid && entry.uid === currentUser.uid) ||
-        (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
-      );
+      // 내가 쓴 글이 아니고, 앱 켜진 이후에 작성된 글인 경우에만 알림
+      if (currentUser && entry.authorUid !== currentUser.uid && entry.createdAt > appStartTime - 5000) {
+        const authorName = getCurrentProfiles()[entry.authorUid] || entry.author || "상대방";
+        const title = "📖 새로운 일기 등록!";
+        const body = `${authorName}님이 새 일기를 남겼습니다.`;
 
-      const isRecent = entry.createdAt && entry.createdAt >= appStartTime - 3000;
-      if (!isMyEntry && isRecent) {
-        const message = "당신의 반쪽이 새 일기를 남겼습니다.";
-
-        showToastNotification(message, "📖");
-        showSystemNotification("📖 류이어리 새 일기", message);
-        startTitleBlink("새 일기 도착!");
+        showToastNotification(body, "💌");
+        showSystemNotification(title, body);
+        startTitleBlink("새 일기가 도착했습니다!");
       }
     }
 
-    // 3. 신규 댓글/답글 감지
-    const comments = entry.comments || [];
-    for (const comment of comments) {
+    // 3. 새 댓글/대댓글 감지
+    (entry.comments || []).forEach((comment) => {
       if (!knownCommentIds.has(comment.id)) {
         knownCommentIds.add(comment.id);
 
-        const isMyComment = currentUser && (
-          (comment.uid && comment.uid === currentUser.uid) ||
-          (comment.author && currentUser.displayName && comment.author === currentUser.displayName)
-        );
+        if (currentUser && comment.authorUid !== currentUser.uid && comment.createdAt > appStartTime - 5000) {
+          const commentAuthor = getCurrentProfiles()[comment.authorUid] || comment.author || "상대방";
+          const title = "💬 새로운 댓글 도착!";
+          const body = `${commentAuthor}: ${comment.text.substring(0, 30)}${comment.text.length > 30 ? "..." : ""}`;
 
-        const isRecent = comment.createdAt && comment.createdAt >= appStartTime - 3000;
-        if (!isMyComment && isRecent) {
-          const isReply = Boolean(comment.parentId);
-          const typeLabel = isReply ? "답글" : "댓글";
-          const message = `당신의 반쪽이 새 ${typeLabel}을 남겼습니다.`;
-
-          showToastNotification(message, "💬");
-          showSystemNotification(`💬 류이어리 새 ${typeLabel}`, message);
-          startTitleBlink(`새 ${typeLabel} 도착!`);
+          showToastNotification(body, "💌");
+          showSystemNotification(title, body);
+          startTitleBlink("새 댓글이 도착했습니다!");
         }
       }
-    }
-  }
+    });
+  });
 
   // 뱃지 및 드롭다운 목록 갱신
   updateNotificationBadge();
@@ -639,8 +710,8 @@ export function checkNewUpdates(entries) {
  * 알림 모듈을 초기화하고 이벤트 리스너를 바인딩합니다.
  */
 export function initNotify() {
-  // OneSignal SDK 초기화
-  initFcm();
+  // FCM 백그라운드 등록 시도 (전체 앱 흐름을 막지 않음)
+  ensureFcm();
 
   // 1. 상단 종 버튼 클릭 시 알림 센터 드롭다운 토글
   if (notifBellBtn && notifDropdown) {
@@ -693,14 +764,8 @@ export function initNotify() {
     });
   }
 
-  // 6. 브라우저 창 복구 시 탭 제목 복구
+  // 7. 브라우저 창 복구 시 탭 제목 복구
   window.addEventListener("focus", () => {
     stopTitleBlink();
-  });
-
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) {
-      stopTitleBlink();
-    }
   });
 }

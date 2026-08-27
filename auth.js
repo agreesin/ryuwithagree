@@ -204,42 +204,55 @@ export function initAuth() {
     });
   }
 
+function readPasscodeFlag(uid) {
+  try {
+    return sessionStorage.getItem(`diary_passcode_${uid}`) === "verified";
+  } catch (e) {
+    console.warn("[auth] sessionStorage 접근 불가:", e);
+    return false; // 실패 시 암호 입력 화면으로 폴백 (blank 방지)
+  }
+}
+
   // ---------------------------------------------------------
   // 로그인 상태가 바뀔 때마다 실행됨 (자동 로그인 세션 감지)
   // ---------------------------------------------------------
   watchLogin((user) => {
-    setCurrentUser(user);
-    if (user) {
-      if (loginArea) loginArea.hidden = true;
-      // 구글 로그인 유지됨 -> 2차 암호 검증 상태 확인
-      const isVerified = sessionStorage.getItem(`diary_passcode_${user.uid}`) === "verified";
-      if (isVerified) {
-        grantAccess(user);
+    try {
+      setCurrentUser(user);
+      if (user) {
+        if (readPasscodeFlag(user.uid)) {
+          grantAccess(user);
+        } else {
+          promptPasscode();
+        }
+        // 다음 화면을 띄운 뒤에 로그인 영역을 숨김
+        if (loginArea) loginArea.hidden = true;
       } else {
-        promptPasscode();
-      }
-    } else {
-      // 완전 로그아웃된 상태 -> 구글 로그인 버튼 표시 및 보안 대상 은닉
-      if (passcodeModal) passcodeModal.hidden = true;
-      if (ddayBadgeBtn) ddayBadgeBtn.hidden = true;
-      if (appFooter) appFooter.hidden = true;
-      if (ddayModal) ddayModal.hidden = true;
-      if (changelogModal) changelogModal.hidden = true;
+        // 완전 로그아웃된 상태 -> 구글 로그인 버튼 표시 및 보안 대상 은닉
+        if (passcodeModal) passcodeModal.hidden = true;
+        if (ddayBadgeBtn) ddayBadgeBtn.hidden = true;
+        if (appFooter) appFooter.hidden = true;
+        if (ddayModal) ddayModal.hidden = true;
+        if (changelogModal) changelogModal.hidden = true;
 
-      if (stopWatchingEntries) {
-        stopWatchingEntries();
-        stopWatchingEntries = null;
+        if (stopWatchingEntries) {
+          stopWatchingEntries();
+          stopWatchingEntries = null;
+        }
+        if (stopWatchingProfiles) {
+          stopWatchingProfiles();
+          stopWatchingProfiles = null;
+        }
+        if (appArea) appArea.hidden = true;
+        if (loginArea) loginArea.hidden = false;
+        if (othersList) othersList.innerHTML = "";
+        if (myList) myList.innerHTML = "";
+        updateNoticeAuth(null);
+        hideError();
       }
-      if (stopWatchingProfiles) {
-        stopWatchingProfiles();
-        stopWatchingProfiles = null;
-      }
-      if (loginArea) loginArea.hidden = false;
-      if (appArea) appArea.hidden = true;
-      if (othersList) othersList.innerHTML = "";
-      if (myList) myList.innerHTML = "";
-      updateNoticeAuth(null);
-      hideError();
+    } catch (err) {
+      console.error("[auth] watchLogin 처리 실패:", err);
+      if (loginArea) loginArea.hidden = false; // 최후 폴백
     }
   });
 }
