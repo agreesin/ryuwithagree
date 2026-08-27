@@ -122,7 +122,7 @@ async function getGoogleAccessToken() {
 export default {
   async fetch(request, env, ctx) {
     const corsHeaders = {
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": "https://agreesin.github.io",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     };
