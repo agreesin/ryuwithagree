@@ -420,7 +420,7 @@ export async function sendPushToPartner({ title, message, isTest = false }) {
       tokens: tokens,
       title: title,
       message: message,
-      url: "https://agreesin.github.io/ryuwithagree/",
+      url: "https://ryuwithagree.firebaseapp.com/",
     }),
   });
 
