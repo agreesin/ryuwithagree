@@ -44,15 +44,88 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// app, auth, db 내보내기
+export { app, auth, db };
+
 // 일기가 쌓이는 곳의 이름
 const entriesRef = collection(db, "entries");
 // 사용자 프로필(이름)이 쌓이는 곳의 이름
 const profilesRef = collection(db, "profiles");
 // 공지사항이 쌓이는 곳의 이름
 const noticesRef = collection(db, "notices");
+// FCM 기기 푸시 토큰이 쌓이는 곳의 이름
+const fcmTokensRef = collection(db, "fcm_tokens");
 
 // 캐시된 프로필 목록 { uid: displayName }
 let cachedProfiles = {};
+
+// =========================================================
+// FCM 푸시 토큰 관리
+// =========================================================
+
+/**
+ * 사용자의 FCM 푸시 토큰을 Firestore fcm_tokens 컬렉션에 저장합니다.
+ */
+export async function saveUserFcmToken(uid, token, email = "") {
+  if (!uid || !token) return;
+  try {
+    const tokenDocRef = doc(db, "fcm_tokens", uid);
+    await setDoc(
+      tokenDocRef,
+      {
+        token,
+        email: email || "",
+        updatedAt: Date.now(),
+      },
+      { merge: true }
+    );
+    console.log("[store] FCM 토큰 Firestore 저장 완료:", uid);
+  } catch (err) {
+    console.warn("[store] FCM 토큰 저장 오류:", err);
+  }
+}
+
+/**
+ * 상대방의 FCM 푸시 토큰 목록을 조회합니다 (내 UID 제외).
+ */
+export async function getPartnerFcmTokens(myUid) {
+  try {
+    const snapshot = await getDocs(fcmTokensRef);
+    const tokens = [];
+    snapshot.forEach((docSnap) => {
+      if (docSnap.id !== myUid) {
+        const data = docSnap.data();
+        if (data.token) {
+          tokens.push(data.token);
+        }
+      }
+    });
+    return tokens;
+  } catch (err) {
+    console.warn("[store] 상대방 FCM 토큰 조회 오류:", err);
+    return [];
+  }
+}
+
+/**
+ * 모든 등록된 사용자의 FCM 푸시 토큰 목록을 조회합니다 (테스트용).
+ */
+export async function getAllFcmTokens() {
+  try {
+    const snapshot = await getDocs(fcmTokensRef);
+    const tokens = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data.token && !tokens.includes(data.token)) {
+        tokens.push(data.token);
+      }
+    });
+    return tokens;
+  } catch (err) {
+    console.warn("[store] 전체 FCM 토큰 조회 오류:", err);
+    return [];
+  }
+}
 
 // =========================================================
 // 프로필 관리 (모든 사용자 이름 실시간 동기화)

@@ -1,14 +1,17 @@
 // =========================================================
 // notify.js - 실시간 알림, 알림 센터 드롭다운 및 PWA/OneSignal 웹 푸시 모듈
 // 브라우저 시스템 알림, 앱 내 토스트 팝업, 탭 제목 깜빡임,
-// 상단 종 아이콘 클릭 시 알림 내역 목록 확인 및 클릭 시 해당 글/댓글로 스크롤 이동을 담당합니다.
-// =========================================================
+// 상단 종 아이콘 클릭 시 알�import { getCurrentUser, getCurrentProfiles } from "./state.js";
+import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js";
+import {
+  getMessaging,
+  getToken,
+  onMessage,
+} from "https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging.js";
 
-import { getCurrentUser, getCurrentProfiles } from "./state.js";
-
-// OneSignal 설정 상수
-const ONESIGNAL_APP_ID = "5405c7d7-4164-4bc8-af32-7863626eaa06";
-// 안전한 Cloudflare Worker 푸시 중계 엔드포인트
+// Firebase Cloud Messaging (FCM) VAPID Key
+const FCM_VAPID_KEY = "BMwoxyNkaOfECoLOtTqhnVp76x2U3_7FgE4b08fKPSKxDxQ-EKCJb2z7cMaPjWNtjIPHXBaYbUhHLL1p0Gc1KNo";
+// Cloudflare Worker FCM 푸시 중계 엔드포인트
 const PUSH_PROXY_URL = "https://silent-mud-06b5.ehd8109.workers.dev";
 
 // 화면 요소
@@ -33,6 +36,10 @@ let originalDocumentTitle = document.title || "류이어리";
 let unreadCount = 0;
 let titleInterval = null;
 let cachedEntries = [];
+
+// FCM 인스턴스 및 서비스워커 등록 객체
+let fcmMessaging = null;
+let swRegistration = null;
 
 // 읽은 알림 ID 목록 (localStorage 보관)
 const STORAGE_KEY_READ_NOTIFS = "diary_read_notification_ids";
@@ -83,129 +90,38 @@ function formatRelativeTime(timestamp) {
 }
 
 /**
- * OneSignal SDK 비동기 래퍼 (충분한 타임아웃으로 모바일 APNs 토큰 발급 대기)
+ * Firebase Cloud Messaging (FCM) 초기화 및 서비스 워커 등록
  */
-function runWithOneSignal(fn, timeoutMs = 15000) {
-  return new Promise((resolve) => {
-    let resolved = false;
-    const timer = setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        resolve(null);
-      }
-    }, timeoutMs);
+async function initFcm() {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
-    if (typeof window !== "undefined" && window.OneSignal && typeof window.OneSignal.User !== "undefined") {
-      try {
-        Promise.resolve(fn(window.OneSignal))
-          .then((res) => {
-            if (!resolved) {
-              resolved = true;
-              clearTimeout(timer);
-              resolve(res);
-            }
-          })
-          .catch((err) => {
-            console.warn("[notify] OneSignal 즉시 실행 오류:", err);
-            if (!resolved) {
-              resolved = true;
-              clearTimeout(timer);
-              resolve(null);
-            }
-          });
-      } catch (err) {
-        console.warn("[notify] OneSignal 즉시 실행 예외:", err);
-        if (!resolved) {
-          resolved = true;
-          clearTimeout(timer);
-          resolve(null);
-        }
-      }
-      return;
-    }
+  try {
+    const isGitHubPages = window.location.pathname.includes("/ryuwithagree");
+    const swPath = isGitHubPages ? "/ryuwithagree/firebase-messaging-sw.js" : "/firebase-messaging-sw.js";
+    const swScope = isGitHubPages ? "/ryuwithagree/" : "/";
 
-    if (typeof window !== "undefined") {
-      window.OneSignalDeferred = window.OneSignalDeferred || [];
-      window.OneSignalDeferred.push(async (OneSignal) => {
-        try {
-          const res = await fn(OneSignal);
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timer);
-            resolve(res);
-          }
-        } catch (err) {
-          console.warn("[notify] OneSignal 지연 실행 오류:", err);
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timer);
-            resolve(null);
-          }
-        }
-      });
-    } else {
-      clearTimeout(timer);
-      resolve(null);
-    }
-  });
-}
+    swRegistration = await navigator.serviceWorker.register(swPath, { scope: swScope });
+    console.log("[notify] FCM ServiceWorker 등록 성공:", swPath);
 
-/**
- * 정확한 GitHub Pages 및 서브디렉터리 Base Path 계산
- */
-function getBasePath() {
-  if (typeof window === "undefined") return "/";
-  let p = window.location.pathname;
-  if (!p.endsWith("/")) {
-    if (p.endsWith(".html")) {
-      p = p.substring(0, p.lastIndexOf("/") + 1);
-    } else {
-      p = p + "/";
-    }
+    fcmMessaging = getMessaging(app);
+
+    // 포그라운드(앱이 켜져 있을 때) 수신 리스너
+    onMessage(fcmMessaging, (payload) => {
+      console.log("[notify] FCM 포그라운드 메시지 수신:", payload);
+      const title = payload.notification?.title || payload.data?.title || "류이어리";
+      const message = payload.notification?.body || payload.data?.body || payload.data?.message || "새 소식이 도착했습니다 ✨";
+      showToastNotification(`${title}: ${message}`, "🔔");
+      showSystemNotification(title, message);
+    });
+
+    await refreshPushStatus();
+  } catch (err) {
+    console.warn("[notify] FCM 초기화 실패:", err);
   }
-  return p;
 }
 
 /**
- * OneSignal SDK를 초기화합니다.
- */
-function initOneSignal() {
-  if (typeof window === "undefined") return;
-
-  runWithOneSignal(async (OneSignal) => {
-    try {
-      const isGitHubPages = window.location.pathname.includes("/ryuwithagree");
-      const swPath = isGitHubPages ? "/ryuwithagree/OneSignalSDKWorker.js" : "/OneSignalSDKWorker.js";
-      const swScope = isGitHubPages ? "/ryuwithagree/" : "/";
-
-      await OneSignal.init({
-        appId: ONESIGNAL_APP_ID || "5405c7d7-4164-4bc8-af32-7863626eaa06",
-        allowLocalhostAsSecureOrigin: true,
-        serviceWorkerPath: swPath,
-        serviceWorkerParam: {
-          scope: swScope,
-        },
-        notifyButton: {
-          enable: false,
-        },
-      });
-
-      // OneSignal 구독 상태 변화 리스너
-      OneSignal.User?.PushSubscription?.addEventListener("change", async (event) => {
-        console.log("[notify] OneSignal PushSubscription 상태 변경:", event);
-        await refreshPushStatus();
-      });
-
-      // 초기 상태 동기화
-      await refreshPushStatus();
-    } catch (err) {
-      console.warn("[notify] OneSignal 초기화 경고:", err);
-    }
-  }, 5000);
-}
-
-/**
- * OneSignal 실제 구독 상태 및 브라우저 권한을 검사하여 UI를 갱신합니다.
+ * 푸시 알림 실제 구독 상태 및 브라우저 권한을 검사하여 UI를 갱신합니다.
  */
 export async function refreshPushStatus() {
   if (typeof window === "undefined" || !("Notification" in window)) {
@@ -229,31 +145,39 @@ export async function refreshPushStatus() {
 }
 
 /**
- * 로그인한 사용자의 UID를 OneSignal에 등록하여 기기와 연결합니다.
+ * 로그인한 사용자의 UID와 FCM 토큰을 Firestore에 동기화합니다.
  * @param {Object} user - Firebase User 객체
  */
-export function syncUserWithOneSignal(user) {
-  if (!user) return;
+export async function syncUserWithOneSignal(user) {
+  // 함수명 호환성 유지 (기존 auth.js 호출 호환)
+  if (!user || !("Notification" in window) || Notification.permission !== "granted") return;
 
-  runWithOneSignal(async (OneSignal) => {
-    try {
-      if (OneSignal.login) {
-        await OneSignal.login(user.uid);
-        console.log("[notify] OneSignal 사용자 연결 완료:", user.uid);
-      }
-
-      if (OneSignal.User?.PushSubscription?.optIn) {
-        await OneSignal.User.PushSubscription.optIn();
-      }
-      refreshPushStatus();
-    } catch (err) {
-      console.warn("[notify] OneSignal 로그인 실패:", err);
+  try {
+    if (!fcmMessaging) fcmMessaging = getMessaging(app);
+    if (!swRegistration && "serviceWorker" in navigator) {
+      const isGitHubPages = window.location.pathname.includes("/ryuwithagree");
+      const swPath = isGitHubPages ? "/ryuwithagree/firebase-messaging-sw.js" : "/firebase-messaging-sw.js";
+      swRegistration = await navigator.serviceWorker.register(swPath, {
+        scope: isGitHubPages ? "/ryuwithagree/" : "/",
+      });
     }
-  }, 3000);
+
+    const token = await getToken(fcmMessaging, {
+      vapidKey: FCM_VAPID_KEY,
+      serviceWorkerRegistration: swRegistration,
+    });
+
+    if (token) {
+      await saveUserFcmToken(user.uid, token, user.email || "");
+      console.log("[notify] FCM 토큰 Firestore 동기화 완료:", token.substring(0, 15) + "...");
+    }
+  } catch (err) {
+    console.warn("[notify] FCM 토큰 동기화 오류:", err);
+  }
 }
 
 /**
- * 브라우저 및 OneSignal 알림 권한을 요청하고 구독 토큰을 동기화합니다.
+ * 브라우저 알림 권한을 요청하고 FCM 푸시 토큰을 발급받아 Firestore에 저장합니다.
  */
 export async function requestNotificationPermission() {
   if (!("Notification" in window)) {
@@ -273,53 +197,43 @@ export async function requestNotificationPermission() {
       notifPushToggleBtn.textContent = "연동 중...";
     }
 
-    let subId = null;
-    let subToken = null;
-    let isOptedIn = false;
-    let notifPerm = null;
-    let onesignalUserId = null;
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      alert("알림 권한이 허용되지 않았습니다.");
+      refreshPushStatus();
+      return false;
+    }
 
-    // OneSignal v16 권장 방식: Notifications.requestPermission() 직접 호출 및 User Model 순서(login -> optIn) 준수
-    await runWithOneSignal(async (OneSignal) => {
-      try {
-        if (OneSignal.Notifications?.requestPermission) {
-          await OneSignal.Notifications.requestPermission();
-        }
+    if (!fcmMessaging) fcmMessaging = getMessaging(app);
+    if (!swRegistration && "serviceWorker" in navigator) {
+      const isGitHubPages = window.location.pathname.includes("/ryuwithagree");
+      const swPath = isGitHubPages ? "/ryuwithagree/firebase-messaging-sw.js" : "/firebase-messaging-sw.js";
+      swRegistration = await navigator.serviceWorker.register(swPath, {
+        scope: isGitHubPages ? "/ryuwithagree/" : "/",
+      });
+    }
 
-        const curUser = getCurrentUser();
-        if (curUser && OneSignal.login) {
-          await OneSignal.login(curUser.uid);
-        }
+    const token = await getToken(fcmMessaging, {
+      vapidKey: FCM_VAPID_KEY,
+      serviceWorkerRegistration: swRegistration,
+    });
 
-        if (OneSignal.User?.PushSubscription?.optIn) {
-          await OneSignal.User.PushSubscription.optIn();
-        }
-
-        subId = OneSignal.User?.PushSubscription?.id || null;
-        subToken = OneSignal.User?.PushSubscription?.token ? "있음(OK)" : "없음(null)";
-        isOptedIn = Boolean(OneSignal.User?.PushSubscription?.optedIn);
-        notifPerm = OneSignal.Notifications?.permission;
-        onesignalUserId = OneSignal.User?.id || null;
-
-        console.log("[notify] OneSignal 동기화 완료 - SubId:", subId, "Token:", subToken, "OptedIn:", isOptedIn);
-      } catch (e) {
-        console.warn("[notify] OneSignal optIn 에러:", e);
-      }
-    }, 15000);
+    const curUser = getCurrentUser();
+    if (curUser && token) {
+      await saveUserFcmToken(curUser.uid, token, curUser.email || "");
+    }
 
     updatePushStatusUI({ status: "granted", message: "기기 푸시 알림 켜짐 🔔" });
 
     alert(
-      `📊 [OneSignal 진단 결과]\n\n` +
-      `• 구독 ID: ${subId || "없음(null)"}\n` +
-      `• 푸시 토큰: ${subToken}\n` +
-      `• 구독 활성화(optedIn): ${isOptedIn}\n` +
-      `• 알림 권한: ${notifPerm}\n` +
-      `• OneSignal User ID: ${onesignalUserId || "없음"}`
+      `🎉 기기 푸시 알림 연동 완료!\n\n` +
+      `FCM 기기 토큰이 정상 발급되어 등록되었습니다.\n` +
+      `이제 [테스트] 버튼을 누르면 잠금화면으로 알림이 도착합니다! 🔔`
     );
     return true;
   } catch (err) {
-    alert("연동 오류: " + err.message);
+    console.error("[notify] FCM 권한/토큰 오류:", err);
+    alert("FCM 연동 오류: " + err.message);
     refreshPushStatus();
     return false;
   } finally {
@@ -334,7 +248,7 @@ function updatePushStatusUI(info) {
   if (!notifPushStatusText || !notifPushToggleBtn) return;
 
   const status = typeof info === "string" ? info : info.status;
-  const message = (typeof info === "object" && info.message) ? info.message : null;
+  const message = typeof info === "object" && info.message ? info.message : null;
 
   if (status === "granted") {
     notifPushStatusText.textContent = message || "기기 푸시 알림 켜짐 🔔";
@@ -365,45 +279,65 @@ export async function sendTestPush() {
   showToastNotification("테스트 푸시 발송 요청 중... 🚀", "💌");
 
   try {
+    const tokens = await getAllFcmTokens();
+    if (tokens.length === 0) {
+      alert("⚠️ 등록된 기기 토큰이 없습니다.\n\n상단 [알림 켜기] 또는 [재연동] 버튼을 먼저 눌러 기기를 등록해 주세요!");
+      return;
+    }
+
     await sendPushToPartner({
       title: "🔔 류이어리 푸시 알림 테스트",
       message: "정상적으로 알림이 잘 도착했습니다! ✨",
+      isTest: true,
     });
+
     alert("✅ 푸시 발송 성공!\n\n홈 화면으로 나가거나 화면을 잠그고 3~5초 뒤 잠금화면 알림을 확인하세요 🔔");
   } catch (err) {
     console.error("[notify] 테스트 푸시 실패:", err);
-    alert("⚠️ 푸시 발송 실패:\n" + err.message + "\n\n서버에 등록된 수신 기기가 아직 없습니다.\n상단 [재연동] 버튼을 누른 후 다시 테스트해 주세요.");
+    alert("⚠️ 푸시 발송 실패:\n" + err.message);
   } finally {
     if (testBtn) testBtn.disabled = false;
   }
 }
 
 /**
- * 앱 내 화면 상단에 핑크 토스트 알림을 띄웁니다.
- * @param {string} message - 표시할 메시지
- * @param {string} icon - 이모지 아이콘
+ * 상대방의 스마트폰/아이폰으로 백그라운드 웹 푸시 알림을 전송합니다.
+ * (Cloudflare Worker -> Google FCM HTTP v1 API 직통 발송)
  */
-export function showToastNotification(message, icon = "💌") {
-  if (!toastContainer) return;
+export async function sendPushToPartner({ title, message, isTest = false }) {
+  if (!PUSH_PROXY_URL) return;
 
-  const toast = document.createElement("div");
-  toast.className = "toast-item";
+  const curUser = getCurrentUser();
+  const tokens = isTest ? await getAllFcmTokens() : await getPartnerFcmTokens(curUser?.uid);
 
-  const iconSpan = document.createElement("span");
-  iconSpan.className = "toast-icon";
-  iconSpan.textContent = icon;
+  if (!tokens || tokens.length === 0) {
+    console.log("[notify] 발송할 대상 FCM 토큰이 없습니다.");
+    return;
+  }
 
-  const textSpan = document.createElement("span");
-  textSpan.className = "toast-text";
-  textSpan.textContent = message;
+  const res = await fetch(PUSH_PROXY_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      tokens: tokens,
+      title: title,
+      message: message,
+      url: "https://agreesin.github.io/ryuwithagree/",
+    }),
+  });
 
-  toast.appendChild(iconSpan);
-  toast.appendChild(textSpan);
+  const data = await res.json().catch(() => null);
+  if (!res.ok || (data && !data.success)) {
+    const errMsg = data?.error || `서버 응답 오류 (${res.status})`;
+    console.warn("[notify] FCM 푸시 중계 서버 응답 실패:", res.status, errMsg);
+    throw new Error(errMsg);
+  }
 
-  toastContainer.appendChild(toast);
-
-  // 4초 후 서서히 사라짐
-  setTimeout(() => {
+  console.log("[notify] FCM 백그라운드 푸시 발송 완료:", data);
+  return data;
+}=> {
     toast.classList.add("toast-hide");
     setTimeout(() => {
       if (toast.parentNode) {
