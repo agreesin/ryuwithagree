@@ -274,7 +274,10 @@ export async function requestNotificationPermission() {
     }
 
     let subId = null;
+    let subToken = null;
     let isOptedIn = false;
+    let notifPerm = null;
+    let onesignalUserId = null;
 
     // OneSignal v16 권장 방식: Notifications.requestPermission() 직접 호출 및 User Model 순서(login -> optIn) 준수
     await runWithOneSignal(async (OneSignal) => {
@@ -292,20 +295,28 @@ export async function requestNotificationPermission() {
           await OneSignal.User.PushSubscription.optIn();
         }
 
-        subId = OneSignal.User?.PushSubscription?.id;
+        subId = OneSignal.User?.PushSubscription?.id || null;
+        subToken = OneSignal.User?.PushSubscription?.token ? "있음(OK)" : "없음(null)";
         isOptedIn = Boolean(OneSignal.User?.PushSubscription?.optedIn);
-        console.log("[notify] OneSignal 동기화 완료 - SubId:", subId, "OptedIn:", isOptedIn);
+        notifPerm = OneSignal.Notifications?.permission;
+        onesignalUserId = OneSignal.User?.id || null;
+
+        console.log("[notify] OneSignal 동기화 완료 - SubId:", subId, "Token:", subToken, "OptedIn:", isOptedIn);
       } catch (e) {
         console.warn("[notify] OneSignal optIn 에러:", e);
       }
     }, 15000);
 
     updatePushStatusUI({ status: "granted", message: "기기 푸시 알림 켜짐 🔔" });
-    if (subId) {
-      alert(`🎉 푸시 기기 연동 완료!\n\n구독 ID: ${subId.substring(0, 8)}...\n이제 [테스트] 버튼을 누르면 잠금화면으로 알림이 도착합니다.`);
-    } else {
-      alert(`🔔 알림 권한이 연결되었습니다!\n\n(토큰 발급 대기 중... 3초 후 [테스트] 버튼을 눌러보세요.)`);
-    }
+
+    alert(
+      `📊 [OneSignal 진단 결과]\n\n` +
+      `• 구독 ID: ${subId || "없음(null)"}\n` +
+      `• 푸시 토큰: ${subToken}\n` +
+      `• 구독 활성화(optedIn): ${isOptedIn}\n` +
+      `• 알림 권한: ${notifPerm}\n` +
+      `• OneSignal User ID: ${onesignalUserId || "없음"}`
+    );
     return true;
   } catch (err) {
     alert("연동 오류: " + err.message);
