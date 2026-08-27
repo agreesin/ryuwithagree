@@ -9,23 +9,23 @@ import {
   watchLogin,
   subscribeProfiles,
   subscribeEntries,
-} from "./store.js?v=2.7.8";
+} from "./store.js?v=2.7.9";
 import {
   setCurrentUser,
   setCurrentProfiles,
   getCurrentUser,
   getCurrentProfiles,
   checkAdminStatus,
-} from "./state.js?v=2.7.8";
-import { showError, hideError } from "./ui.js?v=2.7.8";
-import { updateProfileButtonsVisibility } from "./profile.js?v=2.7.8";
-import { render } from "./render.js?v=2.7.8";
-import { updateNoticeAuth } from "./notice.js?v=2.7.8";
+} from "./state.js?v=2.7.9";
+import { showError, hideError } from "./ui.js?v=2.7.9";
+import { updateProfileButtonsVisibility } from "./profile.js?v=2.7.9";
+import { render } from "./render.js?v=2.7.9";
+import { updateNoticeAuth } from "./notice.js?v=2.7.9";
 import {
   checkNewUpdates,
   requestNotificationPermission,
   syncUserWithOneSignal,
-} from "./notify.js?v=2.7.8";
+} from "./notify.js?v=2.7.9";
 
 // 화면 요소
 const loginButton = document.getElementById("login-button");

@@ -14,6 +14,8 @@ import {
   inMemoryPersistence,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
@@ -214,8 +216,27 @@ export function watchLogin(onChange) {
   });
 }
 
-export function login() {
-  return signInWithPopup(auth, new GoogleAuthProvider());
+export async function login() {
+  const provider = new GoogleAuthProvider();
+  // iOS 홈 화면(PWA standalone) 앱은 팝업 창이 차단되므로 바로 redirect 사용
+  const isStandalone = (typeof window !== "undefined") && (
+    window.navigator.standalone ||
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)
+  );
+
+  if (isStandalone) {
+    return signInWithRedirect(auth, provider);
+  }
+
+  try {
+    return await signInWithPopup(auth, provider);
+  } catch (err) {
+    if (err.code === "auth/popup-blocked" || err.code === "auth/cancelled-popup-request") {
+      console.log("[store] 팝업 차단 감지 -> signInWithRedirect 로 자동 전환");
+      return signInWithRedirect(auth, provider);
+    }
+    throw err;
+  }
 }
 
 export function logout() {

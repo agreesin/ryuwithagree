@@ -2,8 +2,8 @@
 // calendar.js - 캘린더(달력) 뷰 모드 및 날짜별 일기/기념일(생일·여행) 감상 모듈
 // =========================================================
 
-import { createEntryCard } from "./entry-card.js?v=2.7.8";
-import { getDdayItems, calculateDdayInfo } from "./dday.js?v=2.7.8";
+import { createEntryCard } from "./entry-card.js?v=2.7.9";
+import { getDdayItems, calculateDdayInfo } from "./dday.js?v=2.7.9";
 
 // 화면 요소
 const viewTabFeed = document.getElementById("view-tab-feed");
