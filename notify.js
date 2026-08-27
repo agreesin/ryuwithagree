@@ -214,28 +214,35 @@ export const syncUserWithOneSignal = syncUserFcm;
 
 /**
  * 브라우저 알림 권한을 요청하고 FCM 푸시 토큰을 발급받아 Firestore에 저장합니다.
+ * @param {boolean} interactive - 사용자가 직접 버튼을 눌렀는지 여부 (false면 백그라운드 무음 처리)
  */
-export async function requestNotificationPermission() {
+export async function requestNotificationPermission(interactive = false) {
   if (!("Notification" in window)) {
-    alert("현재 브라우저에서는 웹 알림을 지원하지 않습니다.\n(iOS 16.4+ 사파리 '홈 화면에 추가' 필수)");
+    if (interactive) {
+      alert("현재 브라우저에서는 웹 알림을 지원하지 않습니다.\n(iOS 16.4+ 사파리 '홈 화면에 추가' 필수)");
+    }
     return false;
   }
 
   if (Notification.permission === "denied") {
-    alert("아이폰에서 알림이 차단되어 있습니다.\n\n아이폰 [설정] -> [알림] -> [류이어리]에서 [알림 허용]을 켜주세요!");
+    if (interactive) {
+      alert("기기/브라우저에서 알림이 차단되어 있습니다.\n\n[설정] -> [알림] -> [류이어리]에서 알림 권한을 허용해 주세요!");
+    }
     refreshPushStatus();
     return false;
   }
 
   try {
-    if (notifPushToggleBtn) {
+    if (notifPushToggleBtn && interactive) {
       notifPushToggleBtn.disabled = true;
       notifPushToggleBtn.textContent = "연동 중...";
     }
 
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
-      alert("알림 권한이 허용되지 않았습니다.");
+      if (interactive) {
+        alert("알림 권한이 허용되지 않았습니다.");
+      }
       refreshPushStatus();
       return false;
     }
@@ -259,15 +266,15 @@ export async function requestNotificationPermission() {
 
     updatePushStatusUI({ status: "granted", message: "기기 푸시 알림 켜짐 🔔" });
 
-    alert(
-      `🎉 기기 푸시 알림 연동 완료!\n\n` +
-      `FCM 기기 토큰이 정상 발급되어 등록되었습니다.\n` +
-      `이제 [테스트] 버튼을 누르면 잠금화면으로 알림이 도착합니다! 🔔`
-    );
+    if (interactive) {
+      showToastNotification("기기 푸시 알림이 정상 연동되었습니다! 🔔", "🎉");
+    }
     return true;
   } catch (err) {
     console.error("[notify] FCM 권한/토큰 오류:", err);
-    alert("FCM 연동 오류: " + err.message);
+    if (interactive) {
+      alert("FCM 연동 오류: " + err.message);
+    }
     refreshPushStatus();
     return false;
   } finally {
@@ -755,7 +762,7 @@ export function initNotify() {
   // 5. 드롭다운 내부 푸시 알림 설정 버튼
   if (notifPushToggleBtn) {
     notifPushToggleBtn.addEventListener("click", () => {
-      requestNotificationPermission();
+      requestNotificationPermission(true);
     });
   }
 

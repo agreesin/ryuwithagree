@@ -24,7 +24,6 @@ import { render } from "./render.js?v=3.0.2";
 import { updateNoticeAuth } from "./notice.js?v=3.0.2";
 import {
   checkNewUpdates,
-  requestNotificationPermission,
   syncUserFcm,
 } from "./notify.js?v=3.0.2";
 import { startDdaySubscription, stopDdaySubscription } from "./dday.js?v=3.0.2";
@@ -94,8 +93,7 @@ async function grantAccess(user) {
   // 공지사항 편집 권한 갱신
   updateNoticeAuth(user);
 
-  // 알림 권한 자동 요청 및 FCM 토큰 기기 연결
-  requestNotificationPermission();
+  // FCM 토큰 백그라운드 조용한 동기화 (오류 발생 시에도 팝업 없이 안전 처리)
   syncUserFcm(user);
 
   // D-Day 및 기념일 실시간 구독 시작
@@ -180,7 +178,11 @@ export function initAuth() {
     logoutButton.addEventListener("click", () => {
       const curUser = getCurrentUser();
       if (curUser) {
-        sessionStorage.removeItem(`diary_passcode_${curUser.uid}`);
+        try {
+          sessionStorage.removeItem(`diary_passcode_${curUser.uid}`);
+        } catch (e) {
+          console.warn("[auth] sessionStorage 접근 실패:", e);
+        }
       }
       logout();
     });
@@ -196,7 +198,11 @@ export function initAuth() {
       const isValid = await verifyPasscode(entered);
       if (isValid) {
         if (curUser) {
-          sessionStorage.setItem(`diary_passcode_${curUser.uid}`, "verified");
+          try {
+            sessionStorage.setItem(`diary_passcode_${curUser.uid}`, "verified");
+          } catch (e) {
+            console.warn("[auth] sessionStorage 저장 실패:", e);
+          }
           grantAccess(curUser);
         }
       } else {
@@ -219,7 +225,11 @@ export function initAuth() {
     passcodeCancelBtn.addEventListener("click", () => {
       const curUser = getCurrentUser();
       if (curUser) {
-        sessionStorage.removeItem(`diary_passcode_${curUser.uid}`);
+        try {
+          sessionStorage.removeItem(`diary_passcode_${curUser.uid}`);
+        } catch (e) {
+          console.warn("[auth] sessionStorage 접근 실패:", e);
+        }
       }
       if (passcodeModal) passcodeModal.hidden = true;
       logout();
