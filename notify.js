@@ -1,7 +1,7 @@
 // =========================================================
 // notify.js - 실시간 알림, 알림 센터 드롭다운 및 PWA/OneSignal 웹 푸시 모듈
 // 브라우저 시스템 알림, 앱 내 토스트 팝업, 탭 제목 깜빡임,
-// 상단 종 아이콘 클릭 시 알�import { getCurrentUser, getCurrentProfiles } from "./state.js";
+// 상단 종 아이콘 클릭 시 알�import { getCurrentUser, getCurrentProfiles } from "./state.js";
 import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js";
 import {
   getMessaging,
@@ -337,72 +337,6 @@ export async function sendPushToPartner({ title, message, isTest = false }) {
 
   console.log("[notify] FCM 백그라운드 푸시 발송 완료:", data);
   return data;
-}=> {
-    toast.classList.add("toast-hide");
-    setTimeout(() => {
-      if (toast.parentNode) {
-        toast.parentNode.removeChild(toast);
-      }
-    }, 400);
-  }, 4000);
-}
-
-/**
- * 브라우저 시스템 푸시 알림을 띄웁니다.
- * @param {string} title - 알림 제목
- * @param {string} body - 알림 본문
- */
-function showSystemNotification(title, body) {
-  if (!("Notification" in window) || Notification.permission !== "granted") {
-    return;
-  }
-
-  try {
-    const notification = new Notification(title, {
-      body: body,
-      icon: "icons/icon-192.png",
-      badge: "icons/icon-192.png",
-      tag: "diary-update",
-    });
-
-    notification.onclick = () => {
-      window.focus();
-      notification.close();
-    };
-  } catch (err) {
-    console.warn("[notify] 시스템 알림 발생 실패:", err);
-  }
-}
-
-/**
- * 상대방의 스마트폰/아이폰으로 백그라운드 웹 푸시 알림을 전송합니다.
- * (Cloudflare Worker 서버리스 중계 연동)
- */
-export async function sendPushToPartner({ title, message }) {
-  if (!PUSH_PROXY_URL) {
-    return;
-  }
-
-  const res = await fetch(PUSH_PROXY_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      title: title,
-      message: message,
-    }),
-  });
-
-  const data = await res.json().catch(() => null);
-  if (!res.ok || (data && data.errors && data.errors.length > 0)) {
-    const errMsg = data?.errors?.[0] || `서버 응답 오류 (${res.status})`;
-    console.warn("[notify] 푸시 중계 서버 응답 실패:", res.status, errMsg);
-    throw new Error(errMsg);
-  }
-
-  console.log("[notify] OneSignal 백그라운드 푸시 발송 완료:", data);
-  return data;
 }
 
 /**
@@ -697,7 +631,7 @@ export function checkNewUpdates(entries) {
  */
 export function initNotify() {
   // OneSignal SDK 초기화
-  initOneSignal();
+  initFcm();
 
   // 1. 상단 종 버튼 클릭 시 알림 센터 드롭다운 토글
   if (notifBellBtn && notifDropdown) {
