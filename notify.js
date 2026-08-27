@@ -83,9 +83,9 @@ function formatRelativeTime(timestamp) {
 }
 
 /**
- * OneSignal SDK 비동기 래퍼 (타임아웃 보장으로 UI 프리징 방지)
+ * OneSignal SDK 비동기 래퍼 (충분한 타임아웃으로 모바일 APNs 토큰 발급 대기)
  */
-function runWithOneSignal(fn, timeoutMs = 3500) {
+function runWithOneSignal(fn, timeoutMs = 15000) {
   return new Promise((resolve) => {
     let resolved = false;
     const timer = setTimeout(() => {
@@ -294,21 +294,21 @@ export async function requestNotificationPermission() {
 
         subId = OneSignal.User?.PushSubscription?.id;
         isOptedIn = Boolean(OneSignal.User?.PushSubscription?.optedIn);
-        console.log("[notify] OneSignal 동기화 완료, SubId:", subId, "OptedIn:", isOptedIn);
+        console.log("[notify] OneSignal 동기화 완료 - SubId:", subId, "OptedIn:", isOptedIn);
       } catch (e) {
         console.warn("[notify] OneSignal optIn 에러:", e);
       }
-    }, 3500);
+    }, 15000);
 
     updatePushStatusUI({ status: "granted", message: "기기 푸시 알림 켜짐 🔔" });
     if (subId) {
-      showToastNotification("기기 푸시 등록 성공! 이제 [테스트]를 눌러보세요 🔔", "🔔");
+      alert(`🎉 푸시 기기 연동 완료!\n\n구독 ID: ${subId.substring(0, 8)}...\n이제 [테스트] 버튼을 누르면 잠금화면으로 알림이 도착합니다.`);
     } else {
-      showToastNotification("푸시 토큰 발급 요청 완료! 2초 뒤 [테스트]를 눌러보세요 🔔", "🔔");
+      alert(`🔔 알림 권한이 연결되었습니다!\n\n(토큰 발급 대기 중... 3초 후 [테스트] 버튼을 눌러보세요.)`);
     }
     return true;
   } catch (err) {
-    console.warn("[notify] 권한 요청 오류:", err);
+    alert("연동 오류: " + err.message);
     refreshPushStatus();
     return false;
   } finally {
@@ -358,14 +358,10 @@ export async function sendTestPush() {
       title: "🔔 류이어리 푸시 알림 테스트",
       message: "정상적으로 알림이 잘 도착했습니다! ✨",
     });
-    showToastNotification("푸시 발송 성공! 앱을 닫고 3~5초 뒤 잠금화면을 확인하세요 🔔", "🔔");
+    alert("✅ 푸시 발송 성공!\n\n홈 화면으로 나가거나 화면을 잠그고 3~5초 뒤 잠금화면 알림을 확인하세요 🔔");
   } catch (err) {
     console.error("[notify] 테스트 푸시 실패:", err);
-    if (err.message && err.message.includes("not subscribed")) {
-      showToastNotification("⚠️ 아직 서버에 기기가 등록되지 않았습니다. [재연동] 버튼을 먼저 눌러주세요!", "⚠️");
-    } else {
-      showToastNotification("푸시 발송 실패: " + err.message, "❌");
-    }
+    alert("⚠️ 푸시 발송 실패:\n" + err.message + "\n\n서버에 등록된 수신 기기가 아직 없습니다.\n상단 [재연동] 버튼을 누른 후 다시 테스트해 주세요.");
   } finally {
     if (testBtn) testBtn.disabled = false;
   }
