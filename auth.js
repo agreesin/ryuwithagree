@@ -11,23 +11,23 @@ import {
   subscribeProfiles,
   subscribeEntries,
   checkRedirectLogin,
-} from "./store.js?v=3.0.3";
+} from "./store.js?v=3.0.4";
 import {
   setCurrentUser,
   setCurrentProfiles,
   getCurrentUser,
   getCurrentProfiles,
   checkAdminStatus,
-} from "./state.js?v=3.0.3";
-import { showError, hideError } from "./ui.js?v=3.0.3";
-import { updateProfileButtonsVisibility } from "./profile.js?v=3.0.3";
-import { render } from "./render.js?v=3.0.3";
-import { updateNoticeAuth } from "./notice.js?v=3.0.3";
+} from "./state.js?v=3.0.4";
+import { showError, hideError } from "./ui.js?v=3.0.4";
+import { updateProfileButtonsVisibility } from "./profile.js?v=3.0.4";
+import { render } from "./render.js?v=3.0.4";
+import { updateNoticeAuth } from "./notice.js?v=3.0.4";
 import {
   checkNewUpdates,
   syncUserFcm,
-} from "./notify.js?v=3.0.3";
-import { startDdaySubscription, stopDdaySubscription } from "./dday.js?v=3.0.3";
+} from "./notify.js?v=3.0.4";
+import { startDdaySubscription, stopDdaySubscription } from "./dday.js?v=3.0.4";
 
 // 화면 요소
 const loginButton = document.getElementById("login-button");
@@ -168,9 +168,22 @@ function promptPasscode() {
 /**
  * 로그인/로그아웃 이벤트 리스너를 등록하고 로그인 상태 감시를 시작합니다.
  */
-export function initAuth() {
-  // PWA 리다이렉트 로그인 결과 확인
-  checkRedirectLogin().catch(() => null);
+export async function initAuth() {
+  // PWA 리다이렉트 로그인 결과 우선 확인 (결과 복원 시 즉시 화면 전환)
+  try {
+    const redirectedUser = await checkRedirectLogin();
+    if (redirectedUser) {
+      setCurrentUser(redirectedUser);
+      if (readPasscodeFlag(redirectedUser.uid)) {
+        await grantAccess(redirectedUser);
+      } else {
+        promptPasscode();
+      }
+      if (loginArea) loginArea.hidden = true;
+    }
+  } catch (err) {
+    console.warn("[auth] Redirect 로그인 확인 안전 처리:", err);
+  }
 
   if (loginButton) {
     loginButton.addEventListener("click", async () => {
@@ -326,4 +339,5 @@ function readPasscodeFlag(uid) {
     }
   });
 }
+
 

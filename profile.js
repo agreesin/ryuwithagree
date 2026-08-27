@@ -3,9 +3,9 @@
 // 관리자 전용 내 이름 변경 및 친구 이름 변경 기능을 담당합니다.
 // =========================================================
 
-import { setUserDisplayName } from "./store.js?v=3.0.3";
-import { getCurrentUser, getCurrentProfiles, isAdmin } from "./state.js?v=3.0.3";
-import { showError } from "./ui.js?v=3.0.3";
+import { setUserDisplayName } from "./store.js?v=3.0.4";
+import { getCurrentUser, getCurrentProfiles, isAdmin } from "./state.js?v=3.0.4";
+import { showError } from "./ui.js?v=3.0.4";
 import { updateProfile } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
 const changeNameButton = document.getElementById("change-name-button");
@@ -116,4 +116,5 @@ export function initProfileHandlers() {
     });
   }
 }
+
 

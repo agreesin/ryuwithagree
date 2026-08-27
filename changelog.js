@@ -6,6 +6,14 @@
 // 업데이트 히스토리 데이터 (최신순)
 export const CHANGELOG_DATA = [
   {
+    version: "v3.0.4",
+    date: "2026.08.27",
+    type: "patch",
+    tag: "iOS PWA 세션 복구",
+    title: "아이폰 홈 화면(PWA) 리다이렉트 즉시 세션 복원 및 영구 저장소 활성화",
+    desc: "아이폰 홈 화면 앱에서 리다이렉트 로그인 후 돌아왔을 때 비동기 지연 없이 즉시 2차 암호 모달 또는 다이어리로 화면을 전환하고 IndexedDB 영구 세션 스토리지를 활성화했습니다.",
+  },
+  {
     version: "v3.0.3",
     date: "2026.08.27",
     type: "patch",
@@ -209,4 +217,5 @@ export function initChangelog() {
     });
   }
 }
+
 

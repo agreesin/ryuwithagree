@@ -2,10 +2,10 @@
 // render.js - 일기 목록 렌더링, 실시간 검색 및 필터링 모듈 (좌우 2분할)
 // =========================================================
 
-import { hideError } from "./ui.js?v=3.0.3";
-import { createEntryCard } from "./entry-card.js?v=3.0.3";
-import { getCurrentUser } from "./state.js?v=3.0.3";
-import { updateCalendarEntries } from "./calendar.js?v=3.0.3";
+import { hideError } from "./ui.js?v=3.0.4";
+import { createEntryCard } from "./entry-card.js?v=3.0.4";
+import { getCurrentUser } from "./state.js?v=3.0.4";
+import { updateCalendarEntries } from "./calendar.js?v=3.0.4";
 
 const emptyMessage = document.getElementById("empty-message");
 const othersList = document.getElementById("others-entry-list");
@@ -170,4 +170,5 @@ export function initSearchFilter() {
     });
   });
 }
+
 

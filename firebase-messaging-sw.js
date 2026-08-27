@@ -54,3 +54,4 @@ self.addEventListener("notificationclick", (event) => {
   );
 });
 
+

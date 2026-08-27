@@ -14,6 +14,9 @@ import {
   getRedirectResult,
   signOut,
   onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
+  indexedDBLocalPersistence,
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 import {
   getFirestore,
@@ -44,6 +47,16 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+
+// iOS PWA 및 사파리 샌드박스를 위한 영구 세션 스토리지 활성화
+try {
+  setPersistence(auth, indexedDBLocalPersistence || browserLocalPersistence).catch((err) => {
+    console.warn("[store] 세션 지속성 설정 안전 처리:", err);
+  });
+} catch (e) {
+  // 브라우저 제한 환경 안전 무시
+}
+
 const db = getFirestore(app);
 
 // app, auth, db 내보내기
@@ -542,6 +555,7 @@ export async function saveDdayConfig(configData) {
     updatedBy: user.uid,
   });
 }
+
 
 
 
