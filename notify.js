@@ -174,15 +174,16 @@ function initOneSignal() {
 
   runWithOneSignal(async (OneSignal) => {
     try {
-      const basePath = getBasePath();
-      const swPath = `${basePath}OneSignalSDKWorker.js`;
+      const isGitHubPages = window.location.pathname.includes("/ryuwithagree");
+      const swPath = isGitHubPages ? "ryuwithagree/OneSignalSDKWorker.js" : "OneSignalSDKWorker.js";
+      const swScope = isGitHubPages ? "/ryuwithagree/" : "/";
 
       await OneSignal.init({
         appId: ONESIGNAL_APP_ID || "5405c7d7-4164-4bc8-af32-7863626eaa06",
         allowLocalhostAsSecureOrigin: true,
         serviceWorkerPath: swPath,
         serviceWorkerParam: {
-          scope: basePath,
+          scope: swScope,
         },
         notifyButton: {
           enable: false,
@@ -190,7 +191,8 @@ function initOneSignal() {
       });
 
       // OneSignal 구독 상태 변화 리스너
-      OneSignal.User?.PushSubscription?.addEventListener("change", async () => {
+      OneSignal.User?.PushSubscription?.addEventListener("change", async (event) => {
+        console.log("[notify] OneSignal PushSubscription 상태 변경:", event);
         await refreshPushStatus();
       });
 
@@ -280,7 +282,7 @@ export async function requestNotificationPermission() {
     }
 
     if (permission !== "granted") {
-      showToastNotification("알림 권한이 허용되지 않았습니다.", "🔕");
+      alert("알림 권한이 허용되지 않았습니다.");
       refreshPushStatus();
       return false;
     }
@@ -288,9 +290,11 @@ export async function requestNotificationPermission() {
     // 2. 서비스 워커 등록 명시적 갱신
     if ("serviceWorker" in navigator) {
       try {
-        const basePath = getBasePath();
-        await navigator.serviceWorker.register(`${basePath}OneSignalSDKWorker.js`, { scope: basePath });
-        console.log("[notify] ServiceWorker 등록 완료");
+        const isGitHubPages = window.location.pathname.includes("/ryuwithagree");
+        const swUrl = isGitHubPages ? "/ryuwithagree/OneSignalSDKWorker.js" : "/OneSignalSDKWorker.js";
+        const swScope = isGitHubPages ? "/ryuwithagree/" : "/";
+        await navigator.serviceWorker.register(swUrl, { scope: swScope });
+        console.log("[notify] ServiceWorker 등록 완료:", swUrl);
       } catch (swErr) {
         console.warn("[notify] ServiceWorker 수동 등록 경고:", swErr);
       }
@@ -298,6 +302,7 @@ export async function requestNotificationPermission() {
 
     // 3. 브라우저 권한 획득 후 OneSignal v16 권한 및 optIn & 사용자 UID 연동 수행
     let subId = null;
+    let isOptedIn = false;
     await runWithOneSignal(async (OneSignal) => {
       try {
         if (OneSignal.Notifications?.requestPermission) {
@@ -311,7 +316,8 @@ export async function requestNotificationPermission() {
           try { await OneSignal.login(curUser.uid); } catch (e) {}
         }
         subId = OneSignal.User?.PushSubscription?.id;
-        console.log("[notify] OneSignal 권한/optIn/로그인 동기화 완료, SubId:", subId);
+        isOptedIn = Boolean(OneSignal.User?.PushSubscription?.optedIn);
+        console.log("[notify] OneSignal 동기화 완료, SubId:", subId, "OptedIn:", isOptedIn);
       } catch (e) {
         console.warn("[notify] OneSignal optIn 에러:", e);
       }
