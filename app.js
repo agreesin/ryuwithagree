@@ -7,15 +7,15 @@
 
 // [중요] 모든 내부 import에서 ?v= 쿼리를 제거했습니다 (중복 인스턴스 방지).
 // 캐시 무효화는 index.html의 app.js?v=... 로만 처리합니다.
-import { initEditor } from "./entries.js";
-import { initProfileHandlers } from "./profile.js";
-import { initNotices } from "./notice.js";
-import { initNotify } from "./notify.js";
-import { initDday } from "./dday.js";
-import { initSearchFilter, render } from "./render.js";
-import { initCalendar } from "./calendar.js";
-import { initChangelog } from "./changelog.js";
-import { initAuth } from "./auth.js";
+import { initEditor } from "./entries.js?v=2.7.7";
+import { initProfileHandlers } from "./profile.js?v=2.7.7";
+import { initNotices } from "./notice.js?v=2.7.7";
+import { initNotify } from "./notify.js?v=2.7.7";
+import { initDday } from "./dday.js?v=2.7.7";
+import { initSearchFilter, render } from "./render.js?v=2.7.7";
+import { initCalendar } from "./calendar.js?v=2.7.7";
+import { initChangelog } from "./changelog.js?v=2.7.7";
+import { initAuth } from "./auth.js?v=2.7.7";
 
 const BOOT_WATCHDOG_MS = 7000;
 

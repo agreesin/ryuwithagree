@@ -8,10 +8,10 @@ import {
   addNotice,
   updateNotice,
   removeNotice,
-} from "./store.js";
-import { getCurrentUser, getCurrentProfiles } from "./state.js";
-import { showError } from "./ui.js";
-import { sendPushToPartner } from "./notify.js";
+} from "./store.js?v=2.7.7";
+import { getCurrentUser, getCurrentProfiles } from "./state.js?v=2.7.7";
+import { showError } from "./ui.js?v=2.7.7";
+import { sendPushToPartner } from "./notify.js?v=2.7.7";
 
 // 화면 요소
 const noticeArea = document.getElementById("notice-area");

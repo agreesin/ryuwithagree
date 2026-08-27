@@ -4,8 +4,8 @@
 // 상단 종 아이콘 클릭 시 알림 내역 목록 확인 및 클릭 시 해당 글/댓글로 스크롤 이동을 담당합니다.
 // =========================================================
 
-import { getCurrentUser, getCurrentProfiles } from "./state.js";
-import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js";
+import { getCurrentUser, getCurrentProfiles } from "./state.js?v=2.7.7";
+import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js?v=2.7.7";
 
 const FIREBASE_MESSAGING_URL = "https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging.js";
 const FCM_VAPID_KEY = "BMwoxyNkaOfECoLOtTqhnVp76x2U3_7FgE4b08fKPSKxDxQ-EKCJb2z7cMaPjWNtjIPHXBaYbUhHLL1p0Gc1KNo";
