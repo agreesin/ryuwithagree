@@ -29,22 +29,25 @@ body {
   line-height: 1.6;
 .header {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   position: relative;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
   border-bottom: 2px solid var(--primary-color);
+  gap: 10px;
 }
 
 .header-title {
   margin: 0;
   color: var(--primary-color);
-  font-size: 1.8rem;
+  font-size: 1.65rem;
   letter-spacing: -0.5px;
   cursor: pointer;
   user-select: none;
   transition: all 0.15s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .header-title:hover {
@@ -57,11 +60,11 @@ body {
 }
 
 .header-actions {
-  position: absolute;
-  right: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .notif-wrapper {
@@ -1593,8 +1596,8 @@ body {
   background: linear-gradient(135deg, #fff0f3 0%, #ffe4e8 100%);
   border: 1.5px solid #f8c9d2;
   border-radius: 20px;
-  padding: 6px 12px;
-  font-size: 0.8rem;
+  padding: 5px 10px;
+  font-size: 0.78rem;
   font-weight: 700;
   color: #d45665;
   cursor: pointer;
@@ -1603,10 +1606,20 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
+  max-width: 175px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+#dday-badge-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
 }
 
 .dday-badge-btn:hover {
-  transform: translateY(-1px) scale(1.03);
+  transform: translateY(-1px) scale(1.02);
   box-shadow: 0 4px 10px rgba(230, 109, 123, 0.25);
   border-color: var(--primary-color);
 }
