@@ -151,6 +151,22 @@ function runWithOneSignal(fn, timeoutMs = 3500) {
 }
 
 /**
+ * 정확한 GitHub Pages 및 서브디렉터리 Base Path 계산
+ */
+function getBasePath() {
+  if (typeof window === "undefined") return "/";
+  let p = window.location.pathname;
+  if (!p.endsWith("/")) {
+    if (p.endsWith(".html")) {
+      p = p.substring(0, p.lastIndexOf("/") + 1);
+    } else {
+      p = p + "/";
+    }
+  }
+  return p;
+}
+
+/**
  * OneSignal SDK를 초기화합니다.
  */
 function initOneSignal() {
@@ -158,12 +174,13 @@ function initOneSignal() {
 
   runWithOneSignal(async (OneSignal) => {
     try {
-      const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/") + 1);
+      const basePath = getBasePath();
+      const swPath = `${basePath}OneSignalSDKWorker.js`;
 
       await OneSignal.init({
         appId: ONESIGNAL_APP_ID || "5405c7d7-4164-4bc8-af32-7863626eaa06",
         allowLocalhostAsSecureOrigin: true,
-        serviceWorkerPath: `${basePath}OneSignalSDKWorker.js`,
+        serviceWorkerPath: swPath,
         serviceWorkerParam: {
           scope: basePath,
         },
