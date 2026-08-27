@@ -2,8 +2,8 @@
 // dday.js - 다중 기념일, 매년 반복 생일 및 맞춤 데이트/일정 D-Day 관리 모듈
 // =========================================================
 
-import { subscribeDday, saveDdayConfig } from "./store.js?v=3.0.2";
-import { notifyCalendarDdayChange } from "./calendar.js?v=3.0.2";
+import { subscribeDday, saveDdayConfig } from "./store.js?v=3.0.3";
+import { notifyCalendarDdayChange } from "./calendar.js?v=3.0.3";
 
 // 화면 요소
 const ddayBadgeBtn = document.getElementById("dday-badge-btn");
@@ -388,3 +388,4 @@ export function stopDdaySubscription() {
     unsubscribeDday = null;
   }
 }
+

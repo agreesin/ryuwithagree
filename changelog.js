@@ -6,6 +6,14 @@
 // 업데이트 히스토리 데이터 (최신순)
 export const CHANGELOG_DATA = [
   {
+    version: "v3.0.3",
+    date: "2026.08.27",
+    type: "patch",
+    tag: "iOS/사파리 최적화",
+    title: "아이폰 Safari 및 홈 화면(PWA) 전용 리다이렉트 로그인 개편",
+    desc: "iOS 사파리의 팝업 차단 및 PWA 팝업 무한 대기 현상을 해결하기 위해 모바일/iOS 환경에서 자동으로 전체 화면 리다이렉트(signInWithRedirect) 로그인을 수행하도록 개선했습니다.",
+  },
+  {
     version: "v3.0.1",
     date: "2026.08.27",
     type: "patch",
@@ -201,3 +209,4 @@ export function initChangelog() {
     });
   }
 }
+

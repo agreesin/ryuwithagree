@@ -211,23 +211,43 @@ export function watchLogin(onChange) {
 }
 
 /**
- * 리다이렉트 로그인 결과 확인 (PWA 환경)
+ * 현재 기기가 모바일(iOS/Android) 또는 PWA 환경인지 확인합니다.
+ */
+export function isMobileDevice() {
+  if (typeof window === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const isMobileUA = /iPhone|iPad|iPod|Android/i.test(ua);
+  const isStandalone =
+    window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+  return isMobileUA || isStandalone;
+}
+
+/**
+ * 리다이렉트 로그인 결과 확인 (PWA 및 모바일 사파리 환경)
  */
 export async function checkRedirectLogin() {
   try {
     const result = await getRedirectResult(auth);
     if (result && result.user) {
       await syncUserProfile(result.user);
+      return result.user;
     }
-    return result?.user || null;
+    return null;
   } catch (err) {
     console.warn("[store] Redirect 로그인 결과 확인:", err);
     return null;
   }
 }
 
+/**
+ * 구글 로그인 실행 (모바일/PWA/사파리는 Redirect, 데스크톱은 Popup 자동 분기)
+ */
 export function login() {
   const provider = new GoogleAuthProvider();
+  if (isMobileDevice()) {
+    return signInWithRedirect(auth, provider);
+  }
   return signInWithPopup(auth, provider);
 }
 
@@ -522,6 +542,7 @@ export async function saveDdayConfig(configData) {
     updatedBy: user.uid,
   });
 }
+
 
 
 

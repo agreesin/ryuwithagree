@@ -17,3 +17,4 @@ export function hideError() {
     errorBanner.hidden = true;
   }
 }
+

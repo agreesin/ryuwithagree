@@ -62,3 +62,4 @@ export function isAdmin(user) {
   if (!user) return false;
   return isCurrentUserAdmin;
 }
+

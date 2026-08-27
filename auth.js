@@ -11,23 +11,23 @@ import {
   subscribeProfiles,
   subscribeEntries,
   checkRedirectLogin,
-} from "./store.js?v=3.0.2";
+} from "./store.js?v=3.0.3";
 import {
   setCurrentUser,
   setCurrentProfiles,
   getCurrentUser,
   getCurrentProfiles,
   checkAdminStatus,
-} from "./state.js?v=3.0.2";
-import { showError, hideError } from "./ui.js?v=3.0.2";
-import { updateProfileButtonsVisibility } from "./profile.js?v=3.0.2";
-import { render } from "./render.js?v=3.0.2";
-import { updateNoticeAuth } from "./notice.js?v=3.0.2";
+} from "./state.js?v=3.0.3";
+import { showError, hideError } from "./ui.js?v=3.0.3";
+import { updateProfileButtonsVisibility } from "./profile.js?v=3.0.3";
+import { render } from "./render.js?v=3.0.3";
+import { updateNoticeAuth } from "./notice.js?v=3.0.3";
 import {
   checkNewUpdates,
   syncUserFcm,
-} from "./notify.js?v=3.0.2";
-import { startDdaySubscription, stopDdaySubscription } from "./dday.js?v=3.0.2";
+} from "./notify.js?v=3.0.3";
+import { startDdaySubscription, stopDdaySubscription } from "./dday.js?v=3.0.3";
 
 // 화면 요소
 const loginButton = document.getElementById("login-button");
@@ -177,14 +177,13 @@ export function initAuth() {
       try {
         hideError();
         loginButton.disabled = true;
-        loginButton.textContent = "로그인 중...";
+        loginButton.textContent = "구글 로그인 이동 중...";
         await login();
       } catch (error) {
         console.error("[auth] 로그인 오류:", error);
         loginButton.disabled = false;
         loginButton.textContent = "구글 계정으로 로그인";
 
-        // 팝업이 차단되었거나 모바일 PWA 환경인 경우 리다이렉트 로그인으로 자동 fallback
         if (
           error.code === "auth/popup-blocked" ||
           error.code === "auth/operation-not-supported-in-this-environment"
@@ -195,18 +194,18 @@ export function initAuth() {
             return;
           } catch (redirectErr) {
             console.error("[auth] Redirect 로그인 오류:", redirectErr);
-            showError(`로그인 실패: ${redirectErr.message || "다시 시도해 주세요."}`);
+            showError(`로그인 이동 실패: ${redirectErr.message || "다시 시도해 주세요."}`);
           }
         } else if (error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
-          showError(`로그인 실패: ${error.message || "다시 시도해 주세요."}`);
+          showError(`로그인 오류 (${error.code || "실패"}): ${error.message || "다시 시도해 주세요."}`);
         }
       } finally {
         setTimeout(() => {
-          if (loginButton) {
+          if (loginButton && !loginButton.textContent.includes("이동 중")) {
             loginButton.disabled = false;
             loginButton.textContent = "구글 계정으로 로그인";
           }
-        }, 1500);
+        }, 2000);
       }
     });
   }
@@ -327,3 +326,4 @@ function readPasscodeFlag(uid) {
     }
   });
 }
+

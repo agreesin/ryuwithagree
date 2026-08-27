@@ -313,3 +313,4 @@ export function exportImage() {
   console.log(`[draw] 저장된 그림 데이터 길이: ${dataUrl.length}자 (포맷: ${format}, 품질: ${quality})`);
   return dataUrl;
 }
+
