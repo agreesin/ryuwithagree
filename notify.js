@@ -285,7 +285,19 @@ export async function requestNotificationPermission() {
       return false;
     }
 
-    // 2. 브라우저 권한 획득 후 OneSignal v16 권한 및 optIn & 사용자 UID 연동 수행
+    // 2. 서비스 워커 등록 명시적 갱신
+    if ("serviceWorker" in navigator) {
+      try {
+        const basePath = getBasePath();
+        await navigator.serviceWorker.register(`${basePath}OneSignalSDKWorker.js`, { scope: basePath });
+        console.log("[notify] ServiceWorker 등록 완료");
+      } catch (swErr) {
+        console.warn("[notify] ServiceWorker 수동 등록 경고:", swErr);
+      }
+    }
+
+    // 3. 브라우저 권한 획득 후 OneSignal v16 권한 및 optIn & 사용자 UID 연동 수행
+    let subId = null;
     await runWithOneSignal(async (OneSignal) => {
       try {
         if (OneSignal.Notifications?.requestPermission) {
@@ -298,14 +310,19 @@ export async function requestNotificationPermission() {
         if (curUser && OneSignal.login) {
           try { await OneSignal.login(curUser.uid); } catch (e) {}
         }
-        console.log("[notify] OneSignal 권한/optIn/로그인 동기화 완료");
+        subId = OneSignal.User?.PushSubscription?.id;
+        console.log("[notify] OneSignal 권한/optIn/로그인 동기화 완료, SubId:", subId);
       } catch (e) {
         console.warn("[notify] OneSignal optIn 에러:", e);
       }
-    }, 2500);
+    }, 3500);
 
     updatePushStatusUI({ status: "granted", message: "기기 푸시 알림 켜짐 🔔" });
-    showToastNotification("기기 푸시 알림이 정상 연결되었습니다! 🔔", "🔔");
+    if (subId) {
+      showToastNotification("기기 푸시 등록 성공! 이제 [테스트]를 눌러보세요 🔔", "🔔");
+    } else {
+      showToastNotification("푸시 토큰 발급 요청 완료! 2초 뒤 [테스트]를 눌러보세요 🔔", "🔔");
+    }
     return true;
   } catch (err) {
     console.warn("[notify] 권한 요청 오류:", err);
@@ -351,17 +368,21 @@ export async function sendTestPush() {
   const testBtn = document.getElementById("notif-test-push-btn");
   if (testBtn) testBtn.disabled = true;
 
-  showToastNotification("테스트 푸시 발송을 요청했습니다... 🚀", "💌");
+  showToastNotification("테스트 푸시 발송 요청 중... 🚀", "💌");
 
   try {
     await sendPushToPartner({
       title: "🔔 류이어리 푸시 알림 테스트",
       message: "정상적으로 알림이 잘 도착했습니다! ✨",
     });
-    showToastNotification("푸시 발송 완료! 앱을 닫고 3~5초 뒤 잠금화면을 확인하세요 🔔", "🔔");
+    showToastNotification("푸시 발송 성공! 앱을 닫고 3~5초 뒤 잠금화면을 확인하세요 🔔", "🔔");
   } catch (err) {
     console.error("[notify] 테스트 푸시 실패:", err);
-    showToastNotification("푸시 발송에 실패했습니다.", "❌");
+    if (err.message && err.message.includes("not subscribed")) {
+      showToastNotification("⚠️ 아직 서버에 기기가 등록되지 않았습니다. [재연동] 버튼을 먼저 눌러주세요!", "⚠️");
+    } else {
+      showToastNotification("푸시 발송 실패: " + err.message, "❌");
+    }
   } finally {
     if (testBtn) testBtn.disabled = false;
   }
@@ -438,27 +459,26 @@ export async function sendPushToPartner({ title, message }) {
     return;
   }
 
-  try {
-    const res = await fetch(PUSH_PROXY_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        title: title,
-        message: message,
-      }),
-    });
+  const res = await fetch(PUSH_PROXY_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      title: title,
+      message: message,
+    }),
+  });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.warn("[notify] 푸시 중계 서버 응답 실패:", res.status, errText);
-    } else {
-      console.log("[notify] OneSignal 백그라운드 푸시 발송 완료");
-    }
-  } catch (err) {
-    console.warn("[notify] 푸시 중계 서버 네트워크 오류:", err);
+  const data = await res.json().catch(() => null);
+  if (!res.ok || (data && data.errors && data.errors.length > 0)) {
+    const errMsg = data?.errors?.[0] || `서버 응답 오류 (${res.status})`;
+    console.warn("[notify] 푸시 중계 서버 응답 실패:", res.status, errMsg);
+    throw new Error(errMsg);
   }
+
+  console.log("[notify] OneSignal 백그라운드 푸시 발송 완료:", data);
+  return data;
 }
 
 /**
