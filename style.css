@@ -197,6 +197,12 @@ body {
   color: #847278;
 }
 
+.notif-push-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .notif-push-toggle-btn {
   background: #ffffff;
   border: 1px solid #f8c9d2;
@@ -211,6 +217,29 @@ body {
 .notif-push-toggle-btn:hover {
   background: #fff0f3;
   border-color: var(--primary-color);
+}
+
+.notif-test-push-btn {
+  background: #fff0f3;
+  border: 1px solid #f8c9d2;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  color: var(--primary-color);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 600;
+}
+
+.notif-test-push-btn:hover {
+  background: #ffe3e8;
+  border-color: var(--primary-color);
+}
+
+.notif-test-push-btn:disabled,
+.notif-push-toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .notif-list-wrapper {
