@@ -2,8 +2,8 @@
 // dday.js - 다중 기념일, 매년 반복 생일 및 맞춤 데이트/일정 D-Day 관리 모듈
 // =========================================================
 
-import { subscribeDday, saveDdayConfig } from "./store.js?v=3.0.0";
-import { notifyCalendarDdayChange } from "./calendar.js?v=3.0.0";
+import { subscribeDday, saveDdayConfig } from "./store.js?v=3.0.1";
+import { notifyCalendarDdayChange } from "./calendar.js?v=3.0.1";
 
 // 화면 요소
 const ddayBadgeBtn = document.getElementById("dday-badge-btn");
@@ -333,37 +333,58 @@ export function initDday() {
       }
     });
   }
+}
 
-  // 6. Firestore 실시간 구독
-  subscribeDday((config) => {
-    if (config) {
-      if (!config.items && config.startDate) {
-        currentDdayConfig = {
-          mainId: "dday_legacy",
-          items: [
-            {
-              id: "dday_legacy",
-              title: config.title || "함께한 지",
-              date: config.startDate,
-              type: "count_up",
-              icon: "💖",
-            },
-          ],
-        };
+let unsubscribeDday = null;
+
+/**
+ * 로그인 후 D-Day 실시간 구독을 시작합니다.
+ */
+export function startDdaySubscription() {
+  if (unsubscribeDday) return;
+  try {
+    unsubscribeDday = subscribeDday((config) => {
+      if (config) {
+        if (!config.items && config.startDate) {
+          currentDdayConfig = {
+            mainId: "dday_legacy",
+            items: [
+              {
+                id: "dday_legacy",
+                title: config.title || "함께한 지",
+                date: config.startDate,
+                type: "count_up",
+                icon: "💖",
+              },
+            ],
+          };
+        } else {
+          currentDdayConfig = {
+            mainId: config.mainId || (config.items && config.items[0]?.id) || null,
+            items: config.items || [],
+          };
+        }
       } else {
-        currentDdayConfig = {
-          mainId: config.mainId || (config.items && config.items[0]?.id) || null,
-          items: config.items || [],
-        };
+        currentDdayConfig = { mainId: null, items: [] };
       }
-    } else {
-      currentDdayConfig = { mainId: null, items: [] };
-    }
 
-    updateHeaderBadge();
-    if (ddayModal && !ddayModal.hidden) {
-      renderDdayList();
-    }
-    notifyCalendarDdayChange();
-  });
+      updateHeaderBadge();
+      if (ddayModal && !ddayModal.hidden) {
+        renderDdayList();
+      }
+      notifyCalendarDdayChange();
+    });
+  } catch (err) {
+    console.warn("[dday] D-Day 구독 오류:", err);
+  }
+}
+
+/**
+ * 로그아웃 시 D-Day 실시간 구독을 중단합니다.
+ */
+export function stopDdaySubscription() {
+  if (unsubscribeDday) {
+    unsubscribeDday();
+    unsubscribeDday = null;
+  }
 }

@@ -4,10 +4,10 @@
 // ★ 목록 갱신은 Firestore onSnapshot이 담당하므로 수동 render 호출은 불필요하며 render.js를 import하지 않습니다.
 // =========================================================
 
-import { addComment, updateComment, removeComment } from "./store.js?v=3.0.0";
-import { getCurrentUser, getCurrentProfiles } from "./state.js?v=3.0.0";
-import { showError } from "./ui.js?v=3.0.0";
-import { sendPushToPartner } from "./notify.js?v=3.0.0";
+import { addComment, updateComment, removeComment } from "./store.js?v=3.0.1";
+import { getCurrentUser, getCurrentProfiles } from "./state.js?v=3.0.1";
+import { showError } from "./ui.js?v=3.0.1";
+import { sendPushToPartner } from "./notify.js?v=3.0.1";
 
 /**
  * 개별 일기 카드의 댓글/답글 영역 DOM 요소를 생성하여 반환합니다.

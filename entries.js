@@ -3,7 +3,7 @@
 // 일기 저장, 유효성 검사, 오늘의 기분 선택, 앨범 사진 자동 압축 및 그림판 툴바 이벤트 배선을 담당합니다.
 // =========================================================
 
-import { addEntry } from "./store.js?v=3.0.0";
+import { addEntry } from "./store.js?v=3.0.1";
 import {
   initCanvas,
   setMode,
@@ -14,10 +14,10 @@ import {
   resetCanvas,
   hasDrawing,
   exportImage,
-} from "./draw.js?v=3.0.0";
-import { showError } from "./ui.js?v=3.0.0";
-import { sendPushToPartner, showToastNotification } from "./notify.js?v=3.0.0";
-import { getCurrentUser, getCurrentProfiles } from "./state.js?v=3.0.0";
+} from "./draw.js?v=3.0.1";
+import { showError } from "./ui.js?v=3.0.1";
+import { sendPushToPartner, showToastNotification } from "./notify.js?v=3.0.1";
+import { getCurrentUser, getCurrentProfiles } from "./state.js?v=3.0.1";
 
 // 입력 요소
 const titleInput = document.getElementById("title-input");

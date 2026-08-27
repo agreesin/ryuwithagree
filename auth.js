@@ -10,23 +10,24 @@ import {
   subscribeProfiles,
   subscribeEntries,
   checkRedirectLogin,
-} from "./store.js?v=3.0.0";
+} from "./store.js?v=3.0.1";
 import {
   setCurrentUser,
   setCurrentProfiles,
   getCurrentUser,
   getCurrentProfiles,
   checkAdminStatus,
-} from "./state.js?v=3.0.0";
-import { showError, hideError } from "./ui.js?v=3.0.0";
-import { updateProfileButtonsVisibility } from "./profile.js?v=3.0.0";
-import { render } from "./render.js?v=3.0.0";
-import { updateNoticeAuth } from "./notice.js?v=3.0.0";
+} from "./state.js?v=3.0.1";
+import { showError, hideError } from "./ui.js?v=3.0.1";
+import { updateProfileButtonsVisibility } from "./profile.js?v=3.0.1";
+import { render } from "./render.js?v=3.0.1";
+import { updateNoticeAuth } from "./notice.js?v=3.0.1";
 import {
   checkNewUpdates,
   requestNotificationPermission,
   syncUserFcm,
-} from "./notify.js?v=3.0.0";
+} from "./notify.js?v=3.0.1";
+import { startDdaySubscription, stopDdaySubscription } from "./dday.js?v=3.0.1";
 
 // 화면 요소
 const loginButton = document.getElementById("login-button");
@@ -96,6 +97,9 @@ async function grantAccess(user) {
   // 알림 권한 자동 요청 및 FCM 토큰 기기 연결
   requestNotificationPermission();
   syncUserFcm(user);
+
+  // D-Day 및 기념일 실시간 구독 시작
+  startDdaySubscription();
 
   if (!stopWatchingProfiles) {
     stopWatchingProfiles = subscribeProfiles((profiles) => {
@@ -252,6 +256,8 @@ function readPasscodeFlag(uid) {
         if (appFooter) appFooter.hidden = true;
         if (ddayModal) ddayModal.hidden = true;
         if (changelogModal) changelogModal.hidden = true;
+
+        stopDdaySubscription();
 
         if (stopWatchingEntries) {
           stopWatchingEntries();
