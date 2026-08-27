@@ -226,25 +226,9 @@ export async function checkRedirectLogin() {
   }
 }
 
-export async function login() {
+export function login() {
   const provider = new GoogleAuthProvider();
-  // 모바일(iOS/Android) 또는 홈 화면(PWA standalone) 앱은 팝업 창이 차단되므로 100% redirect 사용
-  const isMobile = typeof navigator !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const isStandalone = typeof window !== "undefined" && (
-    window.navigator.standalone ||
-    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)
-  );
-
-  if (isMobile || isStandalone) {
-    return signInWithRedirect(auth, provider);
-  }
-
-  try {
-    return await signInWithPopup(auth, provider);
-  } catch (err) {
-    console.warn("[store] 팝업 실패 -> signInWithRedirect 로 자동 전환:", err);
-    return signInWithRedirect(auth, provider);
-  }
+  return signInWithPopup(auth, provider);
 }
 
 export function logout() {

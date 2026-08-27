@@ -10,23 +10,23 @@ import {
   subscribeProfiles,
   subscribeEntries,
   checkRedirectLogin,
-} from "./store.js?v=2.8.1";
+} from "./store.js?v=2.8.2";
 import {
   setCurrentUser,
   setCurrentProfiles,
   getCurrentUser,
   getCurrentProfiles,
   checkAdminStatus,
-} from "./state.js?v=2.8.1";
-import { showError, hideError } from "./ui.js?v=2.8.1";
-import { updateProfileButtonsVisibility } from "./profile.js?v=2.8.1";
-import { render } from "./render.js?v=2.8.1";
-import { updateNoticeAuth } from "./notice.js?v=2.8.1";
+} from "./state.js?v=2.8.2";
+import { showError, hideError } from "./ui.js?v=2.8.2";
+import { updateProfileButtonsVisibility } from "./profile.js?v=2.8.2";
+import { render } from "./render.js?v=2.8.2";
+import { updateNoticeAuth } from "./notice.js?v=2.8.2";
 import {
   checkNewUpdates,
   requestNotificationPermission,
   syncUserWithOneSignal,
-} from "./notify.js?v=2.8.1";
+} from "./notify.js?v=2.8.2";
 
 // 화면 요소
 const loginButton = document.getElementById("login-button");
@@ -152,13 +152,22 @@ export function initAuth() {
       try {
         hideError();
         loginButton.disabled = true;
-        loginButton.textContent = "로그인 연결 중...";
+        loginButton.textContent = "로그인 중...";
         await login();
       } catch (error) {
-        console.error("[auth] 로그인 예외:", error);
+        console.error("[auth] 로그인 오류:", error);
         loginButton.disabled = false;
         loginButton.textContent = "구글 계정으로 로그인";
-        showError(`로그인 연결 실패: ${error.message || "다시 시도해 주세요."}`);
+        if (error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
+          showError(`로그인 실패: ${error.message || "다시 시도해 주세요."}`);
+        }
+      } finally {
+        setTimeout(() => {
+          if (loginButton) {
+            loginButton.disabled = false;
+            loginButton.textContent = "구글 계정으로 로그인";
+          }
+        }, 1500);
       }
     });
   }
