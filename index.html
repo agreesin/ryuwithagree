@@ -337,35 +337,25 @@
             <p id="search-result-count" class="search-result-count" hidden></p>
           </section>
 
-          <!-- 쓴 글이 쌓이는 곳 (좌우 2분할) -->
-          <section class="entries">
-            <p id="empty-message" class="empty-message" hidden>아직 쓴 글이 없습니다.</p>
-            <div class="entries-split-container">
-              <!-- 왼쪽: 상대의 일기 -->
-              <div class="entries-column others-column">
-                <div class="column-header">
-                  <div class="column-title-wrap">
-                    <span class="column-icon">📝</span>
-                    <span class="column-title">상대의 일기</span>
-                  </div>
-                  <span id="others-count" class="column-count">0</span>
-                </div>
-                <p id="others-empty" class="column-empty" hidden>아직 상대가 쓴 일기가 없습니다.</p>
-                <ul id="others-entry-list" class="entry-list"></ul>
+          <!-- 쓴 글이 쌓이는 곳 (통합 타임라인 피드) -->
+          <section class="entries timeline-section">
+            <div class="timeline-header">
+              <div class="timeline-title-wrap">
+                <span class="timeline-icon">📖</span>
+                <h2 class="timeline-title">우리들의 일기 피드</h2>
+                <span id="timeline-total-count" class="timeline-count">0</span>
               </div>
+            </div>
 
-              <!-- 오른쪽: 내가 쓴 일기 -->
-              <div class="entries-column my-column">
-                <div class="column-header">
-                  <div class="column-title-wrap">
-                    <span class="column-icon">📝</span>
-                    <span class="column-title">내가 쓴 일기</span>
-                  </div>
-                  <span id="my-count" class="column-count">0</span>
-                </div>
-                <p id="my-empty" class="column-empty" hidden>아직 내가 쓴 일기가 없습니다.</p>
-                <ul id="my-entry-list" class="entry-list"></ul>
-              </div>
+            <p id="empty-message" class="empty-message" hidden>아직 작성된 일기가 없습니다. 첫 일기를 남겨보세요! 💖</p>
+            <ul id="timeline-entry-list" class="entry-list timeline-list"></ul>
+
+            <!-- 더보기 버튼 컨테이너 -->
+            <div id="load-more-container" class="load-more-container" hidden>
+              <button type="button" id="load-more-btn" class="load-more-btn">
+                <span>이전 일기 더보기</span>
+                <span id="load-more-count" class="load-more-count">⬇️</span>
+              </button>
             </div>
           </section>
         </div>

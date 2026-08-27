@@ -35,8 +35,7 @@ const logoutButton = document.getElementById("logout-button");
 const loginArea = document.getElementById("login-area");
 const appArea = document.getElementById("app-area");
 const whoAmI = document.getElementById("who-am-i");
-const othersList = document.getElementById("others-entry-list");
-const myList = document.getElementById("my-entry-list");
+const timelineList = document.getElementById("timeline-entry-list");
 
 // 보호 대상 요소들 (로그인 사용자 전용)
 const ddayBadgeBtn = document.getElementById("dday-badge-btn");
@@ -231,8 +230,7 @@ export function initAuth() {
         }
         if (appArea) appArea.hidden = true;
         if (loginArea) loginArea.hidden = false;
-        if (othersList) othersList.innerHTML = "";
-        if (myList) myList.innerHTML = "";
+        if (timelineList) timelineList.innerHTML = "";
         updateNoticeAuth(null);
       }
     } catch (err) {

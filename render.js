@@ -1,5 +1,5 @@
 // =========================================================
-// render.js - 일기 목록 렌더링, 실시간 검색 및 필터링 모듈 (좌우 2분할)
+// render.js - 일기 목록 렌더링, 실시간 검색 및 필터링 모듈 (통합 타임라인 피드)
 // =========================================================
 
 import { hideError } from "./ui.js";
@@ -8,12 +8,11 @@ import { getCurrentUser } from "./state.js";
 import { updateCalendarEntries } from "./calendar.js";
 
 const emptyMessage = document.getElementById("empty-message");
-const othersList = document.getElementById("others-entry-list");
-const myList = document.getElementById("my-entry-list");
-const othersEmpty = document.getElementById("others-empty");
-const myEmpty = document.getElementById("my-empty");
-const othersCount = document.getElementById("others-count");
-const myCount = document.getElementById("my-count");
+const timelineList = document.getElementById("timeline-entry-list");
+const timelineTotalCount = document.getElementById("timeline-total-count");
+const loadMoreContainer = document.getElementById("load-more-container");
+const loadMoreBtn = document.getElementById("load-more-btn");
+const loadMoreCount = document.getElementById("load-more-count");
 
 // 검색 & 필터 화면 요소
 const searchInput = document.getElementById("search-input");
@@ -22,7 +21,9 @@ const filterMoodBtns = document.querySelectorAll(".filter-mood-btn");
 const filterAuthorBtns = document.querySelectorAll(".filter-author-btn");
 const searchResultCount = document.getElementById("search-result-count");
 
-// 내부 상태
+// 페이지네이션 및 상태
+const PAGE_SIZE = 6; // 한 번에 표시할 일기 수
+let visibleCount = PAGE_SIZE;
 let cachedRawEntries = [];
 let currentKeyword = "";
 let currentMood = "all";
@@ -68,7 +69,7 @@ function getFilteredEntries() {
 }
 
 /**
- * 일기 목록을 화면에 렌더링합니다.
+ * 일기 목록을 통합 타임라인 피드로 렌더링합니다.
  * @param {Array<Object>} entries - Firestore 일기 문서 목록
  */
 export function render(entries = cachedRawEntries) {
@@ -80,30 +81,28 @@ export function render(entries = cachedRawEntries) {
 
   hideError();
 
-  if (othersList) othersList.innerHTML = "";
-  if (myList) myList.innerHTML = "";
-
-  const currentUser = getCurrentUser();
   const filtered = getFilteredEntries();
 
-  let othersCountNum = 0;
-  let myCountNum = 0;
+  if (timelineList) {
+    timelineList.innerHTML = "";
 
-  for (const entry of filtered) {
-    const isMyEntry = currentUser && (
-      (entry.uid && entry.uid === currentUser.uid) ||
-      (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
-    );
+    // 현재 표시할 개수만큼만 슬라이스하여 렌더링 (스크롤 단축)
+    const displayedEntries = filtered.slice(0, visibleCount);
 
-    const card = createEntryCard(entry);
-
-    if (isMyEntry) {
-      if (myList) myList.appendChild(card);
-      myCountNum++;
-    } else {
-      if (othersList) othersList.appendChild(card);
-      othersCountNum++;
+    for (const entry of displayedEntries) {
+      const card = createEntryCard(entry);
+      timelineList.appendChild(card);
     }
+  }
+
+  // 전체 카운트 표시
+  if (timelineTotalCount) {
+    timelineTotalCount.textContent = String(filtered.length);
+  }
+
+  // 빈 피드 메시지 처리
+  if (emptyMessage) {
+    emptyMessage.hidden = filtered.length > 0;
   }
 
   // 검색 결과 카운트 갱신
@@ -117,21 +116,36 @@ export function render(entries = cachedRawEntries) {
     }
   }
 
-  // 전체 및 컬럼별 상태 갱신
-  if (emptyMessage) emptyMessage.hidden = filtered.length > 0;
-  if (othersCount) othersCount.textContent = String(othersCountNum);
-  if (myCount) myCount.textContent = String(myCountNum);
-  if (othersEmpty) othersEmpty.hidden = othersCountNum > 0;
-  if (myEmpty) myEmpty.hidden = myCountNum > 0;
+  // 더보기 버튼 제어
+  if (loadMoreContainer && loadMoreBtn) {
+    const remaining = filtered.length - visibleCount;
+    if (remaining > 0) {
+      loadMoreContainer.hidden = false;
+      if (loadMoreCount) {
+        loadMoreCount.textContent = `(${remaining}개 더보기 ⬇️)`;
+      }
+    } else {
+      loadMoreContainer.hidden = true;
+    }
+  }
 }
 
 /**
  * 검색 및 필터 UI 이벤트 리스너 초기화
  */
 export function initSearchFilter() {
+  // [더보기] 버튼 클릭 핸들러
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener("click", () => {
+      visibleCount += PAGE_SIZE;
+      render();
+    });
+  }
+
   if (searchInput) {
     searchInput.addEventListener("input", (e) => {
       currentKeyword = e.target.value.trim();
+      visibleCount = PAGE_SIZE; // 검색 시 첫 페이지부터
       if (searchClearBtn) {
         searchClearBtn.hidden = currentKeyword === "";
       }
@@ -143,6 +157,7 @@ export function initSearchFilter() {
     searchClearBtn.addEventListener("click", () => {
       if (searchInput) searchInput.value = "";
       currentKeyword = "";
+      visibleCount = PAGE_SIZE;
       searchClearBtn.hidden = true;
       render();
     });
@@ -153,6 +168,7 @@ export function initSearchFilter() {
     btn.addEventListener("click", () => {
       const mood = btn.dataset.mood;
       currentMood = mood;
+      visibleCount = PAGE_SIZE;
       filterMoodBtns.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       render();
@@ -164,6 +180,7 @@ export function initSearchFilter() {
     btn.addEventListener("click", () => {
       const authorType = btn.dataset.author;
       currentAuthor = authorType;
+      visibleCount = PAGE_SIZE;
       filterAuthorBtns.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       render();

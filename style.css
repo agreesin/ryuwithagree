@@ -2670,6 +2670,132 @@ body {
   word-break: keep-all;
 }
 
+/* =========================================================
+   통합 타임라인 피드 & 작성자 뱃지 & 더보기 버튼 스타일
+   ========================================================= */
+
+.timeline-section {
+  margin-top: 20px;
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 0 4px;
+}
+
+.timeline-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeline-icon {
+  font-size: 1.25rem;
+}
+
+.timeline-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.timeline-count {
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: var(--tag-bg);
+  color: var(--primary-color);
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* 작성자 구분 태그 (내 글 vs 상대 글) */
+.entry-author-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-right: 6px;
+  vertical-align: middle;
+  letter-spacing: -0.2px;
+}
+
+.entry-author-tag.my-tag {
+  background: #ffebee;
+  color: #d81b60;
+  border: 1px solid #ffcdd2;
+}
+
+.entry-author-tag.other-tag {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+/* 카드 미세 강조 (내 글과 상대 글의 은은한 테두리/배경 포인트) */
+.entry.my-card {
+  border-left: 4px solid #f06292;
+}
+
+.entry.other-card {
+  border-left: 4px solid #81c784;
+}
+
+/* 더보기 버튼 컨테이너 */
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0 16px;
+}
+
+.load-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border: 1.5px solid var(--primary-color);
+  color: var(--primary-color);
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 12px 28px;
+  border-radius: 30px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(230, 109, 123, 0.15);
+  transition: all 0.2s ease;
+}
+
+.load-more-btn:hover {
+  background: var(--primary-color);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(230, 109, 123, 0.25);
+}
+
+.load-more-btn:active {
+  transform: translateY(0);
+}
+
+.load-more-count {
+  font-size: 0.85rem;
+  font-weight: normal;
+  opacity: 0.9;
+}
+
 
 
 

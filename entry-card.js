@@ -70,7 +70,12 @@ export function createEntryCard(entry) {
   const currentProfiles = getCurrentProfiles();
 
   const item = document.createElement("li");
-  item.className = "entry";
+  const isMyEntry = currentUser && (
+    (entry.uid && entry.uid === currentUser.uid) ||
+    (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
+  );
+
+  item.className = `entry ${isMyEntry ? "my-card" : "other-card"}`;
   item.id = `entry-${entry.id}`;
 
   const headerDiv = document.createElement("div");
@@ -78,6 +83,12 @@ export function createEntryCard(entry) {
 
   const titleWrapper = document.createElement("div");
   titleWrapper.className = "entry-title-wrapper";
+
+  // 작성자 구분 미니 뱃지 (내 글 / 상대방 글)
+  const authorTag = document.createElement("span");
+  authorTag.className = `entry-author-tag ${isMyEntry ? "my-tag" : "other-tag"}`;
+  authorTag.textContent = isMyEntry ? "내 일기 📝" : "상대방 일기 💖";
+  titleWrapper.appendChild(authorTag);
 
   const entryTitle = document.createElement("h2");
   entryTitle.className = "entry-title";
@@ -94,12 +105,6 @@ export function createEntryCard(entry) {
   }
 
   headerDiv.appendChild(titleWrapper);
-
-  // 내가 쓴 글인지 확인 (uid 일치 또는 작성자 이름 일치)
-  const isMyEntry = currentUser && (
-    (entry.uid && entry.uid === currentUser.uid) ||
-    (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
-  );
 
   if (isMyEntry) {
     const deleteButton = document.createElement("button");
