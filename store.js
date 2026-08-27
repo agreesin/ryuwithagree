@@ -17,6 +17,9 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 import {
   getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   collection,
   addDoc,
   deleteDoc,
@@ -44,7 +47,19 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+
+// iOS PWA 및 사파리 탭 전환 충돌(database is closing) 방지를 위한 멀티탭 매니저 초기화
+let db;
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+  });
+} catch (e) {
+  console.warn("[store] Firestore 기본 인스턴스로 폴백:", e);
+  db = getFirestore(app);
+}
 
 // app, auth, db 내보내기
 export { app, auth, db };
@@ -145,21 +160,28 @@ export function subscribeProfiles(onChange) {
   });
 }
 
-// 로그인 시 프로필 생성 및 동기화
+// 로그인 시 프로필 생성 및 동기화 (예외 발생 시에도 메인 흐름을 방해하지 않음)
 export async function syncUserProfile(user) {
   if (!user) return;
-  const userDoc = doc(db, "profiles", user.uid);
-  const snap = await getDoc(userDoc);
-  if (!snap.exists()) {
-    const initialName = user.displayName || "이름 없음";
-    await setDoc(userDoc, {
-      displayName: initialName,
-      email: user.email || "",
-      updatedAt: Date.now(),
-    });
-    cachedProfiles[user.uid] = initialName;
-  } else {
-    cachedProfiles[user.uid] = snap.data().displayName || user.displayName || "이름 없음";
+  try {
+    const userDoc = doc(db, "profiles", user.uid);
+    const snap = await getDoc(userDoc);
+    if (!snap.exists()) {
+      const initialName = user.displayName || "이름 없음";
+      await setDoc(userDoc, {
+        displayName: initialName,
+        email: user.email || "",
+        updatedAt: Date.now(),
+      });
+      cachedProfiles[user.uid] = initialName;
+    } else {
+      cachedProfiles[user.uid] = snap.data().displayName || user.displayName || "이름 없음";
+    }
+  } catch (err) {
+    console.warn("[store] syncUserProfile 안전 처리:", err);
+    if (user.displayName) {
+      cachedProfiles[user.uid] = user.displayName;
+    }
   }
 }
 
@@ -168,16 +190,20 @@ export async function setUserDisplayName(targetUid, newName) {
   if (!targetUid || !newName) return;
 
   // 1. 프로필 컬렉션에 새 이름 저장
-  const userDoc = doc(db, "profiles", targetUid);
-  await setDoc(
-    userDoc,
-    {
-      displayName: newName,
-      updatedAt: Date.now(),
-    },
-    { merge: true }
-  );
-  cachedProfiles[targetUid] = newName;
+  try {
+    const userDoc = doc(db, "profiles", targetUid);
+    await setDoc(
+      userDoc,
+      {
+        displayName: newName,
+        updatedAt: Date.now(),
+      },
+      { merge: true }
+    );
+    cachedProfiles[targetUid] = newName;
+  } catch (err) {
+    console.error("[store] 프로필 업데이트 오류:", err);
+  }
 
   // 2. 해당 사용자가 작성한 모든 글(entries)의 작성자명을 일괄 변경
   try {
@@ -204,7 +230,11 @@ export async function setUserDisplayName(targetUid, newName) {
 export function watchLogin(onChange) {
   return onAuthStateChanged(auth, async (user) => {
     if (user) {
-      await syncUserProfile(user);
+      try {
+        await syncUserProfile(user);
+      } catch (e) {
+        console.warn("[store] watchLogin 프로필 동기화 경고:", e);
+      }
     }
     onChange(user);
   });

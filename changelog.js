@@ -6,6 +6,14 @@
 // 업데이트 히스토리 데이터 (최신순)
 export const CHANGELOG_DATA = [
   {
+    version: "v3.2.1",
+    date: "2026.08.27",
+    type: "patch",
+    tag: "IndexedDB 안정화",
+    title: "Firestore 멀티탭 매니저 적용 및 IndexedDB closing 예외 격리",
+    desc: "아이폰 PWA/사파리 탭 전환 시 발생하는 IndexedDB closing 일시적 충돌을 방지하기 위해 persistentMultipleTabManager를 적용하고 프로필 동기화 예외를 격리했습니다.",
+  },
+  {
     version: "v3.2.0",
     date: "2026.08.27",
     type: "major",
