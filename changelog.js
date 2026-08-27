@@ -6,6 +6,14 @@
 // 업데이트 히스토리 데이터 (최신순)
 export const CHANGELOG_DATA = [
   {
+    version: "v3.0.5",
+    date: "2026.08.27",
+    type: "patch",
+    tag: "PWA 인앱 로그인",
+    title: "아이폰 홈 화면(PWA) 인앱 팝업 인증 및 0초 즉시 트리거 최적화",
+    desc: "외부 사파리 이탈로 인한 세션 유실을 방지하기 위해 홈 화면 앱 내부에서 직접 완결되는 인앱 팝업 인증을 적용하고 0초 동기 트리거로 팝업 차단을 우회했습니다.",
+  },
+  {
     version: "v3.0.4",
     date: "2026.08.27",
     type: "patch",
@@ -217,5 +225,6 @@ export function initChangelog() {
     });
   }
 }
+
 
 

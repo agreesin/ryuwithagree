@@ -5,15 +5,15 @@
 // 각 모듈의 초기화 및 이벤트 배선만 담당합니다.
 // =========================================================
 
-import { initEditor } from "./entries.js?v=3.0.4";
-import { initProfileHandlers } from "./profile.js?v=3.0.4";
-import { initNotices } from "./notice.js?v=3.0.4";
-import { initNotify } from "./notify.js?v=3.0.4";
-import { initDday } from "./dday.js?v=3.0.4";
-import { initSearchFilter, render } from "./render.js?v=3.0.4";
-import { initCalendar } from "./calendar.js?v=3.0.4";
-import { initChangelog } from "./changelog.js?v=3.0.4";
-import { initAuth } from "./auth.js?v=3.0.4";
+import { initEditor } from "./entries.js?v=3.0.5";
+import { initProfileHandlers } from "./profile.js?v=3.0.5";
+import { initNotices } from "./notice.js?v=3.0.5";
+import { initNotify } from "./notify.js?v=3.0.5";
+import { initDday } from "./dday.js?v=3.0.5";
+import { initSearchFilter, render } from "./render.js?v=3.0.5";
+import { initCalendar } from "./calendar.js?v=3.0.5";
+import { initChangelog } from "./changelog.js?v=3.0.5";
+import { initAuth } from "./auth.js?v=3.0.5";
 
 /** 개별 격리 실행: 하나의 모듈에서 오류가 나도 다른 모듈은 정상 실행 */
 function safe(name, fn) {
@@ -95,5 +95,6 @@ if (document.readyState === "loading") {
 } else {
   boot();
 }
+
 
 

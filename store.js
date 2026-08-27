@@ -254,13 +254,11 @@ export async function checkRedirectLogin() {
 }
 
 /**
- * 구글 로그인 실행 (모바일/PWA/사파리는 Redirect, 데스크톱은 Popup 자동 분기)
+ * 구글 로그인 실행 (인앱 세션 완결을 위한 팝업 인증)
  */
 export function login() {
   const provider = new GoogleAuthProvider();
-  if (isMobileDevice()) {
-    return signInWithRedirect(auth, provider);
-  }
+  provider.setCustomParameters({ prompt: "select_account" });
   return signInWithPopup(auth, provider);
 }
 
@@ -555,6 +553,7 @@ export async function saveDdayConfig(configData) {
     updatedBy: user.uid,
   });
 }
+
 
 
 
