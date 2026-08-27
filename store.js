@@ -231,6 +231,11 @@ export function login() {
   return signInWithPopup(auth, provider);
 }
 
+export function loginWithRedirect() {
+  const provider = new GoogleAuthProvider();
+  return signInWithRedirect(auth, provider);
+}
+
 export function logout() {
   return signOut(auth);
 }

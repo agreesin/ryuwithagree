@@ -27,6 +27,8 @@ body {
   margin: 0;
   padding: 24px 16px;
   line-height: 1.6;
+}
+
 .header {
   display: flex;
   justify-content: space-between;

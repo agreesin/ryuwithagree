@@ -5,6 +5,7 @@
 
 import {
   login,
+  loginWithRedirect,
   logout,
   watchLogin,
   subscribeProfiles,
@@ -87,35 +88,57 @@ async function grantAccess(user) {
   if (ddayBadgeBtn) ddayBadgeBtn.hidden = false;
   if (appFooter) appFooter.hidden = false;
 
-  // 관리자 권한 비동기 검증 및 버튼 표시 갱신
-  await checkAdminStatus(user);
-  updateProfileButtonsVisibility(user);
-  // 공지사항 편집 권한 갱신
-  updateNoticeAuth(user);
-
-  // FCM 토큰 백그라운드 조용한 동기화 (오류 발생 시에도 팝업 없이 안전 처리)
-  syncUserFcm(user);
-
-  // D-Day 및 기념일 실시간 구독 시작
-  startDdaySubscription();
-
-  if (!stopWatchingProfiles) {
-    stopWatchingProfiles = subscribeProfiles((profiles) => {
-      setCurrentProfiles(profiles);
-      const curUser = getCurrentUser();
-      if (curUser && whoAmI) {
-        whoAmI.textContent = profiles[curUser.uid] || curUser.displayName || "이름 없음";
-      }
-    });
+  // 각 부가 기능 개별 격리 실행 (오류가 발생해도 메인 화면 표시는 유지)
+  try {
+    await checkAdminStatus(user);
+    updateProfileButtonsVisibility(user);
+  } catch (e) {
+    console.warn("[auth] 관리자 권한 확인 경고:", e);
   }
 
-  if (!stopWatchingEntries) {
-    stopWatchingEntries = subscribeEntries((entries) => {
-      render(entries);
-      checkNewUpdates(entries);
-    }, () => {
-      showError("목록을 불러오지 못했습니다. 접근 권한을 확인하세요.");
-    });
+  try {
+    updateNoticeAuth(user);
+  } catch (e) {
+    console.warn("[auth] 공지사항 권한 갱신 경고:", e);
+  }
+
+  try {
+    syncUserFcm(user);
+  } catch (e) {
+    console.warn("[auth] FCM 동기화 경고:", e);
+  }
+
+  try {
+    startDdaySubscription();
+  } catch (e) {
+    console.warn("[auth] D-Day 구독 경고:", e);
+  }
+
+  try {
+    if (!stopWatchingProfiles) {
+      stopWatchingProfiles = subscribeProfiles((profiles) => {
+        setCurrentProfiles(profiles);
+        const curUser = getCurrentUser();
+        if (curUser && whoAmI) {
+          whoAmI.textContent = profiles[curUser.uid] || curUser.displayName || "이름 없음";
+        }
+      });
+    }
+  } catch (e) {
+    console.warn("[auth] 프로필 구독 경고:", e);
+  }
+
+  try {
+    if (!stopWatchingEntries) {
+      stopWatchingEntries = subscribeEntries((entries) => {
+        render(entries);
+        checkNewUpdates(entries);
+      }, () => {
+        showError("목록을 불러오지 못했습니다. 접근 권한을 확인하세요.");
+      });
+    }
+  } catch (e) {
+    console.warn("[auth] 일기 구독 경고:", e);
   }
 }
 
@@ -160,7 +183,21 @@ export function initAuth() {
         console.error("[auth] 로그인 오류:", error);
         loginButton.disabled = false;
         loginButton.textContent = "구글 계정으로 로그인";
-        if (error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
+
+        // 팝업이 차단되었거나 모바일 PWA 환경인 경우 리다이렉트 로그인으로 자동 fallback
+        if (
+          error.code === "auth/popup-blocked" ||
+          error.code === "auth/operation-not-supported-in-this-environment"
+        ) {
+          try {
+            loginButton.textContent = "페이지 이동 중...";
+            await loginWithRedirect();
+            return;
+          } catch (redirectErr) {
+            console.error("[auth] Redirect 로그인 오류:", redirectErr);
+            showError(`로그인 실패: ${redirectErr.message || "다시 시도해 주세요."}`);
+          }
+        } else if (error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
           showError(`로그인 실패: ${error.message || "다시 시도해 주세요."}`);
         }
       } finally {
@@ -248,12 +285,12 @@ function readPasscodeFlag(uid) {
   // ---------------------------------------------------------
   // 로그인 상태가 바뀔 때마다 실행됨 (자동 로그인 세션 감지)
   // ---------------------------------------------------------
-  watchLogin((user) => {
+  watchLogin(async (user) => {
     try {
       setCurrentUser(user);
       if (user) {
         if (readPasscodeFlag(user.uid)) {
-          grantAccess(user);
+          await grantAccess(user);
         } else {
           promptPasscode();
         }
