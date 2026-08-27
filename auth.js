@@ -9,23 +9,24 @@ import {
   watchLogin,
   subscribeProfiles,
   subscribeEntries,
-} from "./store.js?v=2.7.9";
+  checkRedirectLogin,
+} from "./store.js?v=2.8.0";
 import {
   setCurrentUser,
   setCurrentProfiles,
   getCurrentUser,
   getCurrentProfiles,
   checkAdminStatus,
-} from "./state.js?v=2.7.9";
-import { showError, hideError } from "./ui.js?v=2.7.9";
-import { updateProfileButtonsVisibility } from "./profile.js?v=2.7.9";
-import { render } from "./render.js?v=2.7.9";
-import { updateNoticeAuth } from "./notice.js?v=2.7.9";
+} from "./state.js?v=2.8.0";
+import { showError, hideError } from "./ui.js?v=2.8.0";
+import { updateProfileButtonsVisibility } from "./profile.js?v=2.8.0";
+import { render } from "./render.js?v=2.8.0";
+import { updateNoticeAuth } from "./notice.js?v=2.8.0";
 import {
   checkNewUpdates,
   requestNotificationPermission,
   syncUserWithOneSignal,
-} from "./notify.js?v=2.7.9";
+} from "./notify.js?v=2.8.0";
 
 // 화면 요소
 const loginButton = document.getElementById("login-button");
@@ -143,13 +144,21 @@ function promptPasscode() {
  * 로그인/로그아웃 이벤트 리스너를 등록하고 로그인 상태 감시를 시작합니다.
  */
 export function initAuth() {
+  // PWA 리다이렉트 로그인 결과 확인
+  checkRedirectLogin().catch(() => null);
+
   if (loginButton) {
     loginButton.addEventListener("click", async () => {
       try {
+        hideError();
+        loginButton.disabled = true;
+        loginButton.textContent = "로그인 연결 중...";
         await login();
       } catch (error) {
-        console.error(error);
-        showError("로그인하지 못했습니다. 팝업이 차단되지 않았는지 확인하세요.");
+        console.error("[auth] 로그인 예외:", error);
+        loginButton.disabled = false;
+        loginButton.textContent = "구글 계정으로 로그인";
+        showError(`로그인 연결 실패: ${error.message || "다시 시도해 주세요."}`);
       }
     });
   }
