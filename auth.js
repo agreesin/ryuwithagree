@@ -10,24 +10,24 @@ import {
   subscribeProfiles,
   subscribeEntries,
   checkRedirectLogin,
-} from "./store.js?v=3.0.1";
+} from "./store.js?v=3.0.2";
 import {
   setCurrentUser,
   setCurrentProfiles,
   getCurrentUser,
   getCurrentProfiles,
   checkAdminStatus,
-} from "./state.js?v=3.0.1";
-import { showError, hideError } from "./ui.js?v=3.0.1";
-import { updateProfileButtonsVisibility } from "./profile.js?v=3.0.1";
-import { render } from "./render.js?v=3.0.1";
-import { updateNoticeAuth } from "./notice.js?v=3.0.1";
+} from "./state.js?v=3.0.2";
+import { showError, hideError } from "./ui.js?v=3.0.2";
+import { updateProfileButtonsVisibility } from "./profile.js?v=3.0.2";
+import { render } from "./render.js?v=3.0.2";
+import { updateNoticeAuth } from "./notice.js?v=3.0.2";
 import {
   checkNewUpdates,
   requestNotificationPermission,
   syncUserFcm,
-} from "./notify.js?v=3.0.1";
-import { startDdaySubscription, stopDdaySubscription } from "./dday.js?v=3.0.1";
+} from "./notify.js?v=3.0.2";
+import { startDdaySubscription, stopDdaySubscription } from "./dday.js?v=3.0.2";
 
 // 화면 요소
 const loginButton = document.getElementById("login-button");
