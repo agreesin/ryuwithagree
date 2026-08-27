@@ -7,6 +7,7 @@ import {
   getMessaging,
   getToken,
   onMessage,
+  isSupported,
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging.js";
 
 // Firebase Cloud Messaging (FCM) VAPID Key
@@ -100,8 +101,16 @@ async function initFcm() {
     const swPath = isGitHubPages ? "/ryuwithagree/firebase-messaging-sw.js" : "/firebase-messaging-sw.js";
     const swScope = isGitHubPages ? "/ryuwithagree/" : "/";
 
-    swRegistration = await navigator.serviceWorker.register(swPath, { scope: swScope });
-    console.log("[notify] FCM ServiceWorker 등록 성공:", swPath);
+    swRegistration = await navigator.serviceWorker.register(swPath, { scope: swScope }).catch((e) => {
+      console.warn("[notify] FCM SW 등록 경고:", e);
+      return null;
+    });
+
+    const supported = await isSupported().catch(() => false);
+    if (!supported) {
+      console.log("[notify] 현재 브라우저 환경에서 FCM WebPush 미지원 (일반 브라우저/알림 허용 전)");
+      return;
+    }
 
     fcmMessaging = getMessaging(app);
 
@@ -116,7 +125,7 @@ async function initFcm() {
 
     await refreshPushStatus();
   } catch (err) {
-    console.warn("[notify] FCM 초기화 실패:", err);
+    console.warn("[notify] FCM 초기화 안전 처리:", err);
   }
 }
 
