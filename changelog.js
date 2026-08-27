@@ -6,6 +6,14 @@
 // 업데이트 히스토리 데이터 (최신순)
 export const CHANGELOG_DATA = [
   {
+    version: "v3.1.0",
+    date: "2026.08.27",
+    type: "major",
+    tag: "Firebase Hosting 이전",
+    title: "Firebase Hosting 단일 Origin 이전 및 리다이렉트 로그인 완전 안정화",
+    desc: "앱 호스팅과 인증 도메인(authDomain)을 ryuwithagree.firebaseapp.com으로 1:1 일치시키고 서비스워커와 PWA 스코프를 루트(/)로 표준화하여 iOS 사파리 및 홈 화면 PWA에서 로그인 세션 유실 없이 완벽히 동작하도록 개편했습니다.",
+  },
+  {
     version: "v3.0.5",
     date: "2026.08.27",
     type: "patch",

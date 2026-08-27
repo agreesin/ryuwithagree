@@ -14,9 +14,6 @@ import {
   getRedirectResult,
   signOut,
   onAuthStateChanged,
-  setPersistence,
-  browserLocalPersistence,
-  indexedDBLocalPersistence,
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 import {
   getFirestore,
@@ -47,16 +44,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-
-// iOS PWA 및 사파리 샌드박스를 위한 영구 세션 스토리지 활성화
-try {
-  setPersistence(auth, indexedDBLocalPersistence || browserLocalPersistence).catch((err) => {
-    console.warn("[store] 세션 지속성 설정 안전 처리:", err);
-  });
-} catch (e) {
-  // 브라우저 제한 환경 안전 무시
-}
-
 const db = getFirestore(app);
 
 // app, auth, db 내보내기
@@ -224,42 +211,58 @@ export function watchLogin(onChange) {
 }
 
 /**
- * 현재 기기가 모바일(iOS/Android) 또는 PWA 환경인지 확인합니다.
+ * iOS 홈 화면 웹앱(standalone) 또는 PWA 환경 여부를 확인합니다.
  */
-export function isMobileDevice() {
+export function isStandalonePWA() {
   if (typeof window === "undefined") return false;
-  const ua = navigator.userAgent || "";
-  const isMobileUA = /iPhone|iPad|iPod|Android/i.test(ua);
-  const isStandalone =
+  return (
     window.navigator.standalone === true ||
-    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
-  return isMobileUA || isStandalone;
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)
+  );
+}
+
+export function isMobileDevice() {
+  return isStandalonePWA() || (typeof navigator !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || ""));
 }
 
 /**
- * 리다이렉트 로그인 결과 확인 (PWA 및 모바일 사파리 환경)
+ * 리다이렉트 복귀 결과 확인 (에러 감지용으로만 사용, 화면 렌더링에 직접 쓰지 않음)
  */
-export async function checkRedirectLogin() {
+export async function consumeRedirectResult() {
   try {
     const result = await getRedirectResult(auth);
     if (result && result.user) {
       await syncUserProfile(result.user);
-      return result.user;
     }
-    return null;
+    return { ok: true, user: result?.user ?? null, error: null };
   } catch (err) {
     console.warn("[store] Redirect 로그인 결과 확인:", err);
-    return null;
+    return { ok: false, user: null, error: err };
   }
 }
 
+export async function checkRedirectLogin() {
+  const { user } = await consumeRedirectResult();
+  return user;
+}
+
 /**
- * 구글 로그인 실행 (인앱 세션 완결을 위한 팝업 인증)
+ * 구글 로그인 실행 (PWA Standalone은 Redirect, 일반 브라우저는 Popup)
  */
-export function login() {
+export async function loginWithGoogle() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  return signInWithPopup(auth, provider);
+
+  if (isStandalonePWA()) {
+    await signInWithRedirect(auth, provider);
+    return null;
+  }
+  const result = await signInWithPopup(auth, provider);
+  return result.user;
+}
+
+export function login() {
+  return loginWithGoogle();
 }
 
 export function loginWithRedirect() {

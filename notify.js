@@ -4,8 +4,8 @@
 // 상단 종 아이콘 클릭 시 알림 내역 목록 확인 및 클릭 시 해당 글/댓글로 스크롤 이동을 담당합니다.
 // =========================================================
 
-import { getCurrentUser, getCurrentProfiles } from "./state.js?v=3.0.5";
-import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js?v=3.0.5";
+import { getCurrentUser, getCurrentProfiles } from "./state.js";
+import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js";
 
 const FIREBASE_MESSAGING_URL = "https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging.js";
 const FCM_VAPID_KEY = "BMwoxyNkaOfECoLOtTqhnVp76x2U3_7FgE4b08fKPSKxDxQ-EKCJb2z7cMaPjWNtjIPHXBaYbUhHLL1p0Gc1KNo";
@@ -88,11 +88,6 @@ function formatRelativeTime(timestamp) {
   });
 }
 
-function getBasePath() {
-  const isGitHubPages = typeof window !== "undefined" && window.location.pathname.includes("/ryuwithagree");
-  return isGitHubPages ? "/ryuwithagree/" : "/";
-}
-
 /** 이 브라우저에서 웹 푸시가 물리적으로 가능한지 (iOS 비-standalone이면 false) */
 function isPushCapable() {
   return (
@@ -119,9 +114,8 @@ async function initFcm() {
     return;
   }
 
-  const base = getBasePath();
-  const swPath = `${base}firebase-messaging-sw.js`;
-  const swScope = `${base}`;
+  const swPath = "/firebase-messaging-sw.js";
+  const swScope = "/";
 
   swRegistration = await navigator.serviceWorker.register(swPath, { scope: swScope });
   console.log("[notify] FCM ServiceWorker 등록 성공:", swPath);

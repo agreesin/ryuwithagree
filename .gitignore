@@ -1,0 +1,15 @@
+﻿# Sensitive worker file with keys
+cloudflare-worker-fcm.js
+*.key
+*.json.secret
+
+# Local Firebase cache
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

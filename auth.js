@@ -4,30 +4,30 @@
 // =========================================================
 
 import {
+  loginWithGoogle,
   login,
-  loginWithRedirect,
   logout,
   watchLogin,
   subscribeProfiles,
   subscribeEntries,
-  checkRedirectLogin,
-} from "./store.js?v=3.0.5";
+  consumeRedirectResult,
+} from "./store.js";
 import {
   setCurrentUser,
   setCurrentProfiles,
   getCurrentUser,
   getCurrentProfiles,
   checkAdminStatus,
-} from "./state.js?v=3.0.5";
-import { showError, hideError } from "./ui.js?v=3.0.5";
-import { updateProfileButtonsVisibility } from "./profile.js?v=3.0.5";
-import { render } from "./render.js?v=3.0.5";
-import { updateNoticeAuth } from "./notice.js?v=3.0.5";
+} from "./state.js";
+import { showError, hideError } from "./ui.js";
+import { updateProfileButtonsVisibility } from "./profile.js";
+import { render } from "./render.js";
+import { updateNoticeAuth } from "./notice.js";
 import {
   checkNewUpdates,
   syncUserFcm,
-} from "./notify.js?v=3.0.5";
-import { startDdaySubscription, stopDdaySubscription } from "./dday.js?v=3.0.5";
+} from "./notify.js";
+import { startDdaySubscription, stopDdaySubscription } from "./dday.js";
 
 // 화면 요소
 const loginButton = document.getElementById("login-button");
@@ -165,65 +165,113 @@ function promptPasscode() {
   }
 }
 
+const authStatus = document.getElementById("auth-status");
+
+function showAuthError(err) {
+  console.error("[auth]", err);
+  const msg = err?.message || err?.code || String(err || "알 수 없는 오류");
+  if (authStatus) {
+    authStatus.style.display = "block";
+    authStatus.textContent = `로그인 오류: ${err?.code ? `[${err.code}] ` : ""}${msg}`;
+  }
+  showError(`로그인 실패: ${msg}`);
+}
+
+function hideAuthError() {
+  if (authStatus) {
+    authStatus.style.display = "none";
+    authStatus.textContent = "";
+  }
+  hideError();
+}
+
+function readPasscodeFlag(uid) {
+  try {
+    return sessionStorage.getItem(`diary_passcode_${uid}`) === "verified";
+  } catch (e) {
+    console.warn("[auth] sessionStorage 접근 불가:", e);
+    return false; // 실패 시 암호 입력 화면으로 폴백 (blank 방지)
+  }
+}
+
 /**
  * 로그인/로그아웃 이벤트 리스너를 등록하고 로그인 상태 감시를 시작합니다.
+ * [중요] 동기 함수로 유지하여 Promise rejection이 상위 에러 처리를 우회하지 않도록 합니다.
  */
-export async function initAuth() {
-  // PWA 리다이렉트 로그인 결과 우선 확인 (결과 복원 시 즉시 화면 전환)
-  try {
-    const redirectedUser = await checkRedirectLogin();
-    if (redirectedUser) {
-      setCurrentUser(redirectedUser);
-      if (readPasscodeFlag(redirectedUser.uid)) {
-        await grantAccess(redirectedUser);
+export function initAuth() {
+  // ── 1) watchLogin 리스너를 "가장 먼저" 등록. 이후 어떤 실패도 화면을 막지 못합니다.
+  watchLogin(async (user) => {
+    try {
+      setCurrentUser(user);
+      if (user) {
+        hideAuthError();
+        if (readPasscodeFlag(user.uid)) {
+          await grantAccess(user);
+        } else {
+          promptPasscode();
+        }
+        if (loginArea) loginArea.hidden = true;
       } else {
-        promptPasscode();
+        // 완전 로그아웃된 상태 -> 구글 로그인 버튼 표시 및 보안 대상 은닉
+        if (passcodeModal) passcodeModal.hidden = true;
+        if (ddayBadgeBtn) ddayBadgeBtn.hidden = true;
+        if (appFooter) appFooter.hidden = true;
+        if (ddayModal) ddayModal.hidden = true;
+        if (changelogModal) changelogModal.hidden = true;
+
+        stopDdaySubscription();
+
+        if (stopWatchingEntries) {
+          stopWatchingEntries();
+          stopWatchingEntries = null;
+        }
+        if (stopWatchingProfiles) {
+          stopWatchingProfiles();
+          stopWatchingProfiles = null;
+        }
+        if (appArea) appArea.hidden = true;
+        if (loginArea) loginArea.hidden = false;
+        if (othersList) othersList.innerHTML = "";
+        if (myList) myList.innerHTML = "";
+        updateNoticeAuth(null);
       }
-      if (loginArea) loginArea.hidden = true;
+    } catch (err) {
+      console.error("[auth] watchLogin 처리 실패:", err);
+      showAuthError(err);
+      if (loginArea) loginArea.hidden = false;
     }
-  } catch (err) {
-    console.warn("[auth] Redirect 로그인 확인 안전 처리:", err);
-  }
+  });
 
+  // ── 2) 리다이렉트 복귀 확인은 fire-and-forget. 에러 확인용으로만 사용하며 렌더는 하지 않습니다.
+  consumeRedirectResult().then(({ ok, error }) => {
+    if (!ok && error) {
+      showAuthError(error);
+    }
+  });
+
+  // ── 3) 로그인 버튼 이벤트 배선
   if (loginButton) {
-    loginButton.addEventListener("click", () => {
-      hideError();
+    loginButton.addEventListener("click", async () => {
+      hideAuthError();
       loginButton.disabled = true;
-      loginButton.textContent = "로그인 창 여는 중...";
+      loginButton.textContent = "로그인 중...";
 
-      login()
-        .then(async (result) => {
-          if (result && result.user) {
-            setCurrentUser(result.user);
-            if (readPasscodeFlag(result.user.uid)) {
-              await grantAccess(result.user);
-            } else {
-              promptPasscode();
-            }
-            if (loginArea) loginArea.hidden = true;
-          }
-        })
-        .catch((error) => {
-          console.error("[auth] 로그인 오류:", error);
-          if (loginButton) {
-            loginButton.disabled = false;
-            loginButton.textContent = "구글 계정으로 로그인";
-          }
-          if (error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
-            showError(`로그인 오류 (${error.code || "실패"}): ${error.message || "다시 시도해 주세요."}`);
-          }
-        })
-        .finally(() => {
-          setTimeout(() => {
-            if (loginButton && loginButton.disabled) {
-              loginButton.disabled = false;
-              loginButton.textContent = "구글 계정으로 로그인";
-            }
-          }, 3000);
-        });
+      try {
+        await loginWithGoogle();
+      } catch (error) {
+        if (error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
+          showAuthError(error);
+        }
+      } finally {
+        if (loginButton) {
+          loginButton.disabled = false;
+          loginButton.textContent = "구글 계정으로 로그인";
+        }
+      }
     });
   }
 
+  // ── 4) 로그아웃 버튼 이벤트 배선
   if (logoutButton) {
     logoutButton.addEventListener("click", () => {
       const curUser = getCurrentUser();
@@ -238,7 +286,7 @@ export async function initAuth() {
     });
   }
 
-  // 암호 모달 이벤트 배선
+  // ── 5) 암호 모달 이벤트 배선
   if (passcodeForm) {
     passcodeForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -253,7 +301,7 @@ export async function initAuth() {
           } catch (e) {
             console.warn("[auth] sessionStorage 저장 실패:", e);
           }
-          grantAccess(curUser);
+          await grantAccess(curUser);
         }
       } else {
         if (passcodeError) {
@@ -285,60 +333,6 @@ export async function initAuth() {
       logout();
     });
   }
-
-function readPasscodeFlag(uid) {
-  try {
-    return sessionStorage.getItem(`diary_passcode_${uid}`) === "verified";
-  } catch (e) {
-    console.warn("[auth] sessionStorage 접근 불가:", e);
-    return false; // 실패 시 암호 입력 화면으로 폴백 (blank 방지)
-  }
-}
-
-  // ---------------------------------------------------------
-  // 로그인 상태가 바뀔 때마다 실행됨 (자동 로그인 세션 감지)
-  // ---------------------------------------------------------
-  watchLogin(async (user) => {
-    try {
-      setCurrentUser(user);
-      if (user) {
-        if (readPasscodeFlag(user.uid)) {
-          await grantAccess(user);
-        } else {
-          promptPasscode();
-        }
-        // 다음 화면을 띄운 뒤에 로그인 영역을 숨김
-        if (loginArea) loginArea.hidden = true;
-      } else {
-        // 완전 로그아웃된 상태 -> 구글 로그인 버튼 표시 및 보안 대상 은닉
-        if (passcodeModal) passcodeModal.hidden = true;
-        if (ddayBadgeBtn) ddayBadgeBtn.hidden = true;
-        if (appFooter) appFooter.hidden = true;
-        if (ddayModal) ddayModal.hidden = true;
-        if (changelogModal) changelogModal.hidden = true;
-
-        stopDdaySubscription();
-
-        if (stopWatchingEntries) {
-          stopWatchingEntries();
-          stopWatchingEntries = null;
-        }
-        if (stopWatchingProfiles) {
-          stopWatchingProfiles();
-          stopWatchingProfiles = null;
-        }
-        if (appArea) appArea.hidden = true;
-        if (loginArea) loginArea.hidden = false;
-        if (othersList) othersList.innerHTML = "";
-        if (myList) myList.innerHTML = "";
-        updateNoticeAuth(null);
-        hideError();
-      }
-    } catch (err) {
-      console.error("[auth] watchLogin 처리 실패:", err);
-      if (loginArea) loginArea.hidden = false; // 최후 폴백
-    }
-  });
 }
 
 

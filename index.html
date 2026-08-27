@@ -141,6 +141,7 @@
       <!-- 로그인 전에 보이는 곳 (외부인에게는 실명 및 공지 일체 비노출) -->
       <section id="login-area" class="login-area">
         <p class="login-message">허용된 사람만 볼 수 있는 일기장입니다.</p>
+        <div id="auth-status" style="display:none;margin:10px auto;max-width:320px;padding:10px 14px;border:1px solid #ffccd5;border-radius:10px;background:#fff5f6;color:#d93856;font-size:13px;word-break:break-all;text-align:center;line-height:1.4;"></div>
         <button id="login-button" class="login-button" type="button">
           구글 계정으로 로그인
         </button>
@@ -431,7 +432,7 @@
     </div>
 
     <!-- type="module" 을 지우면 앱이 통째로 죽습니다 -->
-    <script type="module" src="./app.js?v=3.0.5"></script>
+    <script type="module" src="./app.js"></script>
   </body>
 </html>
 
