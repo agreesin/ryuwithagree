@@ -5,35 +5,22 @@
 // 각 모듈의 초기화 및 이벤트 배선만 담당합니다.
 // =========================================================
 
-// [중요] 모든 내부 import에서 ?v= 쿼리를 제거했습니다 (중복 인스턴스 방지).
-// 캐시 무효화는 index.html의 app.js?v=... 로만 처리합니다.
-import { initEditor } from "./entries.js?v=2.8.2";
-import { initProfileHandlers } from "./profile.js?v=2.8.2";
-import { initNotices } from "./notice.js?v=2.8.2";
-import { initNotify } from "./notify.js?v=2.8.2";
-import { initDday } from "./dday.js?v=2.8.2";
-import { initSearchFilter, render } from "./render.js?v=2.8.2";
-import { initCalendar } from "./calendar.js?v=2.8.2";
-import { initChangelog } from "./changelog.js?v=2.8.2";
-import { initAuth } from "./auth.js?v=2.8.2";
+import { initEditor } from "./entries.js?v=3.0.0";
+import { initProfileHandlers } from "./profile.js?v=3.0.0";
+import { initNotices } from "./notice.js?v=3.0.0";
+import { initNotify } from "./notify.js?v=3.0.0";
+import { initDday } from "./dday.js?v=3.0.0";
+import { initSearchFilter, render } from "./render.js?v=3.0.0";
+import { initCalendar } from "./calendar.js?v=3.0.0";
+import { initChangelog } from "./changelog.js?v=3.0.0";
+import { initAuth } from "./auth.js?v=3.0.0";
 
-const BOOT_WATCHDOG_MS = 7000;
-
-function reportBootError(name, err) {
-  console.error(`[app] ${name} 실패:`, err);
-  const box = document.getElementById("boot-error");
-  if (box) {
-    box.style.display = "block";
-    box.textContent += `[init:${name}] ${(err && (err.stack || err.message)) || err}\n`;
-  }
-}
-
-/** 개별 격리 실행: 하나가 실패해도 나머지는 계속 진행 */
+/** 개별 격리 실행: 하나의 모듈에서 오류가 나도 다른 모듈은 정상 실행 */
 function safe(name, fn) {
   try {
     fn();
   } catch (err) {
-    reportBootError(name, err);
+    console.warn(`[app] ${name} 초기화 경고:`, err);
   }
 }
 
@@ -87,30 +74,11 @@ function initHeaderHome() {
   });
 }
 
-/** 7초 후에도 아무 화면도 안 떠 있으면 강제로 로그인 화면 노출 */
-function startWatchdog() {
-  setTimeout(() => {
-    const login = document.getElementById("login-area");
-    const app = document.getElementById("app-area");
-    const pass = document.getElementById("passcode-modal");
-    const nothingVisible =
-      (!login || login.hidden) && (!app || app.hidden) && (!pass || pass.hidden);
-    if (nothingVisible) {
-      if (login) login.hidden = false;
-      reportBootError(
-        "watchdog",
-        "인증 상태를 확인하지 못했습니다. 네트워크 또는 Firebase Auth 초기화 실패 가능성."
-      );
-    }
-  }, BOOT_WATCHDOG_MS);
-}
-
 function boot() {
-  startWatchdog();
-
-  // [핵심] 인증을 가장 먼저 실행. 다른 모듈 실패가 화면 렌더를 막지 못하게 함.
+  // 1. 인증 및 로그인 상태 감시 최우선 실행
   safe("initAuth", initAuth);
 
+  // 2. 각 UI 및 보조 모듈 초기화
   safe("initHeaderHome", initHeaderHome);
   safe("initEditor", initEditor);
   safe("initProfileHandlers", initProfileHandlers);
@@ -122,7 +90,6 @@ function boot() {
   safe("initChangelog", initChangelog);
 }
 
-// readyState 가드 (문서 로딩 상태 안전 체크)
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", boot, { once: true });
 } else {

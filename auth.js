@@ -10,23 +10,23 @@ import {
   subscribeProfiles,
   subscribeEntries,
   checkRedirectLogin,
-} from "./store.js?v=2.8.2";
+} from "./store.js?v=3.0.0";
 import {
   setCurrentUser,
   setCurrentProfiles,
   getCurrentUser,
   getCurrentProfiles,
   checkAdminStatus,
-} from "./state.js?v=2.8.2";
-import { showError, hideError } from "./ui.js?v=2.8.2";
-import { updateProfileButtonsVisibility } from "./profile.js?v=2.8.2";
-import { render } from "./render.js?v=2.8.2";
-import { updateNoticeAuth } from "./notice.js?v=2.8.2";
+} from "./state.js?v=3.0.0";
+import { showError, hideError } from "./ui.js?v=3.0.0";
+import { updateProfileButtonsVisibility } from "./profile.js?v=3.0.0";
+import { render } from "./render.js?v=3.0.0";
+import { updateNoticeAuth } from "./notice.js?v=3.0.0";
 import {
   checkNewUpdates,
   requestNotificationPermission,
-  syncUserWithOneSignal,
-} from "./notify.js?v=2.8.2";
+  syncUserFcm,
+} from "./notify.js?v=3.0.0";
 
 // 화면 요소
 const loginButton = document.getElementById("login-button");
@@ -93,9 +93,9 @@ async function grantAccess(user) {
   // 공지사항 편집 권한 갱신
   updateNoticeAuth(user);
 
-  // 알림 권한 자동 요청 및 OneSignal 기기 연결
+  // 알림 권한 자동 요청 및 FCM 토큰 기기 연결
   requestNotificationPermission();
-  syncUserWithOneSignal(user);
+  syncUserFcm(user);
 
   if (!stopWatchingProfiles) {
     stopWatchingProfiles = subscribeProfiles((profiles) => {

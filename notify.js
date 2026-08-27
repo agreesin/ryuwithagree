@@ -4,8 +4,8 @@
 // 상단 종 아이콘 클릭 시 알림 내역 목록 확인 및 클릭 시 해당 글/댓글로 스크롤 이동을 담당합니다.
 // =========================================================
 
-import { getCurrentUser, getCurrentProfiles } from "./state.js?v=2.8.2";
-import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js?v=2.8.2";
+import { getCurrentUser, getCurrentProfiles } from "./state.js?v=3.0.0";
+import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js?v=3.0.0";
 
 const FIREBASE_MESSAGING_URL = "https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging.js";
 const FCM_VAPID_KEY = "BMwoxyNkaOfECoLOtTqhnVp76x2U3_7FgE4b08fKPSKxDxQ-EKCJb2z7cMaPjWNtjIPHXBaYbUhHLL1p0Gc1KNo";
@@ -183,10 +183,10 @@ export async function refreshPushStatus() {
 }
 
 /**
- * 로그인한 사용자의 UID와 FCM 토큰을 Firestore에 동기화합니다 (호환용 함수명).
+ * 로그인한 사용자의 UID와 FCM 토큰을 Firestore에 동기화합니다.
  * @param {Object} user - Firebase User 객체
  */
-export async function syncUserWithOneSignal(user) {
+export async function syncUserFcm(user) {
   if (!user || !("Notification" in window) || Notification.permission !== "granted") return;
 
   try {
@@ -208,6 +208,9 @@ export async function syncUserWithOneSignal(user) {
     console.warn("[notify] FCM 토큰 동기화 오류:", err);
   }
 }
+
+// 하위 호환성 유지용 별칭
+export const syncUserWithOneSignal = syncUserFcm;
 
 /**
  * 브라우저 알림 권한을 요청하고 FCM 푸시 토큰을 발급받아 Firestore에 저장합니다.
