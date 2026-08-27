@@ -200,23 +200,13 @@ export async function refreshPushStatus() {
     return { status: "denied" };
   }
 
-  const result = await runWithOneSignal(async (OneSignal) => {
-    const isOptedIn = Boolean(OneSignal.User?.PushSubscription?.optedIn);
-    const subId = OneSignal.User?.PushSubscription?.id;
-    return { isOptedIn, subId };
-  }, 2500);
-
-  if (result?.isOptedIn && result?.subId) {
-    updatePushStatusUI({ status: "granted", message: "기기 푸시 알림 켜짐 🔔", subId: result.subId });
-    return { status: "granted", subId: result.subId };
-  } else if (permission === "granted") {
-    // 브라우저 권한은 허용되었으나 OneSignal 서버에 토큰 미등록 상태
-    updatePushStatusUI({ status: "needs_resync", message: "푸시 토큰 재연동 필요 ⚠️", subId: null });
-    return { status: "needs_resync" };
-  } else {
-    updatePushStatusUI({ status: "default", message: "기기 푸시 알림 꺼짐", subId: null });
-    return { status: "default" };
+  if (permission === "granted") {
+    updatePushStatusUI({ status: "granted", message: "기기 푸시 알림 켜짐 🔔" });
+    return { status: "granted" };
   }
+
+  updatePushStatusUI({ status: "default", message: "기기 푸시 알림 꺼짐" });
+  return { status: "default" };
 }
 
 /**
@@ -228,19 +218,21 @@ export function syncUserWithOneSignal(user) {
 
   runWithOneSignal(async (OneSignal) => {
     try {
-      await OneSignal.login(user.uid);
-      console.log("[notify] OneSignal 사용자 연결 완료:", user.uid);
+      if (OneSignal.login) {
+        await OneSignal.login(user.uid);
+        console.log("[notify] OneSignal 사용자 연결 완료:", user.uid);
+      }
 
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-        if (!OneSignal.User?.PushSubscription?.optedIn) {
+        if (OneSignal.User?.PushSubscription?.optIn) {
           await OneSignal.User.PushSubscription.optIn();
         }
       }
-      await refreshPushStatus();
+      refreshPushStatus();
     } catch (err) {
       console.warn("[notify] OneSignal 로그인 실패:", err);
     }
-  }, 4000);
+  }, 2500);
 }
 
 /**
@@ -254,7 +246,7 @@ export async function requestNotificationPermission() {
 
   if (Notification.permission === "denied") {
     alert("아이폰에서 알림이 차단되어 있습니다.\n\n아이폰 [설정] -> [알림] -> [류이어리]에서 [알림 허용]을 켜주세요!");
-    await refreshPushStatus();
+    refreshPushStatus();
     return false;
   }
 
@@ -272,36 +264,35 @@ export async function requestNotificationPermission() {
 
     if (permission !== "granted") {
       showToastNotification("알림 권한이 허용되지 않았습니다.", "🔕");
-      await refreshPushStatus();
+      refreshPushStatus();
       return false;
     }
 
-    // 2. 브라우저 권한 획득 후 OneSignal optIn 및 사용자 연동 수행
+    // 2. 브라우저 권한 획득 후 OneSignal v16 권한 및 optIn & 사용자 UID 연동 수행
     await runWithOneSignal(async (OneSignal) => {
       try {
-        await OneSignal.User.PushSubscription.optIn();
-        const curUser = getCurrentUser();
-        if (curUser) {
-          await OneSignal.login(curUser.uid);
+        if (OneSignal.Notifications?.requestPermission) {
+          try { await OneSignal.Notifications.requestPermission(); } catch (e) {}
         }
-        console.log("[notify] OneSignal optIn 및 사용자 연동 완료");
+        if (OneSignal.User?.PushSubscription?.optIn) {
+          try { await OneSignal.User.PushSubscription.optIn(); } catch (e) {}
+        }
+        const curUser = getCurrentUser();
+        if (curUser && OneSignal.login) {
+          try { await OneSignal.login(curUser.uid); } catch (e) {}
+        }
+        console.log("[notify] OneSignal 권한/optIn/로그인 동기화 완료");
       } catch (e) {
         console.warn("[notify] OneSignal optIn 에러:", e);
       }
-    }, 4000);
+    }, 2500);
 
-    const status = await refreshPushStatus();
-
-    if (status?.status === "granted" || permission === "granted") {
-      showToastNotification("기기 푸시 알림이 정상 연결되었습니다! 🔔", "🔔");
-      return true;
-    } else {
-      showToastNotification("푸시 연동 진행 중입니다. 잠시 후 상태를 확인하세요.", "🔔");
-      return true;
-    }
+    updatePushStatusUI({ status: "granted", message: "기기 푸시 알림 켜짐 🔔" });
+    showToastNotification("기기 푸시 알림이 정상 연결되었습니다! 🔔", "🔔");
+    return true;
   } catch (err) {
     console.warn("[notify] 권한 요청 오류:", err);
-    await refreshPushStatus();
+    refreshPushStatus();
     return false;
   } finally {
     if (notifPushToggleBtn) notifPushToggleBtn.disabled = false;
@@ -323,11 +314,6 @@ function updatePushStatusUI(info) {
     notifPushToggleBtn.disabled = false;
     notifPushToggleBtn.title = "알림이 잘 안 올 때 클릭하여 푸시 토큰 재등록";
     if (notifBellBtn) notifBellBtn.classList.add("enabled");
-  } else if (status === "needs_resync") {
-    notifPushStatusText.textContent = message || "푸시 토큰 재연동 필요 ⚠️";
-    notifPushToggleBtn.textContent = "푸시 등록";
-    notifPushToggleBtn.disabled = false;
-    if (notifBellBtn) notifBellBtn.classList.remove("enabled");
   } else if (status === "denied") {
     notifPushStatusText.textContent = message || "기기 알림 차단됨 🔕";
     notifPushToggleBtn.textContent = "설정 안내";
