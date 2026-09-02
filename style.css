@@ -2494,7 +2494,84 @@ body {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
+}
+
+/* 일기 제목 목록 아이템 */
+.cal-entry-title-item {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  background: white;
+  transition: box-shadow 0.2s;
+}
+
+.cal-entry-title-item:hover {
+  box-shadow: 0 2px 10px rgba(230, 109, 123, 0.1);
+}
+
+.cal-entry-title-item.expanded {
+  border-color: var(--primary-color);
+  box-shadow: 0 3px 14px rgba(230, 109, 123, 0.12);
+}
+
+/* 제목 버튼 행 */
+.cal-entry-title-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  background: #fffbfc;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.cal-entry-title-btn:hover {
+  background: #fff0f3;
+}
+
+.cal-entry-title-mood {
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.cal-entry-title-text {
+  flex: 1;
+  font-weight: 600;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-entry-title-author {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.cal-entry-title-arrow {
+  font-size: 0.85rem;
+  color: var(--primary-color);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+/* 펼쳐지는 상세 카드 영역 */
+.cal-entry-detail {
+  padding: 0 12px 12px;
+  background: #fef8f9;
+}
+
+.cal-entry-detail .entry {
+  margin: 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
 }
 
 /* =========================================================

@@ -4,6 +4,7 @@
 
 import { createEntryCard } from "./entry-card.js";
 import { getDdayItems, calculateDdayInfo } from "./dday.js";
+import { getCurrentProfiles } from "./state.js";
 
 // 화면 요소
 const viewTabFeed = document.getElementById("view-tab-feed");
@@ -220,7 +221,8 @@ export function renderCalendar() {
 }
 
 /**
- * 선택된 날짜의 일기 및 기념일/여행 일정을 하단에 렌더링합니다.
+ * 선택된 날짜의 일기 제목 목록 및 기념일/여행 일정을 하단에 렌더링합니다.
+ * 제목을 클릭하면 해당 일기 카드가 펼쳐집니다.
  */
 function renderSelectedDateEntries(dateKey, entries, events = []) {
   if (!calSelectedDateTitle || !calSelectedEntriesList || !calSelectedEmpty) return;
@@ -254,7 +256,7 @@ function renderSelectedDateEntries(dateKey, entries, events = []) {
     }
   }
 
-  // 2. 일기 카드 렌더링
+  // 2. 일기 제목 목록 렌더링
   calSelectedEntriesList.innerHTML = "";
 
   if (entries.length === 0 && events.length === 0) {
@@ -263,9 +265,66 @@ function renderSelectedDateEntries(dateKey, entries, events = []) {
   }
 
   calSelectedEmpty.hidden = entries.length > 0;
+
   for (const entry of entries) {
-    const card = createEntryCard(entry);
-    calSelectedEntriesList.appendChild(card);
+    const li = document.createElement("li");
+    li.className = "cal-entry-title-item";
+
+    // 제목 행 (클릭 가능)
+    const titleRow = document.createElement("button");
+    titleRow.type = "button";
+    titleRow.className = "cal-entry-title-btn";
+
+    const moodSpan = document.createElement("span");
+    moodSpan.className = "cal-entry-title-mood";
+    moodSpan.textContent = entry.mood || "📖";
+
+    const titleText = document.createElement("span");
+    titleText.className = "cal-entry-title-text";
+    titleText.textContent = entry.title || "(제목 없음)";
+
+    const authorSpan = document.createElement("span");
+    authorSpan.className = "cal-entry-title-author";
+    const profiles = getCurrentProfiles();
+    const authorName = (entry.uid && profiles[entry.uid]) ? profiles[entry.uid] : entry.author;
+    authorSpan.textContent = authorName || "";
+
+    const arrowSpan = document.createElement("span");
+    arrowSpan.className = "cal-entry-title-arrow";
+    arrowSpan.textContent = "▸";
+
+    titleRow.appendChild(moodSpan);
+    titleRow.appendChild(titleText);
+    titleRow.appendChild(authorSpan);
+    titleRow.appendChild(arrowSpan);
+
+    // 상세 카드 컨테이너 (처음에는 숨김)
+    const detailWrap = document.createElement("div");
+    detailWrap.className = "cal-entry-detail";
+    detailWrap.hidden = true;
+
+    // 제목 클릭 시 토글
+    titleRow.addEventListener("click", () => {
+      const isOpen = !detailWrap.hidden;
+      if (isOpen) {
+        detailWrap.hidden = true;
+        arrowSpan.textContent = "▸";
+        li.classList.remove("expanded");
+      } else {
+        // 아직 카드가 없으면 생성
+        if (detailWrap.children.length === 0) {
+          const card = createEntryCard(entry);
+          detailWrap.appendChild(card);
+        }
+        detailWrap.hidden = false;
+        arrowSpan.textContent = "▾";
+        li.classList.add("expanded");
+      }
+    });
+
+    li.appendChild(titleRow);
+    li.appendChild(detailWrap);
+    calSelectedEntriesList.appendChild(li);
   }
 }
 
