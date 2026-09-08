@@ -277,18 +277,23 @@ export async function checkRedirectLogin() {
 }
 
 /**
- * 구글 로그인 실행 (PWA Standalone은 Redirect, 일반 브라우저는 Popup)
+ * 구글 로그인 실행 (iOS PWA 및 브라우저 환경 모두 인앱 팝업/인증 시트로 완결)
  */
 export async function loginWithGoogle() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
 
-  if (isStandalonePWA()) {
-    await signInWithRedirect(auth, provider);
-    return null;
+  try {
+    const result = await signInWithPopup(auth, provider);
+    return result.user;
+  } catch (err) {
+    console.warn("[store] signInWithPopup 예외:", err);
+    if (err.code === "auth/popup-blocked") {
+      await signInWithRedirect(auth, provider);
+      return null;
+    }
+    throw err;
   }
-  const result = await signInWithPopup(auth, provider);
-  return result.user;
 }
 
 export function login() {

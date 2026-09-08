@@ -33,6 +33,7 @@ let originalDocumentTitle = document.title || "류이어리";
 let unreadCount = 0;
 let titleInterval = null;
 let cachedEntries = [];
+let lastFirestoreNotifTime = 0;
 
 // FCM 동적 인스턴스 및 서비스워커 등록 객체
 let messagingMod = null;
@@ -134,6 +135,13 @@ async function initFcm() {
   // 포그라운드(앱이 켜져 있을 때) 수신 리스너
   onMessage(fcmMessaging, (payload) => {
     console.log("[notify] FCM 포그라운드 메시지 수신:", payload);
+
+    // Firestore 실시간 리스너(checkNewUpdates)가 방금 알림을 띄웠다면 중복 표시 방지
+    if (Date.now() - lastFirestoreNotifTime < 6000) {
+      console.log("[notify] Firestore 실시간 동기화로 이미 표시되었으므로 FCM 포그라운드 중복 알림 생략");
+      return;
+    }
+
     const title = payload.notification?.title || payload.data?.title || "류이어리";
     const message = payload.notification?.body || payload.data?.body || payload.data?.message || "새 소식이 도착했습니다 ✨";
     showToastNotification(`${title}: ${message}`, "🔔");
@@ -697,6 +705,7 @@ export function checkNewUpdates(entries) {
         const title = "📖 새로운 일기 등록!";
         const body = `${authorName}님이 새 일기를 남겼습니다.`;
 
+        lastFirestoreNotifTime = Date.now();
         showToastNotification(body, "💌");
         showSystemNotification(title, body);
         startTitleBlink("새 일기가 도착했습니다!");
@@ -719,6 +728,7 @@ export function checkNewUpdates(entries) {
           const title = "💬 새로운 댓글 도착!";
           const body = `${commentAuthor}: ${comment.text.substring(0, 30)}${comment.text.length > 30 ? "..." : ""}`;
 
+          lastFirestoreNotifTime = Date.now();
           showToastNotification(body, "💌");
           showSystemNotification(title, body);
           startTitleBlink("새 댓글이 도착했습니다!");
