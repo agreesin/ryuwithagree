@@ -2743,15 +2743,6 @@ body {
   border: 1px solid #c8e6c9;
 }
 
-/* 카드 미세 강조 (내 글과 상대 글의 은은한 테두리/배경 포인트) */
-.entry.my-card {
-  border-left: 4px solid #f06292;
-}
-
-.entry.other-card {
-  border-left: 4px solid #81c784;
-}
-
 /* 더보기 버튼 컨테이너 */
 .load-more-container {
   display: flex;
