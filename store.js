@@ -10,7 +10,6 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
   getRedirectResult,
   signOut,
   onAuthStateChanged,
@@ -256,24 +255,14 @@ export async function consumeRedirectResult() {
   }
 }
 
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
+
 /**
  * 구글 로그인 실행 (iOS PWA 및 브라우저 환경 모두 인앱 팝업/인증 시트로 완결)
  */
-export async function loginWithGoogle() {
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: "select_account" });
-
-  try {
-    const result = await signInWithPopup(auth, provider);
-    return result.user;
-  } catch (err) {
-    console.warn("[store] signInWithPopup 예외:", err);
-    if (err.code === "auth/popup-blocked") {
-      await signInWithRedirect(auth, provider);
-      return null;
-    }
-    throw err;
-  }
+export function loginWithGoogle() {
+  return signInWithPopup(auth, googleProvider);
 }
 
 export function login() {

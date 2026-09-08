@@ -242,29 +242,53 @@ export function initAuth() {
   // ── 2) 리다이렉트 복귀 확인은 fire-and-forget. 에러 확인용으로만 사용하며 렌더는 하지 않습니다.
   consumeRedirectResult().then(({ ok, error }) => {
     if (!ok && error) {
-      showAuthError(error);
+      console.warn("[auth] 이전 리다이렉트 로그인 결과 (안전 무시):", error);
     }
   });
 
   // ── 3) 로그인 버튼 이벤트 배선
   if (loginButton) {
-    loginButton.addEventListener("click", async () => {
+    loginButton.addEventListener("click", () => {
       hideAuthError();
-      loginButton.disabled = true;
-      loginButton.textContent = "로그인 중...";
+      loginButton.textContent = "로그인 요청 중...";
 
-      try {
-        await loginWithGoogle();
-      } catch (error) {
-        if (error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
-          showAuthError(error);
+      // 주의: signInWithPopup 호출 전에 loginButton.disabled = true를 동기적으로 실행하면
+      // iOS Safari/PWA WebKit에서 클릭 이벤트의 사용자 제스처(User Activation)가 즉시 만료되어
+      // 브라우저 팝업 차단(auth/popup-blocked)이 발생합니다.
+      loginWithGoogle()
+        .then(() => {
+          // 로그인 성공 시 watchLogin / onAuthStateChanged 리스너가 화면 전환을 처리합니다.
+        })
+        .catch((error) => {
+          console.error("[auth] 로그인 오류:", error);
+          if (loginButton) {
+            loginButton.disabled = false;
+            loginButton.textContent = "구글 계정으로 로그인";
+          }
+          if (error.code === "auth/popup-blocked") {
+            showAuthError(
+              new Error("브라우저 팝업이 차단되었습니다. 아이폰 설정 > Safari > '팝업 차단'을 해제하거나 팝업 허용을 눌러주세요.")
+            );
+          } else if (
+            error.code !== "auth/popup-closed-by-user" &&
+            error.code !== "auth/cancelled-popup-request"
+          ) {
+            showAuthError(error);
+          }
+        })
+        .finally(() => {
+          if (loginButton && !getCurrentUser()) {
+            loginButton.disabled = false;
+            loginButton.textContent = "구글 계정으로 로그인";
+          }
+        });
+
+      // 팝업 요청이 동기적으로 발송된 후 중복 클릭을 방지하기 위해 지연 disabled 처리
+      setTimeout(() => {
+        if (loginButton && loginButton.textContent === "로그인 요청 중..." && !getCurrentUser()) {
+          loginButton.disabled = true;
         }
-      } finally {
-        if (loginButton) {
-          loginButton.disabled = false;
-          loginButton.textContent = "구글 계정으로 로그인";
-        }
-      }
+      }, 500);
     });
   }
 
