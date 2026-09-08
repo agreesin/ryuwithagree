@@ -114,8 +114,9 @@ async function initFcm() {
     return;
   }
 
-  const swPath = "/firebase-messaging-sw.js";
-  const swScope = "/";
+  const basePath = location.pathname.substring(0, location.pathname.lastIndexOf("/") + 1) || "/";
+  const swPath = basePath + "firebase-messaging-sw.js";
+  const swScope = basePath;
 
   swRegistration = await navigator.serviceWorker.register(swPath, { scope: swScope });
   console.log("[notify] FCM ServiceWorker 등록 성공:", swPath);
