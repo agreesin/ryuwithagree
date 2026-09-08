@@ -3,7 +3,35 @@
 // =========================================================
 
 import { subscribeDday, saveDdayConfig } from "./store.js";
-import { notifyCalendarDdayChange } from "./calendar.js";
+
+// 기념일 변경 감시 리스너 목록 (Observer 패턴으로 calendar.js와의 순환 참조 해소)
+const ddayChangeListeners = new Set();
+
+/**
+ * 기념일 데이터 변경 이벤트를 구독합니다.
+ * @param {Function} listener
+ * @returns {Function} 구독 해제 함수
+ */
+export function onDdayChange(listener) {
+  if (typeof listener === "function") {
+    ddayChangeListeners.add(listener);
+    return () => ddayChangeListeners.delete(listener);
+  }
+  return () => {};
+}
+
+/**
+ * 등록된 리스너들에게 기념일 변경 사실을 통지합니다.
+ */
+function notifyDdayChange() {
+  ddayChangeListeners.forEach((fn) => {
+    try {
+      fn(currentDdayConfig.items);
+    } catch (err) {
+      console.warn("[dday] 리스너 호출 오류:", err);
+    }
+  });
+}
 
 // 화면 요소
 const ddayBadgeBtn = document.getElementById("dday-badge-btn");
@@ -212,7 +240,7 @@ function renderDdayList() {
         await saveDdayConfig(currentDdayConfig);
         renderDdayList();
         updateHeaderBadge();
-        notifyCalendarDdayChange();
+        notifyDdayChange();
       });
     }
 
@@ -324,7 +352,7 @@ export function initDday() {
         ddayTitleInput.value = "";
         renderDdayList();
         updateHeaderBadge();
-        notifyCalendarDdayChange();
+        notifyDdayChange();
       } catch (err) {
         console.error("기념일 저장 실패:", err);
         alert("기념일을 저장하지 못했습니다. 다시 시도해 주세요.");
@@ -372,7 +400,7 @@ export function startDdaySubscription() {
       if (ddayModal && !ddayModal.hidden) {
         renderDdayList();
       }
-      notifyCalendarDdayChange();
+      notifyDdayChange();
     });
   } catch (err) {
     console.warn("[dday] D-Day 구독 오류:", err);

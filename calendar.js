@@ -3,7 +3,7 @@
 // =========================================================
 
 import { createEntryCard } from "./entry-card.js";
-import { getDdayItems, calculateDdayInfo } from "./dday.js";
+import { getDdayItems, calculateDdayInfo, onDdayChange } from "./dday.js";
 import { getCurrentProfiles } from "./state.js";
 
 // 화면 요소
@@ -50,14 +50,6 @@ export function updateCalendarEntries(entries) {
   }
 }
 
-/**
- * 기념일 설정 변경 시 캘린더를 갱신합니다.
- */
-export function notifyCalendarDdayChange() {
-  if (calViewSection && !calViewSection.hidden) {
-    renderCalendar();
-  }
-}
 
 /**
  * 특정 날짜(YYYY-MM-DD)에 해당하는 기념일/생일/여행 일정 목록을 반환합니다.
@@ -187,7 +179,6 @@ export function renderCalendar() {
     cell.addEventListener("click", () => {
       selectedDateStr = dateKey;
       renderCalendar();
-      renderSelectedDateEntries(dateKey, dateEntries, dateEvents);
     });
 
     calDaysGrid.appendChild(cell);
@@ -313,7 +304,7 @@ function renderSelectedDateEntries(dateKey, entries, events = []) {
       } else {
         // 아직 카드가 없으면 생성
         if (detailWrap.children.length === 0) {
-          const card = createEntryCard(entry);
+          const card = createEntryCard(entry, "cal-entry-");
           detailWrap.appendChild(card);
         }
         detailWrap.hidden = false;
@@ -384,6 +375,13 @@ export function initCalendar() {
       renderCalendar();
     });
   }
+
+  // 3. D-Day/기념일 변경 감시 리스너 등록 (Observer 패턴으로 순환 참조 해소)
+  onDdayChange(() => {
+    if (calViewSection && !calViewSection.hidden) {
+      renderCalendar();
+    }
+  });
 }
 
 

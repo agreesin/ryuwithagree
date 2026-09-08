@@ -63,9 +63,10 @@ function createReactionBar(entry) {
 /**
  * 일기 1건에 대한 카드 DOM 요소를 생성하여 반환합니다.
  * @param {Object} entry - 일기 문서 객체
+ * @param {string} [idPrefix="entry-"] - 카드 DOM ID 접두어
  * @returns {HTMLLIElement} 일기 카드 li 요소
  */
-export function createEntryCard(entry) {
+export function createEntryCard(entry, idPrefix = "entry-") {
   const currentUser = getCurrentUser();
   const currentProfiles = getCurrentProfiles();
 
@@ -76,7 +77,7 @@ export function createEntryCard(entry) {
   );
 
   item.className = `entry ${isMyEntry ? "my-card" : "other-card"}`;
-  item.id = `entry-${entry.id}`;
+  item.id = `${idPrefix}${entry.id}`;
 
   const headerDiv = document.createElement("div");
   headerDiv.className = "entry-header";
