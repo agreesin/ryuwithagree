@@ -180,7 +180,7 @@ export function createEntryCard(entry, idPrefix = "entry-") {
   item.appendChild(reactionSection);
 
   // 댓글 영역 생성 및 추가
-  const commentsSection = createCommentsSection(entry);
+  const commentsSection = createCommentsSection(entry, idPrefix);
   item.appendChild(commentsSection);
 
   return item;

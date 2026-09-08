@@ -164,7 +164,7 @@ function ensureFcm() {
 /**
  * 푸시 알림 실제 구독 상태 및 브라우저 권한을 검사하여 UI를 갱신합니다.
  */
-export async function refreshPushStatus() {
+async function refreshPushStatus() {
   if (typeof window === "undefined" || !("Notification" in window)) {
     updatePushStatusUI({ status: "unsupported", message: "웹 알림 미지원 브라우저" });
     return { status: "unsupported" };
@@ -212,14 +212,11 @@ export async function syncUserFcm(user) {
   }
 }
 
-// 하위 호환성 유지용 별칭
-export const syncUserWithOneSignal = syncUserFcm;
-
 /**
  * 브라우저 알림 권한을 요청하고 FCM 푸시 토큰을 발급받아 Firestore에 저장합니다.
  * @param {boolean} interactive - 사용자가 직접 버튼을 눌렀는지 여부 (false면 백그라운드 무음 처리)
  */
-export async function requestNotificationPermission(interactive = false) {
+async function requestNotificationPermission(interactive = false) {
   if (!("Notification" in window)) {
     if (interactive) {
       alert("현재 브라우저에서는 웹 알림을 지원하지 않습니다.\n(iOS 16.4+ 사파리 '홈 화면에 추가' 필수)");
@@ -316,7 +313,7 @@ function updatePushStatusUI(info) {
 /**
  * 내 기기로 즉시 테스트 푸시를 발송하여 알림 수신 상태를 검증합니다.
  */
-export async function sendTestPush() {
+async function sendTestPush() {
   const testBtn = document.getElementById("notif-test-push-btn");
   if (testBtn) testBtn.disabled = true;
 
@@ -472,7 +469,7 @@ function stopTitleBlink() {
  * @param {Array<Object>} entries - Firestore 일기 목록
  * @returns {Array<Object>} 알림 아이템 목록
  */
-export function getNotificationItems(entries = cachedEntries) {
+function getNotificationItems(entries = cachedEntries) {
   const currentUser = getCurrentUser();
   const currentProfiles = getCurrentProfiles();
   const items = [];
@@ -544,7 +541,7 @@ export function getNotificationItems(entries = cachedEntries) {
 /**
  * 상단 종 아이콘 옆의 빨간색 안 읽은 알림 뱃지 숫자를 갱신합니다.
  */
-export function updateNotificationBadge() {
+function updateNotificationBadge() {
   const items = getNotificationItems();
   const unreadItems = items.filter((item) => !readNotificationIds.has(item.id));
   unreadCount = unreadItems.length;
@@ -566,7 +563,7 @@ export function updateNotificationBadge() {
 /**
  * 알림 내역 드롭다운 목록을 렌더링합니다.
  */
-export function renderNotificationDropdown() {
+function renderNotificationDropdown() {
   if (!notifList || !notifEmpty) return;
 
   const items = getNotificationItems();

@@ -241,21 +241,6 @@ export function watchLogin(onChange) {
 }
 
 /**
- * iOS 홈 화면 웹앱(standalone) 또는 PWA 환경 여부를 확인합니다.
- */
-export function isStandalonePWA() {
-  if (typeof window === "undefined") return false;
-  return (
-    window.navigator.standalone === true ||
-    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)
-  );
-}
-
-export function isMobileDevice() {
-  return isStandalonePWA() || (typeof navigator !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || ""));
-}
-
-/**
  * 리다이렉트 복귀 결과 확인 (에러 감지용으로만 사용, 화면 렌더링에 직접 쓰지 않음)
  */
 export async function consumeRedirectResult() {
@@ -269,11 +254,6 @@ export async function consumeRedirectResult() {
     console.warn("[store] Redirect 로그인 결과 확인:", err);
     return { ok: false, user: null, error: err };
   }
-}
-
-export async function checkRedirectLogin() {
-  const { user } = await consumeRedirectResult();
-  return user;
 }
 
 /**
@@ -298,11 +278,6 @@ export async function loginWithGoogle() {
 
 export function login() {
   return loginWithGoogle();
-}
-
-export function loginWithRedirect() {
-  const provider = new GoogleAuthProvider();
-  return signInWithRedirect(auth, provider);
 }
 
 export function logout() {
@@ -427,31 +402,6 @@ export async function removeComment(entryId, commentId) {
     const updatedComments = (data.comments || []).filter(
       (c) => c.id !== commentId && c.parentId !== commentId
     );
-    await updateDoc(entryRef, {
-      comments: updatedComments,
-    });
-  }
-}
-
-// 일기 작성자 이름을 개별 변경한다.
-export async function updateEntryAuthor(id, newAuthor) {
-  await updateDoc(doc(db, "entries", id), {
-    author: newAuthor,
-  });
-}
-
-// 댓글 작성자 이름을 개별 변경한다.
-export async function updateCommentAuthor(entryId, commentId, newAuthor) {
-  const entryRef = doc(db, "entries", entryId);
-  const snap = await getDoc(entryRef);
-  if (snap.exists()) {
-    const data = snap.data();
-    const updatedComments = (data.comments || []).map((c) => {
-      if (c.id === commentId) {
-        return { ...c, author: newAuthor };
-      }
-      return c;
-    });
     await updateDoc(entryRef, {
       comments: updatedComments,
     });

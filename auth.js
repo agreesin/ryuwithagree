@@ -5,7 +5,6 @@
 
 import {
   loginWithGoogle,
-  login,
   logout,
   watchLogin,
   subscribeProfiles,
