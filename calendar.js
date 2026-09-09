@@ -142,37 +142,48 @@ export function renderCalendar() {
     numSpan.textContent = String(date);
     cell.appendChild(numSpan);
 
-    // 뱃지 표시 영역 (기념일/생일/여행 뱃지 + 일기 기분 이모지)
-    const badgesWrap = document.createElement("div");
-    badgesWrap.className = "cal-entry-badges";
+    // 날짜 내부 아이템 영역 (일정 이모티콘+제목, 일기 기분 이모지만)
+    const itemsWrap = document.createElement("div");
+    itemsWrap.className = "cal-day-items";
 
-    // 1) 기념일/일정 뱃지 우선 표시 (사용자가 지정한 아이콘)
+    // 1) 일정/기념일/생일/여행: 이모티콘 + 일정 제목 표시
     dateEvents.forEach((ev) => {
-      const evSpan = document.createElement("span");
-      evSpan.className = "cal-event-dot";
-      const icon = ev.icon || (ev.isBirthday ? "🎂" : ev.isEvent ? "🌟" : "💖");
-      evSpan.textContent = icon;
-      evSpan.title = `[${ev.title}]`;
-      badgesWrap.appendChild(evSpan);
+      const evItem = document.createElement("div");
+      evItem.className = `cal-event-chip ${ev.type || "count_up"}`;
+      const icon = ev.icon || (ev.type === "birthday" ? "🎂" : ev.type === "event" ? "🌟" : "💖");
+
+      const iconSpan = document.createElement("span");
+      iconSpan.className = "cal-event-chip-icon";
+      iconSpan.textContent = icon;
+
+      const titleSpan = document.createElement("span");
+      titleSpan.className = "cal-event-chip-title";
+      titleSpan.textContent = ev.title;
+
+      evItem.appendChild(iconSpan);
+      evItem.appendChild(titleSpan);
+      evItem.title = `[${ev.title}]`;
+      itemsWrap.appendChild(evItem);
     });
 
-    // 2) 일기 기분 이모지 표시
-    dateEntries.slice(0, 2).forEach((e) => {
-      const badge = document.createElement("span");
-      badge.className = "cal-mood-dot";
-      badge.textContent = e.mood || "📖";
-      badgesWrap.appendChild(badge);
-    });
-
-    if (dateEntries.length + dateEvents.length > 3) {
-      const moreSpan = document.createElement("span");
-      moreSpan.className = "cal-more-dot";
-      moreSpan.textContent = "+";
-      badgesWrap.appendChild(moreSpan);
+    // 2) 일기: 기분 이모티콘만 표시
+    if (dateEntries.length > 0) {
+      const moodWrap = document.createElement("div");
+      moodWrap.className = "cal-mood-wrap";
+      dateEntries.forEach((e) => {
+        const badge = document.createElement("span");
+        badge.className = "cal-mood-chip";
+        let displayMood = e.mood || "📖";
+        if (displayMood === "🫪") displayMood = "🤯";
+        badge.textContent = displayMood;
+        badge.title = e.title || "일기";
+        moodWrap.appendChild(badge);
+      });
+      itemsWrap.appendChild(moodWrap);
     }
 
-    if (badgesWrap.children.length > 0) {
-      cell.appendChild(badgesWrap);
+    if (itemsWrap.children.length > 0) {
+      cell.appendChild(itemsWrap);
     }
 
     // 날짜 클릭 이벤트
@@ -268,7 +279,9 @@ function renderSelectedDateEntries(dateKey, entries, events = []) {
 
     const moodSpan = document.createElement("span");
     moodSpan.className = "cal-entry-title-mood";
-    moodSpan.textContent = entry.mood || "📖";
+    let entryMood = entry.mood || "📖";
+    if (entryMood === "🫪") entryMood = "🤯";
+    moodSpan.textContent = entryMood;
 
     const titleText = document.createElement("span");
     titleText.className = "cal-entry-title-text";

@@ -21,7 +21,7 @@
 }
 
 body {
-  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif;
   background-color: var(--bg-color);
   color: var(--text-main);
   margin: 0;
@@ -1015,6 +1015,90 @@ body {
   padding: 32px 0;
 }
 
+<<<<<<< HEAD
+=======
+/* =========================================================
+   다이어리 좌우 2분할 레이아웃
+   ========================================================= */
+
+.entries-split-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.entries-column {
+  background: #fffbfc;
+  border: 1.5px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 220px;
+  box-shadow: 0 4px 18px rgba(230, 109, 123, 0.06);
+}
+
+.others-column,
+.my-column {
+  /* Reset to default neutral styling */
+  border-color: var(--border-color);
+  background: var(--background, #ffffff);
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.column-title-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.column-icon {
+  font-size: 1.2rem;
+}
+
+.column-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.column-count {
+  background: var(--primary-color);
+  color: white;
+  border: 1px solid var(--primary-color);
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(230, 109, 123, 0.25);
+}
+
+.column-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 36px 16px;
+  font-size: 0.92rem;
+  margin: 0;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 10px;
+  border: 1.5px dashed var(--border-color);
+}
+
+@media (max-width: 768px) {
+  .entries-split-container {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
 
 .entry-list {
   list-style: none;
@@ -2236,20 +2320,21 @@ body {
 .cal-days-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: 6px;
 }
 
 .cal-day-cell {
-  min-height: 52px;
-  padding: 4px;
+  min-height: 80px;
+  padding: 6px;
   border-radius: 10px;
-  border: 1px solid transparent;
+  border: 1px solid #fce3e7;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   transition: all 0.15s ease;
   background: #fffbfc;
+  overflow: hidden;
 }
 
 .cal-day-cell:hover {
@@ -2261,6 +2346,7 @@ body {
   opacity: 0.3;
   background: transparent;
   cursor: default;
+  border-color: transparent;
 }
 
 .cal-day-cell.other-month:hover {
@@ -2269,17 +2355,18 @@ body {
 }
 
 .cal-day-num {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #333333;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #444444;
+  line-height: 1.2;
 }
 
 .cal-day-cell.today .cal-day-num {
   background: var(--primary-color);
   color: #ffffff;
   border-radius: 50%;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2289,37 +2376,102 @@ body {
 .cal-day-cell.selected {
   background: #ffe4e8 !important;
   border-color: var(--primary-color) !important;
-  box-shadow: 0 2px 8px rgba(230, 109, 123, 0.25);
+  box-shadow: 0 2px 10px rgba(230, 109, 123, 0.25);
 }
 
-.cal-entry-badges {
+/* 셀 내부 요소 컨테이너 */
+.cal-day-items {
+  width: 100%;
   display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+/* 일정 (D-day/기념일/여행 등): 이모티콘 + 일정 제목 텍스트 바 */
+.cal-event-chip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: #fff0f3;
+  border: 1px solid #f8c9d2;
+  font-size: 0.72rem;
+  color: #c84055;
+  font-weight: 600;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.cal-event-chip.birthday {
+  background: #fff5e6;
+  border-color: #ffd8a8;
+  color: #d97706;
+}
+
+.cal-event-chip.event {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #16a34a;
+}
+
+.cal-event-chip-icon {
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.cal-event-chip-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* 일기: 기분 이모티콘만 묶어서 표시 */
+.cal-mood-wrap {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 2px;
-  margin-top: 3px;
+  margin-top: 1px;
 }
 
-.cal-event-dot {
+.cal-mood-chip {
   font-size: 0.85rem;
-  line-height: 1;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
-}
-
-.cal-mood-dot {
-  font-size: 0.8rem;
-  line-height: 1;
-}
-
-.cal-more-dot {
-  font-size: 0.6rem;
-  color: #d45665;
-  font-weight: 800;
+  line-height: 1.1;
 }
 
 .cal-day-cell.has-event {
   background: #fff8f9;
   border-color: #ffd9e0;
+}
+
+@media (max-width: 600px) {
+  .calendar-card {
+    padding: 14px 8px;
+  }
+  .cal-days-grid {
+    gap: 3px;
+  }
+  .cal-day-cell {
+    min-height: 64px;
+    padding: 4px 3px;
+  }
+  .cal-event-chip {
+    padding: 1px 3px;
+    font-size: 0.65rem;
+    gap: 2px;
+  }
+  .cal-event-chip-icon {
+    font-size: 0.7rem;
+  }
+  .cal-mood-chip {
+    font-size: 0.78rem;
+  }
 }
 
 .cal-selected-section {

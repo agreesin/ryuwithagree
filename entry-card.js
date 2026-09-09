@@ -100,8 +100,9 @@ export function createEntryCard(entry, idPrefix = "entry-") {
   if (entry.mood) {
     const moodBadge = document.createElement("span");
     moodBadge.className = "entry-mood-badge";
-    moodBadge.textContent = entry.mood;
-    moodBadge.title = `오늘의 기분: ${entry.mood}`;
+    const cardMood = entry.mood === "🫪" ? "🤯" : entry.mood;
+    moodBadge.textContent = cardMood;
+    moodBadge.title = `오늘의 기분: ${cardMood}`;
     titleWrapper.appendChild(moodBadge);
   }
 
