@@ -25,16 +25,22 @@ body {
   background-color: var(--bg-color);
   color: var(--text-main);
   margin: 0;
-  padding: 24px 16px;
+  padding-top: max(20px, env(safe-area-inset-top, 20px));
+  padding-right: max(16px, env(safe-area-inset-right, 16px));
+  padding-bottom: max(28px, env(safe-area-inset-bottom, 28px));
+  padding-left: max(16px, env(safe-area-inset-left, 16px));
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .header {
+  max-width: 1180px;
+  margin: 0 auto 20px auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
   position: relative;
-  margin-bottom: 20px;
   padding-bottom: 14px;
   border-bottom: 2px solid var(--primary-color);
   gap: 10px;
@@ -1111,10 +1117,29 @@ body {
 
 .entry {
   background: var(--card-bg);
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 20px 22px;
+  border-radius: 14px;
+  box-shadow: 0 3px 12px rgba(230, 109, 123, 0.08);
   border: 1px solid var(--border-color);
+  border-left: 4px solid var(--primary-color);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.entry.my-card {
+  border-left: 4px solid #ff758c;
+  background: linear-gradient(135deg, #ffffff 0%, #fffbfc 100%);
+  box-shadow: 0 3px 14px rgba(255, 117, 140, 0.09);
+}
+
+.entry.other-card {
+  border-left: 4px solid #ab47bc;
+  background: linear-gradient(135deg, #ffffff 0%, #fcf8fe 100%);
+  box-shadow: 0 3px 14px rgba(171, 71, 188, 0.09);
+}
+
+.entry:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(230, 109, 123, 0.16);
 }
 
 .entry-header {
@@ -1207,11 +1232,19 @@ body {
 .entry-image {
   max-width: 100%;
   height: auto;
-  border-radius: 8px;
-  margin-top: 12px;
-  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  margin: 14px auto 10px auto;
+  padding: 8px 8px 20px 8px; /* 아날로그 폴라로이드 사진 하단 여백 감성 */
   background: #ffffff;
+  border: 1px solid #f6d8de;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(230, 109, 123, 0.06);
   display: block;
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease;
+}
+
+.entry-image:hover {
+  transform: scale(1.015) rotate(-0.4deg);
+  box-shadow: 0 8px 22px rgba(230, 109, 123, 0.18);
 }
 
 /* =========================================================
@@ -2662,8 +2695,9 @@ body.modal-open {
    ========================================================= */
 
 .app-footer {
+  max-width: 1180px;
+  margin: 40px auto 0 auto;
   text-align: center;
-  margin-top: 40px;
   padding: 24px 0 32px;
   border-top: 1px dashed #fce3e7;
   display: flex;
@@ -2896,15 +2930,15 @@ body.modal-open {
 }
 
 .entry-author-tag.my-tag {
-  background: #ffebee;
+  background: #fff0f3;
   color: #d81b60;
   border: 1px solid #ffcdd2;
 }
 
 .entry-author-tag.other-tag {
-  background: #e8f5e9;
-  color: #2e7d32;
-  border: 1px solid #c8e6c9;
+  background: #fbf0fa;
+  color: #8e24aa;
+  border: 1px solid #e1bee7;
 }
 
 /* 더보기 버튼 컨테이너 */
@@ -3680,14 +3714,58 @@ body.modal-open {
   border-color: #e66d7b !important;
 }
 
-/* 모바일 반응형 */
+/* 모바일 반응형 및 터치 에체공학 최적화 */
 @media (max-width: 480px) {
+  body {
+    padding-left: max(12px, env(safe-area-inset-left, 12px));
+    padding-right: max(12px, env(safe-area-inset-right, 12px));
+  }
+
+  .header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    gap: 6px;
+  }
+
+  .header-title {
+    font-size: 1.42rem;
+  }
+
+  .header-actions {
+    gap: 6px;
+  }
+
+  .dday-badge-btn {
+    max-width: 135px;
+    padding: 6px 9px;
+    font-size: 0.74rem;
+    min-height: 34px;
+  }
+
+  .monthly-report-btn {
+    padding: 6px 9px;
+    min-height: 34px;
+  }
+
   .monthly-report-btn .monthly-report-text {
     display: none;
   }
-  
-  .monthly-report-btn {
-    padding: 6px 10px;
+
+  .notif-bell-btn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
+  }
+
+  .entry {
+    padding: 16px 14px;
+    border-radius: 12px;
+  }
+
+  .entry-image {
+    padding: 6px 6px 14px 6px;
+    margin: 10px auto 6px auto;
   }
 
   .report-modal-card {
