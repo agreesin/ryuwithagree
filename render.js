@@ -4,7 +4,7 @@
 
 import { hideError } from "./ui.js";
 import { createEntryCard } from "./entry-card.js";
-import { getCurrentUser } from "./state.js";
+import { isMyContent } from "./state.js";
 import { updateCalendarEntries } from "./calendar.js";
 import { updateReportEntries } from "./report.js";
 
@@ -34,8 +34,6 @@ let currentAuthor = "all";
  * 현재 설정된 검색어/필터 조건에 맞게 일기 목록을 필터링합니다.
  */
 function getFilteredEntries() {
-  const currentUser = getCurrentUser();
-
   return cachedRawEntries.filter((entry) => {
     // 1. 키워드 검색 (제목 또는 본문)
     if (currentKeyword) {
@@ -56,10 +54,7 @@ function getFilteredEntries() {
 
     // 3. 작성자 필터
     if (currentAuthor !== "all") {
-      const isMyEntry = currentUser && (
-        (entry.uid && entry.uid === currentUser.uid) ||
-        (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
-      );
+      const isMyEntry = isMyContent(entry);
 
       if (currentAuthor === "my" && !isMyEntry) return false;
       if (currentAuthor === "other" && isMyEntry) return false;

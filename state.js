@@ -63,5 +63,15 @@ export function isAdmin(user) {
   return isCurrentUserAdmin;
 }
 
-
-
+/**
+ * 주어진 일기 또는 댓글 객체가 현재 로그인한 사용자가 작성한 것인지 확인합니다.
+ * @param {Object|null} item - entry 또는 comment 객체 (uid, authorUid, author 필드 참조)
+ * @returns {boolean}
+ */
+export function isMyContent(item) {
+  if (!currentUser || !item) return false;
+  const itemUid = item.uid || item.authorUid;
+  if (itemUid && itemUid === currentUser.uid) return true;
+  if (item.author && currentUser.displayName && item.author === currentUser.displayName) return true;
+  return false;
+}

@@ -3,8 +3,26 @@
 // 중요도에 따른 체계적인 시맨틱 버전(Semantic Versioning) 기록
 // =========================================================
 
+import { openModal, closeModal } from "./ui.js";
+
 // 업데이트 히스토리 데이터 (최신순)
 export const CHANGELOG_DATA = [
+  {
+    version: "v3.4.0",
+    date: "2026.09.09",
+    type: "major",
+    tag: "월간 레포트",
+    title: "썸원(SumOne) 스타일 감성 월간 레포트 및 매월 1일 알림",
+    desc: "지난 한 달간의 소중한 일기 통계(일기 수, 기분 분석, 베스트 하트 일기, 함께 그린 추억, 감성 AI 코멘트)를 인스타 스토리 감성 카드 뉴스로 한눈에 돌아볼 수 있는 월간 레포트 기능을 추가했습니다.",
+  },
+  {
+    version: "v3.3.0",
+    date: "2026.09.09",
+    type: "major",
+    tag: "D-Day 2099",
+    title: "2099년까지 D-Day 100일 단위 자동 연산 및 첫 1년 50일 단위 기념일 지원",
+    desc: "첫 1년은 50일 단위(50일, 100일... 350일)로 더 세심하게 챙기고, 이후에는 2099년까지 100일 단위 기념일 및 N주년을 자동으로 계산하여 캘린더와 알림에 연동했습니다.",
+  },
   {
     version: "v3.2.1",
     date: "2026.08.27",
@@ -230,22 +248,13 @@ export function initChangelog() {
   if (changelogBtn && changelogModal) {
     changelogBtn.addEventListener("click", () => {
       renderChangelogList();
-      changelogModal.hidden = false;
+      openModal(changelogModal);
     });
   }
 
   if (changelogCloseBtn && changelogModal) {
     changelogCloseBtn.addEventListener("click", () => {
-      changelogModal.hidden = true;
-    });
-  }
-
-  // 모달 바깥 배경 클릭 시 닫기
-  if (changelogModal) {
-    changelogModal.addEventListener("click", (e) => {
-      if (e.target === changelogModal) {
-        changelogModal.hidden = true;
-      }
+      closeModal(changelogModal);
     });
   }
 }

@@ -5,8 +5,8 @@
 // =========================================================
 
 import { removeEntry, toggleReaction } from "./store.js";
-import { getCurrentUser, getCurrentProfiles } from "./state.js";
-import { showError } from "./ui.js";
+import { getCurrentUser, getCurrentProfiles, isMyContent } from "./state.js";
+import { showError, formatDateTime } from "./ui.js";
 import { createCommentsSection } from "./comments.js";
 import { sendPushToPartner } from "./notify.js";
 
@@ -38,11 +38,7 @@ function createReactionBar(entry) {
         const res = await toggleReaction(entry.id, emoji);
         if (res && res.isAdded) {
           // 내가 쓴 글이 아닌 상대방 글에 리액션을 남겼을 때 푸시 발송
-          const isMyEntry = currentUser && (
-            (entry.uid && entry.uid === currentUser.uid) ||
-            (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
-          );
-          if (!isMyEntry) {
+          if (!isMyContent(entry)) {
             sendPushToPartner({
               title: "💌 류이어리 새 반응",
               message: `당신의 반쪽이 일기에 ${emoji} 리액션을 남겼습니다.`,
@@ -67,14 +63,10 @@ function createReactionBar(entry) {
  * @returns {HTMLLIElement} 일기 카드 li 요소
  */
 export function createEntryCard(entry, idPrefix = "entry-") {
-  const currentUser = getCurrentUser();
   const currentProfiles = getCurrentProfiles();
 
   const item = document.createElement("li");
-  const isMyEntry = currentUser && (
-    (entry.uid && entry.uid === currentUser.uid) ||
-    (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
-  );
+  const isMyEntry = isMyContent(entry);
 
   item.className = `entry ${isMyEntry ? "my-card" : "other-card"}`;
   item.id = `${idPrefix}${entry.id}`;
@@ -143,14 +135,7 @@ export function createEntryCard(entry, idPrefix = "entry-") {
   const entryDate = document.createElement("span");
   entryDate.className = "entry-date";
   if (entry.createdAt) {
-    const d = new Date(entry.createdAt);
-    entryDate.textContent = d.toLocaleString("ko-KR", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    entryDate.textContent = formatDateTime(entry.createdAt);
   }
 
   metaDiv.appendChild(authorWrapper);

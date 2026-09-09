@@ -4,9 +4,10 @@
 // 상단 종 아이콘 클릭 시 알림 내역 목록 확인 및 클릭 시 해당 글/댓글로 스크롤 이동을 담당합니다.
 // =========================================================
 
-import { getCurrentUser, getCurrentProfiles } from "./state.js";
+import { getCurrentUser, getCurrentProfiles, isMyContent } from "./state.js";
 import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js";
 import { getMilestonesForDate, onDdayChange, getDdayItems } from "./dday.js";
+import { formatDateString, formatRelativeTime } from "./ui.js";
 
 const FIREBASE_MESSAGING_URL = "https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging.js";
 const FCM_VAPID_KEY = "BMwoxyNkaOfECoLOtTqhnVp76x2U3_7FgE4b08fKPSKxDxQ-EKCJb2z7cMaPjWNtjIPHXBaYbUhHLL1p0Gc1KNo";
@@ -61,33 +62,6 @@ function saveReadNotificationIds() {
   } catch (e) {
     // LocalStorage 용량 초과 또는 제한 방지
   }
-}
-
-/**
- * 상대 시간 포맷 헬퍼 (예: "방금 전", "5분 전", "2시간 전", "어제")
- */
-function formatRelativeTime(timestamp) {
-  if (!timestamp) return "";
-  const now = Date.now();
-  const diffMs = now - timestamp;
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHour = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHour / 24);
-
-  if (diffSec < 60) return "방금 전";
-  if (diffMin < 60) return `${diffMin}분 전`;
-  if (diffHour < 24) return `${diffHour}시간 전`;
-  if (diffDay === 1) return "어제";
-  if (diffDay < 7) return `${diffDay}일 전`;
-
-  const d = new Date(timestamp);
-  return d.toLocaleDateString("ko-KR", {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 /** 이 브라우저에서 웹 푸시가 물리적으로 가능한지 (iOS 비-standalone이면 false) */
@@ -479,10 +453,7 @@ function getNotificationItems(entries = cachedEntries) {
 
   entries.forEach((entry) => {
     const entryUid = entry.uid || entry.authorUid;
-    const isMyEntry = currentUser && (
-      (entryUid && entryUid === currentUser.uid) ||
-      (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
-    );
+    const isMyEntry = isMyContent(entry);
 
     // 1. 상대방이 작성한 새 일기 알림 (내 글은 제외)
     if (currentUser && !isMyEntry) {
@@ -502,10 +473,7 @@ function getNotificationItems(entries = cachedEntries) {
     // 2. 일기에 달린 댓글 및 대댓글 알림
     (entry.comments || []).forEach((comment) => {
       const commentUid = comment.uid || comment.authorUid;
-      const isMyComment = currentUser && (
-        (commentUid && commentUid === currentUser.uid) ||
-        (comment.author && currentUser.displayName && comment.author === currentUser.displayName)
-      );
+      const isMyComment = isMyContent(comment);
 
       // 내가 쓴 댓글은 알림에서 제외
       if (currentUser && !isMyComment) {
@@ -692,10 +660,7 @@ export function checkNewUpdates(entries) {
       knownEntryIds.add(entry.id);
 
       const entryUid = entry.uid || entry.authorUid;
-      const isMyEntry = currentUser && (
-        (entryUid && entryUid === currentUser.uid) ||
-        (entry.author && currentUser.displayName && entry.author === currentUser.displayName)
-      );
+      const isMyEntry = isMyContent(entry);
 
       // 내가 쓴 글이 아니고, 앱 켜진 이후에 작성된 글인 경우에만 알림
       if (currentUser && !isMyEntry && entry.createdAt > appStartTime - 5000) {
@@ -716,10 +681,7 @@ export function checkNewUpdates(entries) {
         knownCommentIds.add(comment.id);
 
         const commentUid = comment.uid || comment.authorUid;
-        const isMyComment = currentUser && (
-          (commentUid && commentUid === currentUser.uid) ||
-          (comment.author && currentUser.displayName && comment.author === currentUser.displayName)
-        );
+        const isMyComment = isMyContent(comment);
 
         if (currentUser && !isMyComment && comment.createdAt > appStartTime - 5000) {
           const commentAuthor = (commentUid && getCurrentProfiles()[commentUid]) ? getCurrentProfiles()[commentUid] : (comment.author || "상대방");
@@ -816,11 +778,7 @@ export function initNotify() {
  * 오늘 날짜가 기념일 마일스톤(첫 1년 50일 단위 / 이후 100일 단위) 또는 N주년(1주년, 2주년...) 당일인 경우 알림을 발송합니다.
  */
 export function checkTodayMilestoneNotifications() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  const todayStr = `${y}-${m}-${d}`;
+  const todayStr = formatDateString();
 
   // 1. 대표 기념일의 마일스톤(첫 1년 50일 단위 / 이후 100일 단위) & N주년 당일 알림
   const milestones = getMilestonesForDate(todayStr);

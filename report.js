@@ -6,6 +6,7 @@
 import { getCurrentUser, getCurrentProfiles } from "./state.js";
 import { getMilestonesForDate, getDdayItems } from "./dday.js";
 import { showToastNotification, showSystemNotification, startTitleBlink } from "./notify.js";
+import { openModal, closeModal } from "./ui.js";
 
 // 내부 캐시 및 상태
 let cachedEntries = [];
@@ -561,7 +562,7 @@ export function openReportModal(year = currentReportYear, month = currentReportM
   renderSlides(data);
 
   if (reportModal) {
-    reportModal.hidden = false;
+    openModal(reportModal);
   }
 
   // 이번 달 확인 완료로 기록 (NEW 뱃지 제거)
@@ -575,7 +576,7 @@ export function openReportModal(year = currentReportYear, month = currentReportM
  */
 export function closeReportModal() {
   if (reportModal) {
-    reportModal.hidden = true;
+    closeModal(reportModal);
   }
 }
 
@@ -729,13 +730,6 @@ export function initReport() {
   // 닫기 버튼
   if (closeBtn) {
     closeBtn.addEventListener("click", closeReportModal);
-  }
-
-  // 모달 배경 클릭 시 닫기
-  if (reportModal) {
-    reportModal.addEventListener("click", (e) => {
-      if (e.target === reportModal) closeReportModal();
-    });
   }
 
   // 월 전환 버튼

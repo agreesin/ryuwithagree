@@ -3,6 +3,7 @@
 // =========================================================
 
 import { subscribeDday, saveDdayConfig } from "./store.js";
+import { openModal, closeModal, formatDateString } from "./ui.js";
 
 // 기념일 변경 감시 리스너 목록 (Observer 패턴으로 calendar.js와의 순환 참조 해소)
 const ddayChangeListeners = new Set();
@@ -336,20 +337,16 @@ function openDdayModal() {
   if (!ddayModal) return;
   renderDdayList();
   if (ddayDateInput && !ddayDateInput.value) {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, "0");
-    const d = String(now.getDate()).padStart(2, "0");
-    ddayDateInput.value = `${y}-${m}-${d}`;
+    ddayDateInput.value = formatDateString();
   }
-  ddayModal.hidden = false;
+  openModal(ddayModal);
 }
 
 /**
  * 기념일 모달 닫기
  */
 function closeDdayModal() {
-  if (ddayModal) ddayModal.hidden = true;
+  closeModal(ddayModal);
 }
 
 /**
@@ -364,13 +361,6 @@ export function initDday() {
   // 2. 모달 닫기 버튼
   if (ddayCloseBtn) {
     ddayCloseBtn.addEventListener("click", closeDdayModal);
-  }
-
-  // 모달 배경 클릭 시 닫기
-  if (ddayModal) {
-    ddayModal.addEventListener("click", (e) => {
-      if (e.target === ddayModal) closeDdayModal();
-    });
   }
 
   // 3. 아이콘 선택 팔레트 버튼 이벤트

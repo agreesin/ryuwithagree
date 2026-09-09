@@ -5,6 +5,7 @@
 import { createEntryCard } from "./entry-card.js";
 import { getDdayItems, calculateDdayInfo, onDdayChange, getMilestonesForDate } from "./dday.js";
 import { getCurrentProfiles } from "./state.js";
+import { formatDateString } from "./ui.js";
 
 // 화면 요소
 const viewTabFeed = document.getElementById("view-tab-feed");
@@ -28,17 +29,8 @@ let currentMonth = new Date().getMonth(); // 0-11
 let selectedDateStr = null; // "YYYY-MM-DD"
 let cachedEntries = [];
 
-/**
- * 타임스탬프를 "YYYY-MM-DD" 문자열로 변환합니다.
- */
-function toDateString(timestamp) {
-  if (!timestamp) return "";
-  const d = new Date(timestamp);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+// 공통 날짜 유틸리티 formatDateString 사용
+const toDateString = formatDateString;
 
 /**
  * 외부에서 최신 일기 데이터를 전달받아 갱신합니다.

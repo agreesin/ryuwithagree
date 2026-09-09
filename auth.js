@@ -18,7 +18,7 @@ import {
   getCurrentProfiles,
   checkAdminStatus,
 } from "./state.js";
-import { showError, hideError } from "./ui.js";
+import { showError, hideError, openModal, closeModal, closeAllModals } from "./ui.js";
 import { updateProfileButtonsVisibility } from "./profile.js";
 import { render } from "./render.js";
 import { updateNoticeAuth } from "./notice.js";
@@ -78,7 +78,7 @@ let stopWatchingProfiles = null;
  * 암호 검증 완료 후 다이어리 진입 및 실시간 데이터 구독을 시작합니다.
  */
 async function grantAccess(user) {
-  if (passcodeModal) passcodeModal.hidden = true;
+  closeModal(passcodeModal);
   if (loginArea) loginArea.hidden = true;
   if (appArea) appArea.hidden = false;
   if (whoAmI) whoAmI.textContent = getCurrentProfiles()[user.uid] || user.displayName || "이름 없음";
@@ -146,14 +146,13 @@ async function grantAccess(user) {
  * 암호 입력 팝업 모달을 표시합니다.
  */
 function promptPasscode() {
+  closeAllModals();
   if (loginArea) loginArea.hidden = true;
   if (appArea) appArea.hidden = true;
-  if (passcodeModal) passcodeModal.hidden = false;
+  openModal(passcodeModal);
   if (monthlyReportBtn) monthlyReportBtn.hidden = true;
   if (ddayBadgeBtn) ddayBadgeBtn.hidden = true;
   if (appFooter) appFooter.hidden = true;
-  if (ddayModal) ddayModal.hidden = true;
-  if (changelogModal) changelogModal.hidden = true;
 
   if (passcodeError) {
     passcodeError.hidden = true;
@@ -214,12 +213,10 @@ export function initAuth() {
         if (loginArea) loginArea.hidden = true;
       } else {
         // 완전 로그아웃된 상태 -> 구글 로그인 버튼 표시 및 보안 대상 은닉
-        if (passcodeModal) passcodeModal.hidden = true;
+        closeAllModals();
         if (monthlyReportBtn) monthlyReportBtn.hidden = true;
         if (ddayBadgeBtn) ddayBadgeBtn.hidden = true;
         if (appFooter) appFooter.hidden = true;
-        if (ddayModal) ddayModal.hidden = true;
-        if (changelogModal) changelogModal.hidden = true;
 
         stopDdaySubscription();
 
@@ -354,7 +351,7 @@ export function initAuth() {
           console.warn("[auth] sessionStorage 접근 실패:", e);
         }
       }
-      if (passcodeModal) passcodeModal.hidden = true;
+      closeModal(passcodeModal);
       logout();
     });
   }

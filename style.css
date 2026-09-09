@@ -1444,6 +1444,11 @@ body {
    암호 확인 모달 (Passcode Modal)
    ========================================================= */
 
+body.modal-open {
+  overflow: hidden !important;
+  touch-action: none;
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;

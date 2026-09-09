@@ -15,6 +15,7 @@ import { initCalendar } from "./calendar.js";
 import { initChangelog } from "./changelog.js";
 import { initAuth } from "./auth.js";
 import { initReport } from "./report.js";
+import { initModalAccessibility } from "./ui.js";
 
 /** 개별 격리 실행: 하나의 모듈에서 오류가 나도 다른 모듈은 정상 실행 */
 function safe(name, fn) {
@@ -90,6 +91,7 @@ function boot() {
   safe("initCalendar", initCalendar);
   safe("initChangelog", initChangelog);
   safe("initReport", initReport);
+  safe("initModalAccessibility", initModalAccessibility);
 }
 
 if (document.readyState === "loading") {

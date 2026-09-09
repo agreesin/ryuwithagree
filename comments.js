@@ -5,15 +5,14 @@
 // =========================================================
 
 import { addComment, updateComment, removeComment } from "./store.js";
-import { getCurrentUser, getCurrentProfiles } from "./state.js";
-import { showError } from "./ui.js";
+import { getCurrentProfiles, isMyContent } from "./state.js";
+import { showError, formatDateTime } from "./ui.js";
 import { sendPushToPartner } from "./notify.js";
 
 /**
  * 개별 댓글 또는 답글(대댓글) DOM 요소를 생성합니다.
  */
 function createCommentItem(comment, entry, { isReply = false, idPrefix = "", onReplyToggle = null } = {}) {
-  const currentUser = getCurrentUser();
   const currentProfiles = getCurrentProfiles();
 
   const item = document.createElement("li");
@@ -43,13 +42,7 @@ function createCommentItem(comment, entry, { isReply = false, idPrefix = "", onR
   const dateSpan = document.createElement("span");
   dateSpan.className = "comment-date";
   if (comment.createdAt) {
-    const cd = new Date(comment.createdAt);
-    dateSpan.textContent = cd.toLocaleString("ko-KR", {
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    dateSpan.textContent = formatDateTime(comment.createdAt);
   }
 
   commentMeta.appendChild(authorWrapper);
@@ -63,10 +56,7 @@ function createCommentItem(comment, entry, { isReply = false, idPrefix = "", onR
   item.appendChild(commentText);
 
   // 하단 액션 영역 (답글 달기, 본인 작성 시 수정/삭제)
-  const isMyComment = currentUser && (
-    (comment.uid && comment.uid === currentUser.uid) ||
-    (comment.author && currentUser.displayName && comment.author === currentUser.displayName)
-  );
+  const isMyComment = isMyContent(comment);
 
   const commentActions = document.createElement("div");
   commentActions.className = "comment-actions";
