@@ -813,7 +813,7 @@ export function initNotify() {
 }
 
 /**
- * 오늘 날짜가 50일 배수(50일, 100일...) 또는 N주년(1주년, 2주년...) 당일인 경우 알림을 발송합니다.
+ * 오늘 날짜가 기념일 마일스톤(첫 1년 50일 단위 / 이후 100일 단위) 또는 N주년(1주년, 2주년...) 당일인 경우 알림을 발송합니다.
  */
 export function checkTodayMilestoneNotifications() {
   const now = new Date();
@@ -822,7 +822,7 @@ export function checkTodayMilestoneNotifications() {
   const d = String(now.getDate()).padStart(2, "0");
   const todayStr = `${y}-${m}-${d}`;
 
-  // 1. 대표 기념일의 50일 배수 & N주년 당일 알림
+  // 1. 대표 기념일의 마일스톤(첫 1년 50일 단위 / 이후 100일 단위) & N주년 당일 알림
   const milestones = getMilestonesForDate(todayStr);
 
   milestones.forEach((ms) => {

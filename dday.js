@@ -167,9 +167,12 @@ export function getMainDdayItem() {
 }
 
 /**
- * 특정 날짜(YYYY-MM-DD)에 해당하는 대표 기념일의 50일 배수 및 N주년 마일스톤 목록을 반환합니다.
+ * 특정 날짜(YYYY-MM-DD)에 해당하는 대표 기념일의 마일스톤 목록을 반환합니다 (2099년까지 지원).
+ * - 첫 1년(365일 이내): 50일 단위 (50일, 100일, 150일, 200일, 250일, 300일, 350일)
+ * - 1년 이후: 100일 단위 (400일, 500일, 600일...)
+ * - 매년 N주년 (1주년, 2주년...)
  * @param {string} dateStr - "YYYY-MM-DD"
- * @returns {Array<Object>} - [{ title, icon, type, isMilestone, milestoneText }]
+ * @returns {Array<Object>} - [{ id, title, icon, type, isMilestone, milestoneText, date }]
  */
 export function getMilestonesForDate(dateStr) {
   const mainItem = getMainDdayItem();
@@ -180,29 +183,33 @@ export function getMilestonesForDate(dateStr) {
   const [startY, startM, startD] = mainItem.date.split("-").map(Number);
   const [targetY, targetM, targetD] = dateStr.split("-").map(Number);
 
-  const startDateObj = new Date(startY, startM - 1, startD);
-  const targetDateObj = new Date(targetY, targetM - 1, targetD);
-
-  const now = new Date();
-  const todayObj = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const oneYearLaterObj = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
-
-  // 오늘 기준 1년(365일) 이후의 너무 먼 미래 날짜라면 일정 자동 생성을 하지 않음 (1년치 롤링 관리)
-  if (targetDateObj > oneYearLaterObj) {
+  // 2099년까지 D-Day 마일스톤 생성 지원 (2099년 초과 날짜는 미생성)
+  if (targetY > 2099) {
     return [];
   }
 
+  // 타임존 왜곡을 방지하기 위해 UTC 기준으로 일수 차이 계산
+  const startUtc = Date.UTC(startY, startM - 1, startD);
+  const targetUtc = Date.UTC(targetY, targetM - 1, targetD);
+
   const oneDayMs = 1000 * 60 * 60 * 24;
-  const diffDays = Math.floor((targetDateObj - startDateObj) / oneDayMs);
+  const diffDays = Math.round((targetUtc - startUtc) / oneDayMs);
   const count = diffDays + 1; // 당일 = D+1일
 
   const milestones = [];
 
-  // 1. 50일 배수 체크 (50일, 100일, 150일, 200일...)
-  if (count > 0 && count % 50 === 0) {
+  // 1. 일수 마일스톤 체크
+  // - 첫 1년(365일 이내): 50일 단위 (50일, 100일, 150일, 200일, 250일, 300일, 350일)
+  // - 1년 이후: 100일 단위 (400일, 500일, 600일...)
+  const isFirstYear = count <= 365;
+  const isDayMilestone = count > 0 && (isFirstYear ? count % 50 === 0 : count % 100 === 0);
+
+  if (isDayMilestone) {
     milestones.push({
+      id: `milestone_${count}`,
       title: `${mainItem.title} ${count}일`,
       icon: mainItem.icon || "💖",
+      date: dateStr,
       type: "count_up",
       isMilestone: true,
       milestoneText: `${count}일`,
@@ -213,8 +220,10 @@ export function getMilestonesForDate(dateStr) {
   if (targetY > startY && targetM === startM && targetD === startD) {
     const years = targetY - startY;
     milestones.push({
+      id: `milestone_${years}y`,
       title: `${mainItem.title} ${years}주년`,
       icon: "🎉",
+      date: dateStr,
       type: "count_up",
       isMilestone: true,
       milestoneText: `${years}주년`,

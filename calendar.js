@@ -82,7 +82,7 @@ function getEventsForDate(dateStr) {
     }
   }
 
-  // 50일 단위 (50일, 100일, 150일...) 및 N주년 (1주년, 2주년...) 마일스톤 자동 추가
+  // 첫 1년은 50일 단위, 1년 이후는 100일 단위 (2099년까지) 및 N주년 마일스톤 자동 추가
   const milestones = getMilestonesForDate(dateStr);
   milestones.forEach((ms) => {
     matchingEvents.push(ms);
@@ -244,7 +244,25 @@ function renderSelectedDateEntries(dateKey, entries, events = []) {
     if (events.length > 0) {
       calSelectedEventsWrap.hidden = false;
       events.forEach((ev) => {
-        const { ddayText } = calculateDdayInfo(ev);
+        let calcText = "";
+        if (ev.isMilestone) {
+          const now = new Date();
+          const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+          const [ey, em, ed] = dateKey.split("-").map(Number);
+          const evUtc = Date.UTC(ey, em - 1, ed);
+          const diff = Math.round((evUtc - todayUtc) / (1000 * 60 * 60 * 24));
+          if (diff === 0) {
+            calcText = "오늘 🎉";
+          } else if (diff > 0) {
+            calcText = `D-${diff}`;
+          } else {
+            calcText = `${ev.milestoneText}`;
+          }
+        } else {
+          const { ddayText } = calculateDdayInfo(ev);
+          calcText = ddayText;
+        }
+
         const banner = document.createElement("div");
         banner.className = `cal-date-event-card ${ev.type || "count_up"}`;
 
@@ -254,7 +272,7 @@ function renderSelectedDateEntries(dateKey, entries, events = []) {
           <span class="cal-event-card-icon">${icon}</span>
           <div class="cal-event-card-body">
             <span class="cal-event-card-title">${ev.title}</span>
-            <span class="cal-event-card-calc">${ddayText}</span>
+            <span class="cal-event-card-calc">${calcText}</span>
           </div>
         `;
         calSelectedEventsWrap.appendChild(banner);
