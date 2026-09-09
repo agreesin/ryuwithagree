@@ -3,7 +3,7 @@
 // =========================================================
 
 import { createEntryCard } from "./entry-card.js";
-import { getDdayItems, calculateDdayInfo, onDdayChange } from "./dday.js";
+import { getDdayItems, calculateDdayInfo, onDdayChange, getMilestonesForDate } from "./dday.js";
 import { getCurrentProfiles } from "./state.js";
 
 // 화면 요소
@@ -75,12 +75,18 @@ function getEventsForDate(dateStr) {
         matchingEvents.push({ ...item, isEvent: true });
       }
     } else if (type === "count_up") {
-      // 함께한 날 시작일
+      // 함께한 날 시작일 (D+1 당일)
       if (y === itemY && m === itemM && d === itemD) {
-        matchingEvents.push({ ...item, isAnniversary: true });
+        matchingEvents.push({ ...item, isAnniversary: true, title: item.title });
       }
     }
   }
+
+  // 50일 단위 (50일, 100일, 150일...) 및 N주년 (1주년, 2주년...) 마일스톤 자동 추가
+  const milestones = getMilestonesForDate(dateStr);
+  milestones.forEach((ms) => {
+    matchingEvents.push(ms);
+  });
 
   return matchingEvents;
 }

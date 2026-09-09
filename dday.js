@@ -153,6 +153,78 @@ export function getDdayItems() {
 }
 
 /**
+ * 대표 기념일 항목을 반환합니다.
+ */
+export function getMainDdayItem() {
+  if (!currentDdayConfig || !currentDdayConfig.items || currentDdayConfig.items.length === 0) {
+    return null;
+  }
+  let mainItem = currentDdayConfig.items.find((it) => it.id === currentDdayConfig.mainId);
+  if (!mainItem) {
+    mainItem = currentDdayConfig.items.find((it) => (it.type || "count_up") === "count_up") || currentDdayConfig.items[0];
+  }
+  return mainItem;
+}
+
+/**
+ * 특정 날짜(YYYY-MM-DD)에 해당하는 대표 기념일의 50일 배수 및 N주년 마일스톤 목록을 반환합니다.
+ * @param {string} dateStr - "YYYY-MM-DD"
+ * @returns {Array<Object>} - [{ title, icon, type, isMilestone, milestoneText }]
+ */
+export function getMilestonesForDate(dateStr) {
+  const mainItem = getMainDdayItem();
+  if (!mainItem || !mainItem.date || (mainItem.type && mainItem.type !== "count_up")) {
+    return [];
+  }
+
+  const [startY, startM, startD] = mainItem.date.split("-").map(Number);
+  const [targetY, targetM, targetD] = dateStr.split("-").map(Number);
+
+  const startDateObj = new Date(startY, startM - 1, startD);
+  const targetDateObj = new Date(targetY, targetM - 1, targetD);
+
+  const now = new Date();
+  const todayObj = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const oneYearLaterObj = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+
+  // 오늘 기준 1년(365일) 이후의 너무 먼 미래 날짜라면 일정 자동 생성을 하지 않음 (1년치 롤링 관리)
+  if (targetDateObj > oneYearLaterObj) {
+    return [];
+  }
+
+  const oneDayMs = 1000 * 60 * 60 * 24;
+  const diffDays = Math.floor((targetDateObj - startDateObj) / oneDayMs);
+  const count = diffDays + 1; // 당일 = D+1일
+
+  const milestones = [];
+
+  // 1. 50일 배수 체크 (50일, 100일, 150일, 200일...)
+  if (count > 0 && count % 50 === 0) {
+    milestones.push({
+      title: `${mainItem.title} ${count}일`,
+      icon: mainItem.icon || "💖",
+      type: "count_up",
+      isMilestone: true,
+      milestoneText: `${count}일`,
+    });
+  }
+
+  // 2. N주년 체크 (1주년, 2주년, 3주년...)
+  if (targetY > startY && targetM === startM && targetD === startD) {
+    const years = targetY - startY;
+    milestones.push({
+      title: `${mainItem.title} ${years}주년`,
+      icon: "🎉",
+      type: "count_up",
+      isMilestone: true,
+      milestoneText: `${years}주년`,
+    });
+  }
+
+  return milestones;
+}
+
+/**
  * 헤더 상단 D-Day 뱃지 갱신
  */
 function updateHeaderBadge() {

@@ -2405,6 +2405,13 @@ body {
   box-sizing: border-box;
 }
 
+.cal-event-chip.count_up {
+  background: #fff0f5;
+  border-color: #f7a8b8;
+  color: #d43855;
+  font-weight: 700;
+}
+
 .cal-event-chip.birthday {
   background: #fff5e6;
   border-color: #ffd8a8;

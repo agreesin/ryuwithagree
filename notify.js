@@ -6,6 +6,7 @@
 
 import { getCurrentUser, getCurrentProfiles } from "./state.js";
 import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js";
+import { getMilestonesForDate, onDdayChange, getDdayItems } from "./dday.js";
 
 const FIREBASE_MESSAGING_URL = "https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging.js";
 const FCM_VAPID_KEY = "BMwoxyNkaOfECoLOtTqhnVp76x2U3_7FgE4b08fKPSKxDxQ-EKCJb2z7cMaPjWNtjIPHXBaYbUhHLL1p0Gc1KNo";
@@ -802,6 +803,70 @@ export function initNotify() {
   // 7. 브라우저 창 복구 시 탭 제목 복구
   window.addEventListener("focus", () => {
     stopTitleBlink();
+  });
+
+  // 8. 앱 실행 시 및 기념일 변경 시 마일스톤 당일 알림 검사
+  checkTodayMilestoneNotifications();
+  onDdayChange(() => {
+    checkTodayMilestoneNotifications();
+  });
+}
+
+/**
+ * 오늘 날짜가 50일 배수(50일, 100일...) 또는 N주년(1주년, 2주년...) 당일인 경우 알림을 발송합니다.
+ */
+export function checkTodayMilestoneNotifications() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const todayStr = `${y}-${m}-${d}`;
+
+  // 1. 대표 기념일의 50일 배수 & N주년 당일 알림
+  const milestones = getMilestonesForDate(todayStr);
+
+  milestones.forEach((ms) => {
+    const storageKey = `dday_notif_${todayStr}_${ms.title}`;
+    if (!localStorage.getItem(storageKey)) {
+      localStorage.setItem(storageKey, "sent");
+
+      const title = "🎉 기념일 알림";
+      const body = `오늘은 [${ms.title}]입니다! 💕`;
+
+      showToastNotification(body, ms.icon || "💖");
+      showSystemNotification(title, body);
+      startTitleBlink(body);
+    }
+  });
+
+  // 2. 생일 및 특정 일정 당일 알림
+  const ddayItems = getDdayItems();
+  ddayItems.forEach((item) => {
+    if (!item.date) return;
+    const [itemY, itemM, itemD] = item.date.split("-").map(Number);
+    const type = item.type || "count_up";
+
+    let isTodayEvent = false;
+    let eventTitle = "";
+
+    if (type === "birthday" && now.getMonth() + 1 === itemM && now.getDate() === itemD) {
+      isTodayEvent = true;
+      eventTitle = `🎂 오늘은 [${item.title}] 생일입니다! 🎉`;
+    } else if (type === "event" && y === itemY && now.getMonth() + 1 === itemM && now.getDate() === itemD) {
+      isTodayEvent = true;
+      eventTitle = `🌟 오늘은 [${item.title}] 일정/데이트 당일입니다!`;
+    }
+
+    if (isTodayEvent) {
+      const storageKey = `dday_event_notif_${todayStr}_${item.id}`;
+      if (!localStorage.getItem(storageKey)) {
+        localStorage.setItem(storageKey, "sent");
+
+        showToastNotification(eventTitle, item.icon || "💖");
+        showSystemNotification("🗓️ 일정 알림", eventTitle);
+        startTitleBlink(eventTitle);
+      }
+    }
   });
 }
 
