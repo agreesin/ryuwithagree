@@ -37,6 +37,7 @@ const whoAmI = document.getElementById("who-am-i");
 const timelineList = document.getElementById("timeline-entry-list");
 
 // 보호 대상 요소들 (로그인 사용자 전용)
+const monthlyReportBtn = document.getElementById("monthly-report-btn");
 const ddayBadgeBtn = document.getElementById("dday-badge-btn");
 const ddayModal = document.getElementById("dday-modal");
 const appFooter = document.getElementById("app-footer");
@@ -82,7 +83,8 @@ async function grantAccess(user) {
   if (appArea) appArea.hidden = false;
   if (whoAmI) whoAmI.textContent = getCurrentProfiles()[user.uid] || user.displayName || "이름 없음";
 
-  // 인증 완료 사용자에게만 기념일 뱃지 및 업데이트 내역 버튼 표시
+  // 인증 완료 사용자에게만 기념일 뱃지 및 업데이트 내역, 월간 레포트 버튼 표시
+  if (monthlyReportBtn) monthlyReportBtn.hidden = false;
   if (ddayBadgeBtn) ddayBadgeBtn.hidden = false;
   if (appFooter) appFooter.hidden = false;
 
@@ -147,6 +149,7 @@ function promptPasscode() {
   if (loginArea) loginArea.hidden = true;
   if (appArea) appArea.hidden = true;
   if (passcodeModal) passcodeModal.hidden = false;
+  if (monthlyReportBtn) monthlyReportBtn.hidden = true;
   if (ddayBadgeBtn) ddayBadgeBtn.hidden = true;
   if (appFooter) appFooter.hidden = true;
   if (ddayModal) ddayModal.hidden = true;
@@ -212,6 +215,7 @@ export function initAuth() {
       } else {
         // 완전 로그아웃된 상태 -> 구글 로그인 버튼 표시 및 보안 대상 은닉
         if (passcodeModal) passcodeModal.hidden = true;
+        if (monthlyReportBtn) monthlyReportBtn.hidden = true;
         if (ddayBadgeBtn) ddayBadgeBtn.hidden = true;
         if (appFooter) appFooter.hidden = true;
         if (ddayModal) ddayModal.hidden = true;

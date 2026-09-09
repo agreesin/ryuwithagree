@@ -381,7 +381,7 @@ export function showToastNotification(message, icon = "💌") {
  * @param {string} title - 알림 제목
  * @param {string} body - 알림 본문
  */
-function showSystemNotification(title, body) {
+export function showSystemNotification(title, body) {
   if (!("Notification" in window) || Notification.permission !== "granted") {
     return;
   }
@@ -445,7 +445,7 @@ export async function sendPushToPartner({ title, message, isTest = false }) {
 /**
  * 탭 제목 깜빡임 효과를 시작합니다.
  */
-function startTitleBlink(message) {
+export function startTitleBlink(message) {
   stopTitleBlink();
   let isOriginal = false;
   titleInterval = setInterval(() => {
@@ -457,7 +457,7 @@ function startTitleBlink(message) {
 /**
  * 탭 제목 깜빡임 효과를 정지합니다.
  */
-function stopTitleBlink() {
+export function stopTitleBlink() {
   if (titleInterval) {
     clearInterval(titleInterval);
     titleInterval = null;

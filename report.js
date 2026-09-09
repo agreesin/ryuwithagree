@@ -605,6 +605,9 @@ function checkReportBadge() {
  * - 매월 1일~7일 또는 새 달 진입 시 지난달 레포트 미열람/알림 미발송 시 알림 트리거
  */
 export function checkMonthlyReportNotification() {
+  const user = getCurrentUser();
+  if (!user) return; // 로그인 사용자에게만 알림 발송
+
   const now = new Date();
   let prevY = now.getFullYear();
   let prevM = now.getMonth(); // 0=1월...11=12월. now.getMonth()가 8(9월)이면 prevM은 8(8월)
