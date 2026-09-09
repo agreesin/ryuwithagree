@@ -6,6 +6,7 @@ import { hideError } from "./ui.js";
 import { createEntryCard } from "./entry-card.js";
 import { getCurrentUser } from "./state.js";
 import { updateCalendarEntries } from "./calendar.js";
+import { updateReportEntries } from "./report.js";
 
 const emptyMessage = document.getElementById("empty-message");
 const timelineList = document.getElementById("timeline-entry-list");
@@ -77,6 +78,8 @@ export function render(entries = cachedRawEntries) {
     cachedRawEntries = entries;
     // 캘린더 모듈에도 최신 일기 데이터 동기화
     updateCalendarEntries(entries);
+    // 월간 레포트 모듈에도 최신 일기 데이터 동기화
+    updateReportEntries(entries);
   }
 
   hideError();

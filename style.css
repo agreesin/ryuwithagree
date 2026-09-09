@@ -2942,6 +2942,763 @@ body {
   opacity: 0.9;
 }
 
+/* =========================================================
+   월간 레포트 (Monthly Report) 헤더 & 캘린더 버튼
+   ========================================================= */
+
+.monthly-report-btn {
+  position: relative;
+  background: #fff0f3;
+  border: 1.5px solid #f7a8b8;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #d43855;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(230, 109, 123, 0.15);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.monthly-report-btn:hover {
+  transform: translateY(-1px) scale(1.02);
+  background: #ffe6eb;
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 10px rgba(230, 109, 123, 0.25);
+}
+
+.monthly-report-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #ff4757;
+  color: #ffffff;
+  font-size: 0.58rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 8px;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(255, 71, 87, 0.4);
+  animation: pulseGlow 1.8s infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.9; }
+}
+
+.cal-report-btn {
+  background: #fff0f5;
+  border: 1px solid #f7a8b8;
+  color: #d43855;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cal-report-btn:hover {
+  background: #ffe4ec;
+  border-color: #d43855;
+  transform: scale(1.03);
+}
+
+/* =========================================================
+   썸원 스타일 월간 레포트 모달 스타일
+   ========================================================= */
+
+.report-modal-card {
+  max-width: 440px;
+  width: 92%;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 16px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #fffafd 0%, #ffffff 100%);
+  border: 2px solid #fed7e2;
+  box-shadow: 0 20px 45px rgba(230, 109, 123, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.report-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed #fce3e7;
+  margin-bottom: 10px;
+}
+
+.report-month-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-month-nav-btn {
+  background: #fdf2f4;
+  border: 1px solid #f9c2ce;
+  color: #d43855;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.15s ease;
+}
+
+.report-month-nav-btn:hover {
+  background: #fad2db;
+  transform: scale(1.08);
+}
+
+.report-modal-month-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #c92a43;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.report-close-btn {
+  background: #f8f9fa;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.report-close-btn:hover {
+  background: #e9ecef;
+  color: var(--text-main);
+}
+
+/* 캐러셀 래퍼 */
+.report-carousel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #fde2e8;
+  box-shadow: 0 4px 16px rgba(230, 109, 123, 0.08);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.report-slides-wrapper {
+  display: flex;
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  width: 100%;
+  height: 100%;
+}
+
+.report-slide {
+  min-width: 100%;
+  box-sizing: border-box;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: 58vh;
+}
+
+/* 슬라이드 좌우 네비 버튼 */
+.report-slide-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  border: 1px solid #f7c5ce;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 0.85rem;
+  color: #d43855;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.report-slide-nav-btn:hover:not(:disabled) {
+  background: #ffffff;
+  transform: translateY(-50%) scale(1.1);
+  color: #c92a43;
+}
+
+.report-slide-nav-btn:disabled {
+  opacity: 0.2;
+  cursor: default;
+}
+
+.report-slide-nav-btn.prev {
+  left: 8px;
+}
+
+.report-slide-nav-btn.next {
+  right: 8px;
+}
+
+/* 하단 도트 인디케이터 */
+.report-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 0 4px;
+}
+
+.report-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 4px;
+  background: #fed7e2;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.25s ease;
+}
+
+.report-dot.active {
+  width: 20px;
+  background: #e66d7b;
+}
+
+/* 공통 카드 태그 & 타이틀 */
+.report-card-tag {
+  align-self: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #d43855;
+  background: #fff0f5;
+  border: 1px solid #fed7e2;
+  padding: 3px 10px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.report-slide-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #2d3748;
+  margin: 0 0 16px;
+}
+
+.report-sub-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #718096;
+  margin: 16px 0 8px;
+  text-align: left;
+}
+
+/* 1. 표지 슬라이드 */
+.report-slide-cover {
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle at 50% 30%, #fff5f7 0%, #ffffff 80%);
+}
+
+.report-badge-pill {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #d43855;
+  background: #ffe8ee;
+  padding: 4px 12px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.report-cover-deco {
+  font-size: 4rem;
+  margin-bottom: 8px;
+  animation: floatHeart 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes floatHeart {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-8px) scale(1.05); }
+}
+
+.report-cover-title {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #c92a43;
+  margin: 0 0 4px;
+}
+
+.report-cover-subtitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #718096;
+  margin: 0 0 20px;
+}
+
+.report-cover-summary-box {
+  background: #fff8f9;
+  border: 1.5px solid #f8c9d2;
+  border-radius: 16px;
+  padding: 14px 18px;
+  font-size: 0.95rem;
+  color: #4a5568;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(230, 109, 123, 0.08);
+}
+
+.report-highlight-num {
+  color: #d43855;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.report-swipe-hint {
+  font-size: 0.76rem;
+  color: #a0aec0;
+  margin-top: 24px;
+  animation: pulse 1.8s infinite;
+}
+
+/* 2. 통계 슬라이드 */
+.report-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.report-stat-item {
+  background: #fff8f9;
+  border: 1px solid #fce3e7;
+  border-radius: 14px;
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.report-stat-val {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #d43855;
+  line-height: 1.2;
+}
+
+.report-stat-lbl {
+  font-size: 0.78rem;
+  color: #718096;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.report-ratio-container {
+  background: #ffffff;
+  border: 1.5px solid #fce3e7;
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.report-ratio-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #4a5568;
+  margin-bottom: 8px;
+}
+
+.report-ratio-bar {
+  height: 12px;
+  background: #edf2f7;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.report-ratio-fill.a {
+  background: linear-gradient(90deg, #ff758c 0%, #ff7eb3 100%);
+  transition: width 0.6s ease;
+}
+
+.report-ratio-fill.b {
+  background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+  transition: width 0.6s ease;
+}
+
+.report-ratio-comment {
+  font-size: 0.82rem;
+  color: #718096;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* 3. 마음 날씨 슬라이드 */
+.report-weather-box {
+  background: linear-gradient(135deg, #fff5f7 0%, #fef3c7 100%);
+  border: 1.5px solid #fed7e2;
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  margin-bottom: 12px;
+}
+
+.report-weather-icon {
+  font-size: 2.8rem;
+  flex-shrink: 0;
+}
+
+.report-weather-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #c92a43;
+  margin: 0 0 4px;
+}
+
+.report-weather-desc {
+  font-size: 0.82rem;
+  color: #4a5568;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.report-mood-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.report-mood-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+
+.report-mood-rank {
+  font-weight: 800;
+  color: #d43855;
+  font-size: 0.8rem;
+  width: 24px;
+}
+
+.report-mood-icon {
+  font-size: 1.3rem;
+}
+
+.report-mood-bar-wrap {
+  flex: 1;
+  height: 8px;
+  background: #edf2f7;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.report-mood-bar-fill {
+  height: 100%;
+  background: #ff758c;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.report-mood-pct {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #718096;
+  min-width: 65px;
+  text-align: right;
+}
+
+/* 4. 베스트 일기 슬라이드 */
+.report-best-card {
+  background: #fff8f9;
+  border: 1.5px solid #f8c9d2;
+  border-radius: 16px;
+  padding: 14px 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(230, 109, 123, 0.08);
+}
+
+.report-best-card:hover {
+  transform: translateY(-2px);
+  border-color: #e66d7b;
+  box-shadow: 0 6px 16px rgba(230, 109, 123, 0.18);
+}
+
+.report-best-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.report-best-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.report-best-date {
+  font-size: 0.75rem;
+  color: #a0aec0;
+}
+
+.report-best-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #2d3748;
+  margin: 0 0 6px;
+}
+
+.report-best-snippet {
+  font-size: 0.84rem;
+  color: #718096;
+  margin: 0 0 10px;
+  line-height: 1.45;
+}
+
+.report-best-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #e66d7b;
+  border-top: 1px dashed #fce3e7;
+  padding-top: 8px;
+}
+
+/* 5. 갤러리 슬라이드 */
+.report-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.report-gallery-item {
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #fce3e7;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.report-gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.report-gallery-item:hover img {
+  transform: scale(1.08);
+}
+
+.report-gallery-caption {
+  font-size: 0.8rem;
+  color: #718096;
+  font-weight: 600;
+  margin: 0;
+}
+
+.report-gallery-empty,
+.report-event-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 12px;
+  color: #718096;
+}
+
+.report-empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+}
+
+.report-empty-sub {
+  font-size: 0.78rem;
+  color: #a0aec0;
+  margin-top: 4px;
+}
+
+/* 6. 기념일 슬라이드 */
+.report-event-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.report-event-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff8f9;
+  border: 1px solid #fce3e7;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.report-event-day {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #d43855;
+  min-width: 55px;
+}
+
+.report-event-icon {
+  font-size: 1.2rem;
+}
+
+.report-event-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+/* 7. 마무리 슬라이드 */
+.report-slide-closing {
+  justify-content: center;
+  align-items: center;
+}
+
+.report-closing-icon {
+  font-size: 3.5rem;
+  margin-bottom: 6px;
+  animation: floatHeart 2.2s ease-in-out infinite alternate;
+}
+
+.report-closing-title {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #c92a43;
+  margin: 0 0 16px;
+}
+
+.report-closing-card {
+  background: #fff8f9;
+  border: 1.5px solid #f8c9d2;
+  border-radius: 18px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(230, 109, 123, 0.1);
+}
+
+.report-closing-text {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #2d3748;
+  margin: 0 0 10px;
+}
+
+.report-closing-sub {
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: #718096;
+  margin: 0;
+}
+
+.report-confirm-btn {
+  background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+  color: #ffffff;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 800;
+  padding: 12px 28px;
+  border-radius: 25px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(255, 117, 140, 0.4);
+  transition: all 0.2s ease;
+}
+
+.report-confirm-btn:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 18px rgba(255, 117, 140, 0.5);
+}
+
+/* 베스트 일기 클릭 시 타임라인 카드 하이라이트 애니메이션 */
+@keyframes highlightPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(230, 109, 123, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(230, 109, 123, 0);
+    border-color: #e66d7b;
+  }
+}
+
+.highlight-pulse {
+  animation: highlightPulse 1.2s ease 2;
+  border-color: #e66d7b !important;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 480px) {
+  .monthly-report-btn .monthly-report-text {
+    display: none;
+  }
+  
+  .monthly-report-btn {
+    padding: 6px 10px;
+  }
+
+  .report-modal-card {
+    padding: 14px 10px;
+    width: 95%;
+  }
+
+  .report-slide {
+    padding: 18px 12px;
+  }
+
+  .report-cover-title {
+    font-size: 1.55rem;
+  }
+}
+
 
 
 

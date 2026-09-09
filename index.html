@@ -32,6 +32,12 @@
     <header class="header">
       <h1 class="header-title" id="header-home-btn" title="홈으로 이동 / 새로고침">류이어리</h1>
       <div class="header-actions">
+        <button id="monthly-report-btn" class="monthly-report-btn" type="button" title="월간 레포트">
+          <span class="monthly-report-icon">📊</span>
+          <span class="monthly-report-text">월간 레포트</span>
+          <span id="monthly-report-badge" class="monthly-report-badge" hidden>NEW</span>
+        </button>
+
         <button id="dday-badge-btn" class="dday-badge-btn" type="button" title="기념일 설정" hidden>
           <span id="dday-badge-text">D-Day 설정</span>
         </button>
@@ -369,6 +375,7 @@
               <h2 id="cal-month-title" class="cal-month-title">2026년 8월</h2>
               <button type="button" id="cal-next-btn" class="cal-nav-btn" title="다음 달">▶</button>
               <button type="button" id="cal-today-btn" class="cal-today-btn">오늘</button>
+              <button type="button" id="cal-report-btn" class="cal-report-btn" title="이 달의 월간 레포트">📊 레포트</button>
             </div>
 
             <!-- 요일 헤더 -->
@@ -418,6 +425,33 @@
         <div class="changelog-list-wrap">
           <ul id="changelog-list" class="changelog-list"></ul>
         </div>
+      </div>
+    </div>
+
+    <!-- 썸원 스타일 월간 레포트 모달 -->
+    <div id="monthly-report-modal" class="modal-overlay" hidden>
+      <div class="modal-content report-modal-card">
+        <!-- 모달 헤더: 타이틀, 월 선택기, 닫기 버튼 -->
+        <div class="report-modal-header">
+          <div class="report-month-picker">
+            <button type="button" id="report-prev-month-btn" class="report-month-nav-btn" title="이전 달">◀</button>
+            <h2 id="report-modal-month-title" class="report-modal-month-title">2026년 8월</h2>
+            <button type="button" id="report-next-month-btn" class="report-month-nav-btn" title="다음 달">▶</button>
+          </div>
+          <button id="report-close-btn" class="report-close-btn" type="button" title="닫기">✕</button>
+        </div>
+
+        <!-- 슬라이드 캐러셀 영역 -->
+        <div id="report-carousel" class="report-carousel">
+          <div id="report-slides-wrapper" class="report-slides-wrapper"></div>
+
+          <!-- 좌우 네비게이션 버튼 -->
+          <button type="button" id="report-prev-slide" class="report-slide-nav-btn prev" title="이전 카드">❮</button>
+          <button type="button" id="report-next-slide" class="report-slide-nav-btn next" title="다음 카드">❯</button>
+        </div>
+
+        <!-- 하단 도트 인디케이터 -->
+        <div id="report-dots" class="report-dots"></div>
       </div>
     </div>
 
