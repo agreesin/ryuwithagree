@@ -14,12 +14,13 @@ import {
 import {
   setCurrentUser,
   setCurrentProfiles,
+  setCurrentProfilePhotos,
   getCurrentUser,
   getCurrentProfiles,
   checkAdminStatus,
 } from "./state.js";
 import { showError, hideError, openModal, closeModal, closeAllModals } from "./ui.js";
-import { updateProfileButtonsVisibility } from "./profile.js";
+import { updateProfileButtonsVisibility, updateHeaderAvatar } from "./profile.js";
 import { render } from "./render.js";
 import { updateNoticeAuth } from "./notice.js";
 import {
@@ -82,6 +83,7 @@ async function grantAccess(user) {
   if (loginArea) loginArea.hidden = true;
   if (appArea) appArea.hidden = false;
   if (whoAmI) whoAmI.textContent = getCurrentProfiles()[user.uid] || user.displayName || "이름 없음";
+  updateHeaderAvatar();
 
   // 인증 완료 사용자에게만 기념일 뱃지 및 업데이트 내역, 월간 레포트 버튼 표시
   if (monthlyReportBtn) monthlyReportBtn.hidden = false;
@@ -116,12 +118,17 @@ async function grantAccess(user) {
 
   try {
     if (!stopWatchingProfiles) {
-      stopWatchingProfiles = subscribeProfiles((profiles) => {
+      stopWatchingProfiles = subscribeProfiles((profiles, profilePhotos) => {
         setCurrentProfiles(profiles);
+        if (profilePhotos) {
+          setCurrentProfilePhotos(profilePhotos);
+        }
         const curUser = getCurrentUser();
         if (curUser && whoAmI) {
           whoAmI.textContent = profiles[curUser.uid] || curUser.displayName || "이름 없음";
         }
+        updateHeaderAvatar();
+        render(); // 프로필 또는 사진 변경 시 타임라인 피드 실시간 갱신
       });
     }
   } catch (e) {

@@ -5,7 +5,13 @@
 // =========================================================
 
 import { removeEntry, toggleReaction } from "./store.js";
-import { getCurrentUser, getCurrentProfiles, isMyContent } from "./state.js";
+import {
+  getCurrentUser,
+  getCurrentProfiles,
+  isMyContent,
+  getProfilePhoto,
+  getUserInitial,
+} from "./state.js";
 import { showError, formatDateTime } from "./ui.js";
 import { createCommentsSection } from "./comments.js";
 import { sendPushToPartner } from "./notify.js";
@@ -124,7 +130,18 @@ export function createEntryCard(entry, idPrefix = "entry-") {
   const authorWrapper = document.createElement("span");
   authorWrapper.className = "entry-author-wrapper";
 
-  const authorDisplayName = (entry.uid && currentProfiles[entry.uid]) ? currentProfiles[entry.uid] : entry.author;
+  const authorDisplayName = (entry.uid && currentProfiles[entry.uid]) ? currentProfiles[entry.uid] : (entry.author || "이름 없음");
+  const authorPhoto = entry.uid ? getProfilePhoto(entry.uid) : null;
+
+  // 작성자 프로필 아바타 생성
+  const authorAvatar = document.createElement("span");
+  authorAvatar.className = "entry-author-avatar";
+  if (authorPhoto) {
+    authorAvatar.innerHTML = `<img src="${authorPhoto}" alt="${authorDisplayName} 프로필" />`;
+  } else {
+    authorAvatar.textContent = getUserInitial(authorDisplayName);
+  }
+  authorWrapper.appendChild(authorAvatar);
 
   const entryAuthor = document.createElement("span");
   entryAuthor.className = "entry-author";

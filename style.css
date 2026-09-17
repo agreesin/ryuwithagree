@@ -676,11 +676,59 @@ body {
 .who-info {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
+/* 헤더 프로필 아바타 버튼 */
+.who-avatar-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.who-avatar-btn:hover {
+  transform: scale(1.08);
+}
+
+.who-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--primary-color);
+  box-shadow: 0 2px 6px rgba(230, 109, 123, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff0f3;
+  color: var(--primary-color);
+  font-weight: 700;
+  font-size: 1.05rem;
+  overflow: hidden;
+  user-select: none;
+}
+
+.who-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.who-name-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .change-name-button,
-.manage-users-button {
+.change-photo-button,
+.manage-users-button,
+.manage-user-photo-button {
   background: white;
   border: 1px solid var(--primary-color);
   color: var(--primary-color);
@@ -693,7 +741,9 @@ body {
 }
 
 .change-name-button:hover,
-.manage-users-button:hover {
+.change-photo-button:hover,
+.manage-users-button:hover,
+.manage-user-photo-button:hover {
   background-color: var(--primary-color);
   color: white;
 }
@@ -3777,6 +3827,292 @@ body.modal-open {
   .report-cover-title {
     font-size: 1.55rem;
   }
+}
+
+/* =========================================================
+   프로필 사진 아바타 및 모달 스타일
+   ========================================================= */
+
+/* 일기 카드 작성자 아바타 */
+.entry-author-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.entry-author-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--primary-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffe3e8;
+  color: var(--primary-color);
+  font-size: 0.8rem;
+  font-weight: 700;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.entry-author-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 댓글 작성자 아바타 */
+.comment-author-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.comment-author-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid #f2a6b2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff0f3;
+  color: #c94c60;
+  font-size: 0.72rem;
+  font-weight: 700;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.comment-author-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 프로필 사진 설정 모달 */
+.profile-photo-modal-card {
+  max-width: 400px;
+  width: 90%;
+  border-radius: 18px;
+  padding: 22px;
+  background: var(--card-bg);
+  box-shadow: 0 16px 36px rgba(230, 109, 123, 0.22);
+}
+
+.profile-photo-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1.5px dashed var(--border-color);
+}
+
+.profile-photo-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.profile-photo-close-btn:hover {
+  color: var(--text-color);
+}
+
+.profile-target-wrap {
+  margin-bottom: 14px;
+}
+
+.profile-target-select {
+  width: 100%;
+  font-weight: 600;
+  padding: 8px 12px;
+  border: 1.5px solid var(--primary-color);
+  border-radius: 8px;
+  background: white;
+  color: var(--text-color);
+}
+
+/* 원형 아바타 미리보기 프레임 */
+.profile-photo-preview-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.profile-photo-preview-wrap {
+  width: 105px;
+  height: 105px;
+  border-radius: 50%;
+  border: 3px solid var(--primary-color);
+  box-shadow: 0 4px 14px rgba(230, 109, 123, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff0f3;
+  overflow: hidden;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.profile-photo-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-photo-preview-fallback {
+  font-size: 2.7rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  user-select: none;
+}
+
+.profile-photo-user-desc {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin: 0;
+}
+
+/* 옵션 버튼 목록 */
+.profile-photo-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.profile-opt-btn {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+}
+
+.profile-opt-btn.primary {
+  background: linear-gradient(135deg, var(--primary-color), #ff8fa3);
+  color: white;
+  box-shadow: 0 4px 10px rgba(230, 109, 123, 0.25);
+}
+
+.profile-opt-btn.primary:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.profile-opt-btn.secondary {
+  background: white;
+  border: 1.5px solid #4285f4;
+  color: #4285f4;
+}
+
+.profile-opt-btn.secondary:hover {
+  background: #f0f6ff;
+}
+
+.profile-opt-btn.delete {
+  background: white;
+  border: 1px solid #e0e0e0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  padding: 7px 10px;
+}
+
+.profile-opt-btn.delete:hover {
+  background: #fafafa;
+  color: #e65c5c;
+  border-color: #f7c5c5;
+}
+
+/* 이모지 프리셋 팔레트 */
+.profile-emoji-section {
+  background: #fff8f9;
+  border: 1px solid #ffd6dc;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.profile-emoji-section .form-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.profile-emoji-palette {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+
+.profile-emoji-btn {
+  background: white;
+  border: 1px solid #ffccd5;
+  border-radius: 8px;
+  font-size: 1.25rem;
+  padding: 4px 0;
+  cursor: pointer;
+  transition: transform 0.15s, background-color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-emoji-btn:hover {
+  transform: scale(1.2);
+  background-color: #ffe3e8;
+}
+
+/* 모달 액션 */
+.profile-modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.profile-modal-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.profile-modal-btn.cancel {
+  background: #eee;
+  color: #555;
+}
+
+.profile-modal-btn.cancel:hover {
+  background: #e2e2e2;
+}
+
+.profile-modal-btn.save {
+  background: var(--primary-color);
+  color: white;
+  box-shadow: 0 4px 12px rgba(230, 109, 123, 0.3);
+}
+
+.profile-modal-btn.save:hover {
+  background: var(--primary-hover);
 }
 
 

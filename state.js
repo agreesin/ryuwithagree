@@ -9,6 +9,9 @@ let currentUser = null;
 // 캐시된 프로필 목록 { uid: displayName }
 let currentProfiles = {};
 
+// 캐시된 프로필 사진 목록 { uid: photoURL }
+let currentProfilePhotos = {};
+
 // 관리자 계정의 SHA-256 단방향 해시 (원문 역추적 및 복호화 절대 불가)
 const ADMIN_EMAIL_HASHES = [
   "8156cfad701c0f7efd9f477b4be3c208240f6e994a6df5183a6618859ffdb3d7",
@@ -31,6 +34,28 @@ export function getCurrentProfiles() {
 
 export function setCurrentProfiles(profiles) {
   currentProfiles = profiles || {};
+}
+
+export function getCurrentProfilePhotos() {
+  return currentProfilePhotos;
+}
+
+export function setCurrentProfilePhotos(photos) {
+  currentProfilePhotos = photos || {};
+}
+
+export function getProfilePhoto(uid) {
+  if (!uid) return null;
+  return currentProfilePhotos[uid] || null;
+}
+
+/**
+ * 이름의 첫 글자(이니셜)를 추출합니다.
+ */
+export function getUserInitial(name) {
+  if (!name || typeof name !== "string") return "?";
+  const trimmed = name.trim();
+  return trimmed ? trimmed.charAt(0) : "?";
 }
 
 /**

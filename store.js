@@ -74,6 +74,8 @@ const fcmTokensRef = collection(db, "fcm_tokens");
 
 // 캐시된 프로필 목록 { uid: displayName }
 let cachedProfiles = {};
+// 캐시된 프로필 사진 목록 { uid: photoURL }
+let cachedProfilePhotos = {};
 
 // =========================================================
 // FCM 푸시 토큰 관리
@@ -147,15 +149,19 @@ export async function getAllFcmTokens() {
 // 프로필 관리 (모든 사용자 이름 실시간 동기화)
 // =========================================================
 
-// 모든 사용자 프로필을 실시간으로 감시한다.
+// 모든 사용자 프로필(이름 및 사진)을 실시간으로 감시한다.
 export function subscribeProfiles(onChange) {
   return onSnapshot(profilesRef, (snapshot) => {
     const profiles = {};
+    const profilePhotos = {};
     snapshot.forEach((d) => {
-      profiles[d.id] = d.data().displayName;
+      const data = d.data();
+      profiles[d.id] = data.displayName || "";
+      profilePhotos[d.id] = data.photoURL || null;
     });
     cachedProfiles = profiles;
-    if (onChange) onChange(profiles);
+    cachedProfilePhotos = profilePhotos;
+    if (onChange) onChange(profiles, profilePhotos);
   });
 }
 
@@ -167,19 +173,27 @@ export async function syncUserProfile(user) {
     const snap = await getDoc(userDoc);
     if (!snap.exists()) {
       const initialName = user.displayName || "이름 없음";
+      const initialPhoto = user.photoURL || null;
       await setDoc(userDoc, {
         displayName: initialName,
         email: user.email || "",
+        photoURL: initialPhoto,
         updatedAt: Date.now(),
       });
       cachedProfiles[user.uid] = initialName;
+      cachedProfilePhotos[user.uid] = initialPhoto;
     } else {
-      cachedProfiles[user.uid] = snap.data().displayName || user.displayName || "이름 없음";
+      const data = snap.data();
+      cachedProfiles[user.uid] = data.displayName || user.displayName || "이름 없음";
+      cachedProfilePhotos[user.uid] = data.photoURL || null;
     }
   } catch (err) {
     console.warn("[store] syncUserProfile 안전 처리:", err);
     if (user.displayName) {
       cachedProfiles[user.uid] = user.displayName;
+    }
+    if (user.photoURL) {
+      cachedProfilePhotos[user.uid] = user.photoURL;
     }
   }
 }
@@ -217,6 +231,27 @@ export async function setUserDisplayName(targetUid, newName) {
     }
   } catch (err) {
     console.error("[store] 글 일괄 업데이트 오류:", err);
+  }
+}
+
+// 특정 사용자(본인 또는 상대방)의 프로필 사진을 변경하거나 삭제한다.
+export async function setUserProfilePhoto(targetUid, photoURL) {
+  if (!targetUid) return;
+
+  try {
+    const userDoc = doc(db, "profiles", targetUid);
+    await setDoc(
+      userDoc,
+      {
+        photoURL: photoURL || null,
+        updatedAt: Date.now(),
+      },
+      { merge: true }
+    );
+    cachedProfilePhotos[targetUid] = photoURL || null;
+  } catch (err) {
+    console.error("[store] 프로필 사진 업데이트 오류:", err);
+    throw err;
   }
 }
 

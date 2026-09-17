@@ -208,12 +208,21 @@
 
         <p class="who">
           <span class="who-info">
-            쓰는 사람: <strong id="who-am-i"></strong>
+            <button id="who-am-i-avatar-btn" class="who-avatar-btn" type="button" title="내 프로필 사진 변경">
+              <span id="who-am-i-avatar" class="who-avatar"></span>
+            </button>
+            <span class="who-name-label">쓰는 사람: <strong id="who-am-i"></strong></span>
             <button id="change-name-button" class="change-name-button" type="button">
               내 이름 변경
             </button>
+            <button id="change-photo-button" class="change-photo-button" type="button" title="내 프로필 사진 변경">
+              🖼️ 사진 변경
+            </button>
             <button id="manage-users-button" class="manage-users-button" type="button">
               👥 친구 이름 변경
+            </button>
+            <button id="manage-user-photo-button" class="manage-user-photo-button" type="button" title="친구 프로필 사진 변경" hidden>
+              👥 친구 사진 변경
             </button>
           </span>
           <button id="logout-button" class="logout-button" type="button">
@@ -452,6 +461,74 @@
 
         <!-- 하단 도트 인디케이터 -->
         <div id="report-dots" class="report-dots"></div>
+      </div>
+    </div>
+
+    <!-- 프로필 사진 설정 모달 -->
+    <div id="profile-photo-modal" class="modal-overlay" hidden>
+      <div class="modal-content profile-photo-modal-card">
+        <div class="profile-photo-modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-icon">🖼️</span>
+            <h2 id="profile-photo-modal-title" class="modal-title">프로필 사진 설정</h2>
+          </div>
+          <button id="profile-photo-close-btn" class="profile-photo-close-btn" type="button" title="닫기">✕</button>
+        </div>
+
+        <!-- 대상 선택 (관리자 전용) -->
+        <div id="profile-photo-target-wrap" class="form-group profile-target-wrap" hidden>
+          <label for="profile-photo-target-select" class="form-label">변경할 대상:</label>
+          <select id="profile-photo-target-select" class="form-input profile-target-select"></select>
+        </div>
+
+        <!-- 프로필 아바타 미리보기 영역 -->
+        <div class="profile-photo-preview-section">
+          <div id="profile-photo-preview-wrap" class="profile-photo-preview-wrap">
+            <img id="profile-photo-preview-img" class="profile-photo-preview-img" src="" alt="프로필 사진 미리보기" hidden />
+            <div id="profile-photo-preview-fallback" class="profile-photo-preview-fallback">?</div>
+          </div>
+          <p id="profile-photo-user-desc" class="profile-photo-user-desc"></p>
+        </div>
+
+        <!-- 사진 변경 옵션 모음 -->
+        <div class="profile-photo-options">
+          <!-- 기기 사진 업로드 (숨겨진 파일 인풋 + 예쁜 버튼) -->
+          <input type="file" id="profile-photo-file-input" accept="image/*" hidden />
+          <button type="button" id="profile-photo-upload-btn" class="profile-opt-btn primary">
+            📁 앨범에서 사진 선택
+          </button>
+
+          <!-- 구글 계정 사진 연동 버튼 -->
+          <button type="button" id="profile-photo-google-btn" class="profile-opt-btn secondary">
+            🌐 구글 계정 프로필 사진 적용
+          </button>
+
+          <!-- 감성 이모지 아바타 선택 팔레트 -->
+          <div class="profile-emoji-section">
+            <label class="form-label">또는 감성 이모지로 선택</label>
+            <div id="profile-emoji-palette" class="profile-emoji-palette">
+              <button type="button" class="profile-emoji-btn" data-emoji="🐱" title="고양이">🐱</button>
+              <button type="button" class="profile-emoji-btn" data-emoji="🐰" title="토끼">🐰</button>
+              <button type="button" class="profile-emoji-btn" data-emoji="🐶" title="강아지">🐶</button>
+              <button type="button" class="profile-emoji-btn" data-emoji="🐻" title="곰돌이">🐻</button>
+              <button type="button" class="profile-emoji-btn" data-emoji="🐥" title="병아리">🐥</button>
+              <button type="button" class="profile-emoji-btn" data-emoji="💖" title="하트">💖</button>
+              <button type="button" class="profile-emoji-btn" data-emoji="🌸" title="벚꽃">🌸</button>
+              <button type="button" class="profile-emoji-btn" data-emoji="🍀" title="네잎클로버">🍀</button>
+            </div>
+          </div>
+
+          <!-- 사진 삭제 버튼 (이니셜 배지로 복원) -->
+          <button type="button" id="profile-photo-delete-btn" class="profile-opt-btn delete">
+            🗑️ 사진 삭제 (기본 이니셜 복원)
+          </button>
+        </div>
+
+        <!-- 모달 하단 버튼 -->
+        <div class="profile-modal-actions">
+          <button type="button" id="profile-photo-cancel-btn" class="profile-modal-btn cancel">취소</button>
+          <button type="button" id="profile-photo-save-btn" class="profile-modal-btn save">저장 완료</button>
+        </div>
       </div>
     </div>
 

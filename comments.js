@@ -5,7 +5,12 @@
 // =========================================================
 
 import { addComment, updateComment, removeComment } from "./store.js";
-import { getCurrentProfiles, isMyContent } from "./state.js";
+import {
+  getCurrentProfiles,
+  isMyContent,
+  getProfilePhoto,
+  getUserInitial,
+} from "./state.js";
 import { showError, formatDateTime } from "./ui.js";
 import { sendPushToPartner } from "./notify.js";
 
@@ -32,7 +37,18 @@ function createCommentItem(comment, entry, { isReply = false, idPrefix = "", onR
     authorWrapper.appendChild(replyPrefix);
   }
 
-  const authorDisplayName = (comment.uid && currentProfiles[comment.uid]) ? currentProfiles[comment.uid] : comment.author;
+  const authorDisplayName = (comment.uid && currentProfiles[comment.uid]) ? currentProfiles[comment.uid] : (comment.author || "이름 없음");
+  const authorPhoto = comment.uid ? getProfilePhoto(comment.uid) : null;
+
+  // 댓글 작성자 아바타 생성
+  const commentAvatar = document.createElement("span");
+  commentAvatar.className = "comment-author-avatar";
+  if (authorPhoto) {
+    commentAvatar.innerHTML = `<img src="${authorPhoto}" alt="${authorDisplayName} 프로필" />`;
+  } else {
+    commentAvatar.textContent = getUserInitial(authorDisplayName);
+  }
+  authorWrapper.appendChild(commentAvatar);
 
   const authorSpan = document.createElement("span");
   authorSpan.className = "comment-author";
