@@ -681,11 +681,15 @@ body {
 }
 
 /* 헤더 프로필 아바타 버튼 */
+button.who-avatar-btn,
 .who-avatar-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  cursor: pointer !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3960,6 +3964,13 @@ body.modal-open {
   overflow: hidden;
   margin-bottom: 8px;
   position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-photo-preview-wrap:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 18px rgba(230, 109, 123, 0.35);
 }
 
 .profile-photo-preview-img {

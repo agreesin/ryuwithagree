@@ -311,7 +311,14 @@ export function initProfileHandlers() {
     });
   }
 
-  // 앨범에서 사진 선택 버튼 클릭
+  // 앨범에서 사진 선택 버튼 또는 미리보기 박스 클릭
+  if (profilePhotoPreviewWrap && profilePhotoFileInput) {
+    profilePhotoPreviewWrap.addEventListener("click", () => {
+      profilePhotoFileInput.value = "";
+      profilePhotoFileInput.click();
+    });
+  }
+
   if (profilePhotoUploadBtn && profilePhotoFileInput) {
     profilePhotoUploadBtn.addEventListener("click", () => {
       profilePhotoFileInput.value = "";

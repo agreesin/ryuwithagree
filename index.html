@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
     <meta name="theme-color" content="#e66d7b" />
 
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css?v=20260917_3" />
   </head>
 
   <body>
@@ -208,20 +208,20 @@
 
         <p class="who">
           <span class="who-info">
-            <button id="who-am-i-avatar-btn" class="who-avatar-btn" type="button" title="내 프로필 사진 변경">
-              <span id="who-am-i-avatar" class="who-avatar"></span>
+            <button id="who-am-i-avatar-btn" class="who-avatar-btn" type="button" title="내 프로필 사진 변경" style="background: transparent; border: none; padding: 0; cursor: pointer;">
+              <span id="who-am-i-avatar" class="who-avatar">👤</span>
             </button>
             <span class="who-name-label">쓰는 사람: <strong id="who-am-i"></strong></span>
             <button id="change-name-button" class="change-name-button" type="button">
               내 이름 변경
             </button>
-            <button id="change-photo-button" class="change-photo-button" type="button" title="내 프로필 사진 변경">
+            <button id="change-photo-button" class="change-photo-button" type="button" title="내 프로필 사진 변경" style="cursor: pointer;">
               🖼️ 사진 변경
             </button>
             <button id="manage-users-button" class="manage-users-button" type="button">
               👥 친구 이름 변경
             </button>
-            <button id="manage-user-photo-button" class="manage-user-photo-button" type="button" title="친구 프로필 사진 변경" hidden>
+            <button id="manage-user-photo-button" class="manage-user-photo-button" type="button" title="친구 프로필 사진 변경" hidden style="cursor: pointer;">
               👥 친구 사진 변경
             </button>
           </span>
@@ -533,7 +533,7 @@
     </div>
 
     <!-- type="module" 을 지우면 앱이 통째로 죽습니다 -->
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="./app.js?v=20260917_3"></script>
   </body>
 </html>
 
