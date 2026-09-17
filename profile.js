@@ -1,13 +1,12 @@
 // =========================================================
-// profile.js - 사용자 프로필(닉네임 및 프로필 사진) 관리 모듈
-// 내 사진/이름 변경 및 관리자 전용 상대방 사진/이름 변경 기능을 담당합니다.
+// profile.js - 사용자 프로필(닉네임 및 프로필 사진) 통합 관리 모듈
+// 상단 원-터치 프로필 버튼 및 통합 설정 모달을 담당합니다.
 // =========================================================
 
 import { setUserDisplayName, setUserProfilePhoto } from "./store.js";
 import {
   getCurrentUser,
   getCurrentProfiles,
-  getCurrentProfilePhotos,
   getProfilePhoto,
   getUserInitial,
   isAdmin,
@@ -17,22 +16,23 @@ import { render } from "./render.js";
 import { updateProfile } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
 // DOM 화면 요소
-const changeNameButton = document.getElementById("change-name-button");
-const changePhotoButton = document.getElementById("change-photo-button");
-const manageUsersButton = document.getElementById("manage-users-button");
-const manageUserPhotoButton = document.getElementById("manage-user-photo-button");
 const whoAmI = document.getElementById("who-am-i");
 const whoAmIAvatar = document.getElementById("who-am-i-avatar");
-const whoAmIAvatarBtn = document.getElementById("who-am-i-avatar-btn");
+const whoAmIProfileBtn = document.getElementById("who-am-i-profile-btn");
 
-// 프로필 사진 설정 모달 요소
+// 통합 프로필 설정 모달 요소
 const profilePhotoModal = document.getElementById("profile-photo-modal");
 const profilePhotoCloseBtn = document.getElementById("profile-photo-close-btn");
+const profileTargetTabs = document.getElementById("profile-target-tabs");
+const profileTabSelf = document.getElementById("profile-tab-self");
+const profileTabPartner = document.getElementById("profile-tab-partner");
 const profilePhotoTargetWrap = document.getElementById("profile-photo-target-wrap");
 const profilePhotoTargetSelect = document.getElementById("profile-photo-target-select");
+const profilePhotoPreviewWrap = document.getElementById("profile-photo-preview-wrap");
 const profilePhotoPreviewImg = document.getElementById("profile-photo-preview-img");
 const profilePhotoPreviewFallback = document.getElementById("profile-photo-preview-fallback");
 const profilePhotoUserDesc = document.getElementById("profile-photo-user-desc");
+const profileNameInput = document.getElementById("profile-name-input");
 const profilePhotoFileInput = document.getElementById("profile-photo-file-input");
 const profilePhotoUploadBtn = document.getElementById("profile-photo-upload-btn");
 const profilePhotoGoogleBtn = document.getElementById("profile-photo-google-btn");
@@ -44,6 +44,8 @@ const profileEmojiBtns = document.querySelectorAll(".profile-emoji-btn");
 // 모달 내부 상태
 let currentModalTargetUid = null;
 let pendingPhotoData = null; // 저장 대기 중인 사진 데이터 (Data URL, URL, 또는 null)
+let originalName = "";
+let originalPhotoData = null;
 
 /**
  * 상단 헤더의 내 프로필 아바타를 갱신합니다.
@@ -53,7 +55,7 @@ export function updateHeaderAvatar() {
 
   const currentUser = getCurrentUser();
   if (!currentUser) {
-    whoAmIAvatar.innerHTML = "?";
+    whoAmIAvatar.innerHTML = "👤";
     return;
   }
 
@@ -70,14 +72,9 @@ export function updateHeaderAvatar() {
 }
 
 /**
- * 관리자 권한에 따라 프로필 변경 버튼들의 표시 여부를 갱신합니다.
+ * 사용자 권한 및 로그인 상태에 따라 프로필 UI를 갱신합니다.
  */
 export function updateProfileButtonsVisibility(user) {
-  const adminUser = isAdmin(user);
-  if (changeNameButton) changeNameButton.hidden = !adminUser;
-  if (manageUsersButton) manageUsersButton.hidden = !adminUser;
-  if (manageUserPhotoButton) manageUserPhotoButton.hidden = !adminUser;
-  if (changePhotoButton) changePhotoButton.hidden = false;
   updateHeaderAvatar();
 }
 
@@ -153,10 +150,11 @@ function updateModalPreview() {
   if (!currentModalTargetUid) return;
 
   const currentProfiles = getCurrentProfiles();
-  const targetName = currentProfiles[currentModalTargetUid] || "참여자";
+  const targetName = (profileNameInput && profileNameInput.value.trim()) || currentProfiles[currentModalTargetUid] || "참여자";
 
   if (profilePhotoUserDesc) {
-    profilePhotoUserDesc.textContent = `${targetName}님의 프로필 사진`;
+    const isSelf = currentModalTargetUid === getCurrentUser()?.uid;
+    profilePhotoUserDesc.textContent = isSelf ? `내 프로필 (${targetName})` : `${targetName}님의 프로필`;
   }
 
   if (pendingPhotoData) {
@@ -180,10 +178,42 @@ function updateModalPreview() {
 }
 
 /**
- * 프로필 사진 설정 모달을 엽니다.
- * @param {string|null} defaultTargetUid - 대상 사용자 UID (기본값: 현재 로그인 사용자)
+ * 모달의 대상을 변경하고 폼을 해당 사용자의 데이터로 채웁니다.
+ * @param {string} targetUid
  */
-export function openProfilePhotoModal(defaultTargetUid = null) {
+function switchTargetUser(targetUid) {
+  const currentUser = getCurrentUser();
+  if (!currentUser || !targetUid) return;
+
+  currentModalTargetUid = targetUid;
+  const currentProfiles = getCurrentProfiles();
+
+  originalName = currentProfiles[targetUid] || (targetUid === currentUser.uid ? currentUser.displayName : "") || "";
+  originalPhotoData = getProfilePhoto(targetUid);
+  pendingPhotoData = originalPhotoData;
+
+  if (profileNameInput) {
+    profileNameInput.value = originalName;
+  }
+
+  // 탭 active 스타일 동기화
+  const isSelf = targetUid === currentUser.uid;
+  if (profileTabSelf) profileTabSelf.classList.toggle("active", isSelf);
+  if (profileTabPartner) profileTabPartner.classList.toggle("active", !isSelf);
+
+  // 구글 사진 연동 버튼: 본인 대상 + 구글 photoURL 존재 시만 노출
+  if (profilePhotoGoogleBtn) {
+    profilePhotoGoogleBtn.hidden = !isSelf || !currentUser.photoURL;
+  }
+
+  updateModalPreview();
+}
+
+/**
+ * 통합 프로필 설정 모달을 엽니다.
+ * @param {string|null} defaultTargetUid
+ */
+export function openProfileModal(defaultTargetUid = null) {
   const currentUser = getCurrentUser();
   if (!currentUser) {
     alert("로그인이 필요합니다.");
@@ -192,48 +222,33 @@ export function openProfilePhotoModal(defaultTargetUid = null) {
 
   const adminUser = isAdmin(currentUser);
   const currentProfiles = getCurrentProfiles();
+  const otherUids = Object.keys(currentProfiles).filter((uid) => uid !== currentUser.uid);
 
-  // 대상 UID 결정
-  currentModalTargetUid = defaultTargetUid || currentUser.uid;
-  pendingPhotoData = getProfilePhoto(currentModalTargetUid);
+  // 관리자 권한 시 탭 노출 (상대방이 1명 이상 있을 때)
+  if (profileTargetTabs) {
+    profileTargetTabs.hidden = !adminUser || otherUids.length === 0;
+  }
 
-  // 대상 선택 셀렉트 박스 세팅
+  // 드롭다운 셀렉트 박스 세팅 (상대방이 2명 이상일 때)
   if (profilePhotoTargetSelect && profilePhotoTargetWrap) {
-    if (adminUser) {
+    if (adminUser && otherUids.length > 1) {
       profilePhotoTargetWrap.hidden = false;
       profilePhotoTargetSelect.innerHTML = "";
-
-      // 본인 추가
-      const myName = currentProfiles[currentUser.uid] || currentUser.displayName || "나";
-      const myOpt = document.createElement("option");
-      myOpt.value = currentUser.uid;
-      myOpt.textContent = `🙋 ${myName} (내 프로필)`;
-      profilePhotoTargetSelect.appendChild(myOpt);
-
-      // 상대방 목록 추가
-      Object.keys(currentProfiles)
-        .filter((uid) => uid !== currentUser.uid)
-        .forEach((uid) => {
-          const otherName = currentProfiles[uid] || "상대방";
-          const opt = document.createElement("option");
-          opt.value = uid;
-          opt.textContent = `👥 ${otherName} (상대방)`;
-          profilePhotoTargetSelect.appendChild(opt);
-        });
-
-      profilePhotoTargetSelect.value = currentModalTargetUid;
+      otherUids.forEach((uid) => {
+        const opt = document.createElement("option");
+        opt.value = uid;
+        opt.textContent = `👥 ${currentProfiles[uid] || "상대방"}`;
+        profilePhotoTargetSelect.appendChild(opt);
+      });
     } else {
       profilePhotoTargetWrap.hidden = true;
     }
   }
 
-  // 구글 계정 사진 연동 버튼 표시 제어
-  if (profilePhotoGoogleBtn) {
-    const isMyself = currentModalTargetUid === currentUser.uid;
-    profilePhotoGoogleBtn.hidden = !isMyself || !currentUser.photoURL;
-  }
+  // 기본 타겟 설정 (인자가 없으면 본인)
+  const initialTarget = defaultTargetUid || currentUser.uid;
+  switchTargetUser(initialTarget);
 
-  updateModalPreview();
   openModal(profilePhotoModal);
 }
 
@@ -242,30 +257,31 @@ export function openProfilePhotoModal(defaultTargetUid = null) {
  */
 export function initProfileHandlers() {
   // ---------------------------------------------------------
-  // 1. 헤더 아바타 및 내 사진 변경 버튼
+  // 1. 상단 내 정보 영역 터치 시 통합 모달 오픈
   // ---------------------------------------------------------
-  if (whoAmIAvatarBtn) {
-    whoAmIAvatarBtn.addEventListener("click", () => {
-      openProfilePhotoModal();
-    });
-  }
-
-  if (changePhotoButton) {
-    changePhotoButton.addEventListener("click", () => {
-      openProfilePhotoModal();
+  if (whoAmIProfileBtn) {
+    whoAmIProfileBtn.addEventListener("click", () => {
+      openProfileModal();
     });
   }
 
   // ---------------------------------------------------------
-  // 2. 👥 친구 사진 변경 버튼 (관리자 전용)
+  // 2. 관리자용 대상 전환 탭
   // ---------------------------------------------------------
-  if (manageUserPhotoButton) {
-    manageUserPhotoButton.addEventListener("click", () => {
+  if (profileTabSelf) {
+    profileTabSelf.addEventListener("click", () => {
       const currentUser = getCurrentUser();
-      if (!currentUser || !isAdmin(currentUser)) {
-        alert("상대방 프로필 사진 변경 권한이 없습니다. (관리자 전용 기능)");
-        return;
+      if (currentUser) {
+        if (profilePhotoTargetWrap) profilePhotoTargetWrap.hidden = true;
+        switchTargetUser(currentUser.uid);
       }
+    });
+  }
+
+  if (profileTabPartner) {
+    profileTabPartner.addEventListener("click", () => {
+      const currentUser = getCurrentUser();
+      if (!currentUser) return;
 
       const currentProfiles = getCurrentProfiles();
       const otherUids = Object.keys(currentProfiles).filter((uid) => uid !== currentUser.uid);
@@ -275,56 +291,48 @@ export function initProfileHandlers() {
         return;
       }
 
-      // 첫 번째 상대방을 기본 선택하여 모달 오픈
-      openProfilePhotoModal(otherUids[0]);
-    });
-  }
-
-  // ---------------------------------------------------------
-  // 3. 모달 내부 이벤트 핸들러
-  // ---------------------------------------------------------
-  if (profilePhotoCloseBtn) {
-    profilePhotoCloseBtn.addEventListener("click", () => {
-      closeModal(profilePhotoModal);
-    });
-  }
-
-  if (profilePhotoCancelBtn) {
-    profilePhotoCancelBtn.addEventListener("click", () => {
-      closeModal(profilePhotoModal);
-    });
-  }
-
-  // 대상 셀렉트 변경 시
-  if (profilePhotoTargetSelect) {
-    profilePhotoTargetSelect.addEventListener("change", (e) => {
-      currentModalTargetUid = e.target.value;
-      pendingPhotoData = getProfilePhoto(currentModalTargetUid);
-
-      const currentUser = getCurrentUser();
-      if (profilePhotoGoogleBtn && currentUser) {
-        const isMyself = currentModalTargetUid === currentUser.uid;
-        profilePhotoGoogleBtn.hidden = !isMyself || !currentUser.photoURL;
+      if (otherUids.length > 1 && profilePhotoTargetWrap) {
+        profilePhotoTargetWrap.hidden = false;
+        profilePhotoTargetSelect.value = otherUids[0];
       }
 
+      switchTargetUser(otherUids[0]);
+    });
+  }
+
+  if (profilePhotoTargetSelect) {
+    profilePhotoTargetSelect.addEventListener("change", (e) => {
+      switchTargetUser(e.target.value);
+    });
+  }
+
+  // 이름 실시간 입력 시 미리보기 폴백(이니셜) 갱신
+  if (profileNameInput) {
+    profileNameInput.addEventListener("input", () => {
       updateModalPreview();
     });
   }
 
-  // 앨범에서 사진 선택 버튼 또는 미리보기 박스 클릭
-  if (profilePhotoPreviewWrap && profilePhotoFileInput) {
-    profilePhotoPreviewWrap.addEventListener("click", () => {
+  // ---------------------------------------------------------
+  // 3. 사진 변경 옵션 핸들러
+  // ---------------------------------------------------------
+  // 원형 미리보기 박스 또는 사진 선택 버튼 클릭
+  const triggerPhotoUpload = () => {
+    if (profilePhotoFileInput) {
       profilePhotoFileInput.value = "";
       profilePhotoFileInput.click();
-    });
+    }
+  };
+
+  if (profilePhotoPreviewWrap) {
+    profilePhotoPreviewWrap.addEventListener("click", triggerPhotoUpload);
   }
 
-  if (profilePhotoUploadBtn && profilePhotoFileInput) {
-    profilePhotoUploadBtn.addEventListener("click", () => {
-      profilePhotoFileInput.value = "";
-      profilePhotoFileInput.click();
-    });
+  if (profilePhotoUploadBtn) {
+    profilePhotoUploadBtn.addEventListener("click", triggerPhotoUpload);
+  }
 
+  if (profilePhotoFileInput) {
     profilePhotoFileInput.addEventListener("change", async (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
@@ -340,7 +348,7 @@ export function initProfileHandlers() {
     });
   }
 
-  // 구글 계정 사진 적용 버튼
+  // 구글 계정 사진 적용
   if (profilePhotoGoogleBtn) {
     profilePhotoGoogleBtn.addEventListener("click", () => {
       const currentUser = getCurrentUser();
@@ -351,7 +359,7 @@ export function initProfileHandlers() {
     });
   }
 
-  // 감성 이모지 프리셋 버튼들
+  // 감성 이모지 프리셋
   profileEmojiBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
       const emoji = btn.dataset.emoji;
@@ -362,7 +370,7 @@ export function initProfileHandlers() {
     });
   });
 
-  // 사진 삭제 버튼 (이니셜 배지로 복원)
+  // 사진 삭제
   if (profilePhotoDeleteBtn) {
     profilePhotoDeleteBtn.addEventListener("click", () => {
       pendingPhotoData = null;
@@ -370,123 +378,69 @@ export function initProfileHandlers() {
     });
   }
 
-  // 저장 완료 버튼
+  // ---------------------------------------------------------
+  // 4. 모달 닫기 및 취소
+  // ---------------------------------------------------------
+  if (profilePhotoCloseBtn) {
+    profilePhotoCloseBtn.addEventListener("click", () => {
+      closeModal(profilePhotoModal);
+    });
+  }
+
+  if (profilePhotoCancelBtn) {
+    profilePhotoCancelBtn.addEventListener("click", () => {
+      closeModal(profilePhotoModal);
+    });
+  }
+
+  // ---------------------------------------------------------
+  // 5. 저장 완료 버튼 (이름 + 사진 동시 저장)
+  // ---------------------------------------------------------
   if (profilePhotoSaveBtn) {
     profilePhotoSaveBtn.addEventListener("click", async () => {
       if (!currentModalTargetUid) return;
 
-      const currentProfiles = getCurrentProfiles();
-      const targetName = currentProfiles[currentModalTargetUid] || "참여자";
+      const newName = profileNameInput ? profileNameInput.value.trim() : "";
+      if (!newName) {
+        alert("이름은 빈 칸으로 둘 수 없습니다.");
+        if (profileNameInput) profileNameInput.focus();
+        return;
+      }
+
+      const currentUser = getCurrentUser();
+      const isSelf = currentModalTargetUid === currentUser?.uid;
 
       try {
         profilePhotoSaveBtn.disabled = true;
         profilePhotoSaveBtn.textContent = "저장 중...";
 
-        await setUserProfilePhoto(currentModalTargetUid, pendingPhotoData);
+        // 1) 이름 변경 처리
+        if (newName !== originalName) {
+          await setUserDisplayName(currentModalTargetUid, newName);
+          if (isSelf && currentUser) {
+            try {
+              await updateProfile(currentUser, { displayName: newName });
+            } catch (e) {}
+            if (whoAmI) whoAmI.textContent = newName;
+          }
+        }
+
+        // 2) 프로필 사진 변경 처리
+        if (pendingPhotoData !== originalPhotoData) {
+          await setUserProfilePhoto(currentModalTargetUid, pendingPhotoData);
+        }
 
         updateHeaderAvatar();
-        render(); // 타임라인 피드 즉시 갱신
+        render(); // 타임라인 즉각 갱신
         closeModal(profilePhotoModal);
 
-        alert(`${targetName}님의 프로필 사진이 성공적으로 저장되었습니다!`);
+        alert(`프로필이 성공적으로 저장되었습니다!`);
       } catch (err) {
         console.error(err);
-        showError("프로필 사진 저장 실패: " + err.message);
+        showError("프로필 저장 실패: " + err.message);
       } finally {
         profilePhotoSaveBtn.disabled = false;
         profilePhotoSaveBtn.textContent = "저장 완료";
-      }
-    });
-  }
-
-  // ---------------------------------------------------------
-  // 4. 내 이름 변경 버튼 (기존 기능 유지)
-  // ---------------------------------------------------------
-  if (changeNameButton) {
-    changeNameButton.addEventListener("click", async () => {
-      const currentUser = getCurrentUser();
-      if (!currentUser || !isAdmin(currentUser)) {
-        alert("이름 변경 권한이 없습니다. (관리자 전용 기능)");
-        return;
-      }
-
-      const currentProfiles = getCurrentProfiles();
-      const currentName = currentProfiles[currentUser.uid] || currentUser.displayName || "";
-      const newName = prompt("변경할 내 닉네임(이름)을 입력하세요:", currentName);
-
-      if (newName === null) return;
-      const trimmed = newName.trim();
-      if (trimmed === "") {
-        alert("이름은 빈 칸으로 둘 수 없습니다.");
-        return;
-      }
-
-      try {
-        await setUserDisplayName(currentUser.uid, trimmed);
-        try {
-          await updateProfile(currentUser, { displayName: trimmed });
-        } catch (e) {
-          // updateProfile 실패 시에도 Firestore 프로필 우선 적용
-        }
-        if (whoAmI) whoAmI.textContent = trimmed;
-        updateHeaderAvatar();
-        alert(`내 이름이 '${trimmed}'(으)로 변경되었습니다! 모든 글과 화면에 적용됩니다.`);
-      } catch (error) {
-        console.error(error);
-        showError("이름을 변경하지 못했습니다: " + error.message);
-      }
-    });
-  }
-
-  // ---------------------------------------------------------
-  // 5. 👥 친구 이름 변경 버튼 (기존 기능 유지)
-  // ---------------------------------------------------------
-  if (manageUsersButton) {
-    manageUsersButton.addEventListener("click", async () => {
-      const currentUser = getCurrentUser();
-      if (!currentUser || !isAdmin(currentUser)) {
-        alert("상대방 이름 변경 권한이 없습니다. (관리자 전용 기능)");
-        return;
-      }
-
-      const currentProfiles = getCurrentProfiles();
-      const otherUids = Object.keys(currentProfiles).filter((uid) => uid !== currentUser.uid);
-      if (otherUids.length === 0) {
-        alert("아직 등록된 다른 참여자가 없습니다. 글이나 댓글의 ✏️ 버튼을 눌러 변경할 수도 있습니다.");
-        return;
-      }
-
-      let menu = "이름을 변경할 대상을 선택하세요:\n";
-      otherUids.forEach((uid, idx) => {
-        menu += `${idx + 1}. ${currentProfiles[uid]}\n`;
-      });
-
-      const choice = prompt(menu + "\n번호를 입력하세요:");
-      if (choice === null) return;
-
-      const index = parseInt(choice, 10) - 1;
-      if (isNaN(index) || index < 0 || index >= otherUids.length) {
-        alert("올바른 번호를 입력해주세요.");
-        return;
-      }
-
-      const targetUid = otherUids[index];
-      const oldName = currentProfiles[targetUid];
-      const newName = prompt(`'${oldName}'님의 새 이름을 입력하세요:\n(상대방의 화면과 모든 글에 즉시 적용됩니다)`, oldName);
-      if (newName === null) return;
-
-      const trimmed = newName.trim();
-      if (!trimmed) {
-        alert("이름을 입력해주세요.");
-        return;
-      }
-
-      try {
-        await setUserDisplayName(targetUid, trimmed);
-        alert(`'${oldName}'님의 이름이 '${trimmed}'(으)로 성공적으로 변경되었습니다!`);
-      } catch (err) {
-        console.error(err);
-        showError("상대방 이름 변경 실패: " + err.message);
       }
     });
   }

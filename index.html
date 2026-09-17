@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
     <meta name="theme-color" content="#e66d7b" />
 
-    <link rel="stylesheet" href="style.css?v=20260917_3" />
+    <link rel="stylesheet" href="style.css?v=20260917_4" />
   </head>
 
   <body>
@@ -206,29 +206,19 @@
           <ul id="notice-list" class="notice-list"></ul>
         </section>
 
-        <p class="who">
-          <span class="who-info">
-            <button id="who-am-i-avatar-btn" class="who-avatar-btn" type="button" title="내 프로필 사진 변경" style="background: transparent; border: none; padding: 0; cursor: pointer;">
-              <span id="who-am-i-avatar" class="who-avatar">👤</span>
-            </button>
-            <span class="who-name-label">쓰는 사람: <strong id="who-am-i"></strong></span>
-            <button id="change-name-button" class="change-name-button" type="button">
-              내 이름 변경
-            </button>
-            <button id="change-photo-button" class="change-photo-button" type="button" title="내 프로필 사진 변경" style="cursor: pointer;">
-              🖼️ 사진 변경
-            </button>
-            <button id="manage-users-button" class="manage-users-button" type="button">
-              👥 친구 이름 변경
-            </button>
-            <button id="manage-user-photo-button" class="manage-user-photo-button" type="button" title="친구 프로필 사진 변경" hidden style="cursor: pointer;">
-              👥 친구 사진 변경
-            </button>
-          </span>
+        <div class="who">
+          <button id="who-am-i-profile-btn" class="who-profile-btn" type="button" title="프로필 사진 및 닉네임 설정">
+            <span id="who-am-i-avatar" class="who-avatar">👤</span>
+            <span class="who-text-wrap">
+              <span class="who-label">쓰는 사람:</span>
+              <strong id="who-am-i"></strong>
+              <span class="who-edit-badge" title="프로필 설정">✏️</span>
+            </span>
+          </button>
           <button id="logout-button" class="logout-button" type="button">
             로그아웃
           </button>
-        </p>
+        </div>
 
         <!-- 글 쓰는 곳 -->
         <section class="editor">
@@ -464,30 +454,42 @@
       </div>
     </div>
 
-    <!-- 프로필 사진 설정 모달 -->
+    <!-- 통합 프로필(사진 및 닉네임) 설정 모달 -->
     <div id="profile-photo-modal" class="modal-overlay" hidden>
       <div class="modal-content profile-photo-modal-card">
         <div class="profile-photo-modal-header">
           <div class="modal-title-wrap">
-            <span class="modal-icon">🖼️</span>
-            <h2 id="profile-photo-modal-title" class="modal-title">프로필 사진 설정</h2>
+            <span class="modal-icon">👤</span>
+            <h2 id="profile-photo-modal-title" class="modal-title">프로필 설정</h2>
           </div>
           <button id="profile-photo-close-btn" class="profile-photo-close-btn" type="button" title="닫기">✕</button>
         </div>
 
-        <!-- 대상 선택 (관리자 전용) -->
+        <!-- 대상 전환 탭 (관리자 전용: 내 프로필 / 친구 프로필) -->
+        <div id="profile-target-tabs" class="profile-tab-group" hidden>
+          <button type="button" id="profile-tab-self" class="profile-tab-btn active">🙋 내 프로필</button>
+          <button type="button" id="profile-tab-partner" class="profile-tab-btn">👥 친구 프로필</button>
+        </div>
+
+        <!-- 상대방 다수일 때 선택 드롭다운 -->
         <div id="profile-photo-target-wrap" class="form-group profile-target-wrap" hidden>
-          <label for="profile-photo-target-select" class="form-label">변경할 대상:</label>
+          <label for="profile-photo-target-select" class="form-label">대상 선택:</label>
           <select id="profile-photo-target-select" class="form-input profile-target-select"></select>
         </div>
 
         <!-- 프로필 아바타 미리보기 영역 -->
         <div class="profile-photo-preview-section">
-          <div id="profile-photo-preview-wrap" class="profile-photo-preview-wrap">
+          <div id="profile-photo-preview-wrap" class="profile-photo-preview-wrap" title="클릭하여 사진 변경">
             <img id="profile-photo-preview-img" class="profile-photo-preview-img" src="" alt="프로필 사진 미리보기" hidden />
             <div id="profile-photo-preview-fallback" class="profile-photo-preview-fallback">?</div>
           </div>
           <p id="profile-photo-user-desc" class="profile-photo-user-desc"></p>
+        </div>
+
+        <!-- 닉네임(이름) 입력 필드 -->
+        <div class="form-group profile-name-group">
+          <label for="profile-name-input" class="form-label">이름 (닉네임)</label>
+          <input type="text" id="profile-name-input" class="form-input profile-name-input" placeholder="변경할 이름을 입력하세요" maxlength="20" required />
         </div>
 
         <!-- 사진 변경 옵션 모음 -->
@@ -533,7 +535,7 @@
     </div>
 
     <!-- type="module" 을 지우면 앱이 통째로 죽습니다 -->
-    <script type="module" src="./app.js?v=20260917_3"></script>
+    <script type="module" src="./app.js?v=20260917_4"></script>
   </body>
 </html>
 
