@@ -10,6 +10,8 @@
 import {
   subscribeDailyQuestion,
   saveDailyQuestionAnswer,
+  addDailyQuestionComment,
+  removeDailyQuestionComment,
 } from "./store.js";
 import { getCurrentUser, getCurrentProfiles, getProfilePhoto, getUserInitial } from "./state.js";
 import { getTodayQuestion, getCoupleDays } from "./questions.js";
@@ -43,6 +45,17 @@ let lockDescEl = null;
 let partnerWaitingEl = null;
 let partnerDisplayEl = null;
 let partnerTextEl = null;
+
+// 댓글 DOM 요소
+let commentsContainerEl = null;
+let commentsCountEl = null;
+let commentsLockedNoticeEl = null;
+let commentsContentEl = null;
+let commentsEmptyEl = null;
+let commentsListEl = null;
+let commentFormEl = null;
+let commentInputEl = null;
+let commentSubmitBtn = null;
 
 // 내부 상태
 let currentDateObj = new Date();
@@ -213,9 +226,118 @@ export function renderCurrentDateQuestion() {
         }
       }
     }
+
+    // 4. 문답 댓글(한마디) 영역 렌더링
+    renderComments(myAnswer, partnerAnswer);
   } catch (err) {
     console.error("[daily-question] 문답 렌더링 오류:", err);
   }
+}
+
+/**
+ * 댓글 작성 시간 포맷 (방금 전, n분 전, HH:mm, M/D HH:mm)
+ */
+function formatCommentTime(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const now = new Date();
+  const diffSec = Math.floor((now - d) / 1000);
+  if (diffSec < 60) return "방금 전";
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전`;
+
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+
+  const isSameDay = d.toDateString() === now.toDateString();
+  if (isSameDay) {
+    return `${hours}:${minutes}`;
+  }
+  return `${m}/${day} ${hours}:${minutes}`;
+}
+
+/**
+ * 문답 댓글 목록 렌더링
+ */
+function renderComments(myAnswer, partnerAnswer) {
+  if (!commentsContainerEl) return;
+
+  const isUnlocked = Boolean(myAnswer?.text && partnerAnswer?.text);
+  const comments = currentQuestionDoc?.comments || [];
+
+  if (commentsCountEl) {
+    commentsCountEl.textContent = String(comments.length);
+  }
+
+  // 두 사람 모두 답변을 작성해야 댓글창이 활성화됨
+  if (!isUnlocked) {
+    if (commentsLockedNoticeEl) commentsLockedNoticeEl.hidden = false;
+    if (commentsContentEl) commentsContentEl.hidden = true;
+    return;
+  }
+
+  if (commentsLockedNoticeEl) commentsLockedNoticeEl.hidden = true;
+  if (commentsContentEl) commentsContentEl.hidden = false;
+
+  if (!commentsListEl) return;
+  commentsListEl.innerHTML = "";
+
+  if (comments.length === 0) {
+    if (commentsEmptyEl) commentsEmptyEl.hidden = false;
+    return;
+  }
+
+  if (commentsEmptyEl) commentsEmptyEl.hidden = true;
+
+  const currentUser = getCurrentUser();
+  const profiles = getCurrentProfiles() || {};
+
+  comments.forEach((c) => {
+    const isMe = currentUser && c.uid === currentUser.uid;
+    const li = document.createElement("li");
+    li.className = `dq-comment-item ${isMe ? "is-me" : "is-partner"}`;
+
+    const authorName = (c.uid && profiles[c.uid]) ? profiles[c.uid] : (c.author || "이름 없음");
+    const photo = c.uid ? getProfilePhoto(c.uid) : null;
+    const avatarHtml = photo
+      ? `<img src="${photo}" alt="${authorName}" class="dq-comment-avatar-img" />`
+      : `<span class="dq-comment-avatar-initial">${getUserInitial(authorName)}</span>`;
+
+    li.innerHTML = `
+      <div class="dq-comment-avatar">${avatarHtml}</div>
+      <div class="dq-comment-body">
+        <div class="dq-comment-meta">
+          <strong class="dq-comment-author">${authorName}</strong>
+          <span class="dq-comment-time">${formatCommentTime(c.createdAt)}</span>
+          ${isMe ? `<button type="button" class="dq-comment-del-btn" title="댓글 삭제">✕</button>` : ""}
+        </div>
+        <p class="dq-comment-text"></p>
+      </div>
+    `;
+
+    const textP = li.querySelector(".dq-comment-text");
+    if (textP) textP.textContent = c.text;
+
+    if (isMe) {
+      const delBtn = li.querySelector(".dq-comment-del-btn");
+      if (delBtn) {
+        delBtn.addEventListener("click", async () => {
+          if (!confirm("이 댓글을 삭제하시겠습니까?")) return;
+          try {
+            const dateStr = toDateString(currentDateObj);
+            await removeDailyQuestionComment(dateStr, c.id);
+            showToastNotification("댓글이 삭제되었습니다.", "🗑️");
+          } catch (err) {
+            console.error(err);
+            showError("댓글 삭제에 실패했습니다: " + err.message);
+          }
+        });
+      }
+    }
+
+    commentsListEl.appendChild(li);
+  });
 }
 
 /**
@@ -264,6 +386,64 @@ export function initDailyQuestion() {
   partnerWaitingEl = document.getElementById("dq-partner-waiting");
   partnerDisplayEl = document.getElementById("dq-partner-display");
   partnerTextEl = document.getElementById("dq-partner-text");
+
+  // 댓글 DOM 매핑
+  commentsContainerEl = document.getElementById("dq-comments-container");
+  commentsCountEl = document.getElementById("dq-comments-count");
+  commentsLockedNoticeEl = document.getElementById("dq-comments-locked-notice");
+  commentsContentEl = document.getElementById("dq-comments-content");
+  commentsEmptyEl = document.getElementById("dq-comments-empty");
+  commentsListEl = document.getElementById("dq-comments-list");
+  commentFormEl = document.getElementById("dq-comment-form");
+  commentInputEl = document.getElementById("dq-comment-input");
+  commentSubmitBtn = document.getElementById("dq-comment-submit-btn");
+
+  // 댓글 등록 폼 이벤트
+  if (commentFormEl) {
+    commentFormEl.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = commentInputEl?.value?.trim();
+      if (!text) {
+        showError("댓글 내용을 입력해 주세요! 💬");
+        commentInputEl?.focus();
+        return;
+      }
+
+      if (commentSubmitBtn) {
+        commentSubmitBtn.disabled = true;
+        commentSubmitBtn.textContent = "등록 중...";
+      }
+
+      try {
+        const dateStr = toDateString(currentDateObj);
+        await addDailyQuestionComment(dateStr, text);
+
+        if (commentInputEl) {
+          commentInputEl.value = "";
+        }
+        showToastNotification("댓글이 등록되었습니다! 💬", "💌");
+
+        // 상대방에게 푸시 알림 발송
+        const user = getCurrentUser();
+        const profiles = getCurrentProfiles() || {};
+        const myName = (user && profiles[user.uid]) ? profiles[user.uid] : (user?.displayName || "당신의 반쪽");
+        const preview = text.length > 20 ? text.substring(0, 20) + "..." : text;
+
+        sendPushToPartner({
+          title: "💬 오늘의 질문 댓글",
+          message: `${myName}: "${preview}"`,
+        });
+      } catch (err) {
+        console.error(err);
+        showError("댓글을 저장하지 못했습니다: " + err.message);
+      } finally {
+        if (commentSubmitBtn) {
+          commentSubmitBtn.disabled = false;
+          commentSubmitBtn.textContent = "등록";
+        }
+      }
+    });
+  }
 
   // 이전 날짜 보기 (◀)
   if (prevBtn) {

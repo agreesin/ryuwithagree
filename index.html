@@ -466,6 +466,46 @@
                   </div>
                 </div>
               </div>
+
+              <!-- 문답 댓글/대화 영역 -->
+              <div id="dq-comments-container" class="dq-comments-container">
+                <div class="dq-comments-divider"></div>
+                <div class="dq-comments-header">
+                  <span class="dq-comments-title">
+                    <span class="dq-comments-icon">💬</span>
+                    <span>우리들의 한마디</span>
+                  </span>
+                  <span id="dq-comments-count" class="dq-comments-count">0</span>
+                </div>
+
+                <!-- 잠금 안내 (답변 미완료 시) -->
+                <div id="dq-comments-locked-notice" class="dq-comments-notice" hidden>
+                  <span>🔒 두 사람 모두 답변을 남기면 댓글로 대화를 나눌 수 있어요!</span>
+                </div>
+
+                <!-- 댓글 목록 및 작성 폼 (둘 다 작성 완료 시 열림) -->
+                <div id="dq-comments-content" class="dq-comments-content" hidden>
+                  <div id="dq-comments-empty" class="dq-comments-empty" hidden>
+                    첫 번째 코멘트를 남겨 대화를 시작해보세요! 💌
+                  </div>
+                  <ul id="dq-comments-list" class="dq-comments-list"></ul>
+
+                  <form id="dq-comment-form" class="dq-comment-form">
+                    <input
+                      type="text"
+                      id="dq-comment-input"
+                      class="dq-comment-input"
+                      placeholder="답변에 대한 생각이나 한마디를 남겨보세요..."
+                      maxlength="300"
+                      autocomplete="off"
+                      required
+                    />
+                    <button type="submit" id="dq-comment-submit-btn" class="dq-comment-submit-btn">
+                      등록
+                    </button>
+                  </form>
+                </div>
+              </div>
             </div>
           </div>
         </section>

@@ -639,6 +639,62 @@ export async function saveDailyQuestionAnswer(dateStr, questionData, answerText)
   return answerPayload;
 }
 
+/**
+ * 오늘의 질문에 댓글을 작성합니다.
+ * @param {string} dateStr - YYYY-MM-DD
+ * @param {string} commentText - 댓글 내용
+ */
+export async function addDailyQuestionComment(dateStr, commentText) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("로그인이 필요합니다.");
+  if (!commentText || !commentText.trim()) throw new Error("댓글 내용을 입력해 주세요.");
+
+  const authorName = cachedProfiles[user.uid] || user.displayName || "이름 없음";
+  const questionDoc = doc(db, "daily_questions", dateStr);
+
+  const commentObj = {
+    id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    uid: user.uid,
+    author: authorName,
+    text: commentText.trim(),
+    createdAt: Date.now(),
+  };
+
+  await setDoc(
+    questionDoc,
+    {
+      comments: arrayUnion(commentObj),
+      lastUpdatedAt: Date.now(),
+    },
+    { merge: true }
+  );
+
+  return commentObj;
+}
+
+/**
+ * 오늘의 질문에서 본인이 작성한 댓글을 삭제합니다.
+ * @param {string} dateStr - YYYY-MM-DD
+ * @param {string} commentId - 댓글 ID
+ */
+export async function removeDailyQuestionComment(dateStr, commentId) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("로그인이 필요합니다.");
+
+  const questionDoc = doc(db, "daily_questions", dateStr);
+  const snap = await getDoc(questionDoc);
+  if (snap.exists()) {
+    const data = snap.data();
+    const updatedComments = (data.comments || []).filter(
+      (c) => !(c.id === commentId && c.uid === user.uid)
+    );
+    await updateDoc(questionDoc, {
+      comments: updatedComments,
+      lastUpdatedAt: Date.now(),
+    });
+  }
+}
+
 
 
 
