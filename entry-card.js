@@ -15,6 +15,7 @@ import {
 import { showError, formatDateTime } from "./ui.js";
 import { createCommentsSection } from "./comments.js";
 import { sendPushToPartner } from "./notify.js";
+import { attachTimelapse } from "./timelapse.js";
 
 const REACTION_EMOJIS = ["❤️", "🥰", "🥺", "👏", "🔥"];
 
@@ -171,11 +172,22 @@ export function createEntryCard(entry, idPrefix = "entry-") {
 
   // 그림/사진 렌더링 (하위 호환: image 필드가 존재할 때만 렌더링)
   if (entry.image) {
+    const hasTimelapse = entry.drawingData && Array.isArray(entry.drawingData) && entry.drawingData.length > 0;
+
     const entryImg = document.createElement("img");
     entryImg.className = "entry-image";
     entryImg.src = entry.image;
     entryImg.alt = entry.title ? `${entry.title} 이미지` : "일기 이미지";
-    item.appendChild(entryImg);
+
+    if (hasTimelapse) {
+      const imgContainer = document.createElement("div");
+      imgContainer.className = "entry-image-container has-timelapse";
+      imgContainer.appendChild(entryImg);
+      attachTimelapse(imgContainer, entryImg, entry.drawingData);
+      item.appendChild(imgContainer);
+    } else {
+      item.appendChild(entryImg);
+    }
   }
 
   // 공감 리액션 바 추가

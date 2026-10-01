@@ -5,8 +5,8 @@
 // 스트로크 히스토리 기반 Undo, WebP/JPEG 고압축 내보내기 담당.
 // =========================================================
 
-const LOGICAL_WIDTH = 800;
-const LOGICAL_HEIGHT = 500;
+export const LOGICAL_WIDTH = 800;
+export const LOGICAL_HEIGHT = 500;
 
 // 내부 상태 관리
 let canvas = null;
@@ -312,6 +312,54 @@ export function exportImage() {
 
   console.log(`[draw] 저장된 그림 데이터 길이: ${dataUrl.length}자 (포맷: ${format}, 품질: ${quality})`);
   return dataUrl;
+}
+
+/**
+ * 타임랩스 재생을 위한 경량화된 스트로크 데이터 추출
+ * - 좌표 정수화 (Math.round)
+ * - 객체 키 최소화 ({ m: 'p'|'e', c: color, w: width, pts: [x1, y1, x2, y2, ...] })
+ * - 대량 스트로크 시 안전 가드 및 다운샘플링 적용 (Firestore 1MB 한도 준수)
+ * @returns {Array|null}
+ */
+export function exportDrawingData() {
+  if (!hasDrawing()) return null;
+
+  // 전체 포인트 개수 계산
+  let totalPts = 0;
+  for (const s of strokes) {
+    totalPts += s.points ? s.points.length : 0;
+  }
+
+  // 포인트가 5000개 초과 시 점 1개씩 건너뛰어 샘플링 (용량 최적화)
+  const step = totalPts > 5000 ? 2 : 1;
+
+  const optimized = [];
+  for (const s of strokes) {
+    if (!s.points || s.points.length === 0) continue;
+
+    const pts = [];
+    pts.push(Math.round(s.points[0].x), Math.round(s.points[0].y));
+
+    for (let i = 1; i < s.points.length - 1; i += step) {
+      pts.push(Math.round(s.points[i].x), Math.round(s.points[i].y));
+    }
+
+    if (s.points.length > 1) {
+      const last = s.points[s.points.length - 1];
+      pts.push(Math.round(last.x), Math.round(last.y));
+    }
+
+    optimized.push({
+      m: s.mode === "eraser" ? "e" : "p",
+      c: s.mode === "eraser" ? "#ffffff" : s.color,
+      w: s.width,
+      pts,
+    });
+  }
+
+  const jsonStr = JSON.stringify(optimized);
+  console.log(`[draw] 타임랩스 스트로크 데이터 최적화 완료: ${optimized.length}개 획, 총 ${jsonStr.length}자`);
+  return optimized;
 }
 
 

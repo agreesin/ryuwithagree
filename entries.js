@@ -14,6 +14,7 @@ import {
   resetCanvas,
   hasDrawing,
   exportImage,
+  exportDrawingData,
 } from "./draw.js";
 import { showError } from "./ui.js";
 import { sendPushToPartner, showToastNotification } from "./notify.js";
@@ -128,13 +129,15 @@ async function onSave() {
 
   try {
     let image = null;
+    let drawingData = null;
     if (isDrawn) {
       image = exportImage();
+      drawingData = exportDrawingData();
     } else if (hasPhoto) {
       image = attachedPhotoData;
     }
 
-    await addEntry({ title, body, image, mood: selectedMood });
+    await addEntry({ title, body, image, mood: selectedMood, drawingData });
 
     // 상대방에게 백그라운드 웹 푸시 발송 시도
     sendPushToPartner({

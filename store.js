@@ -335,7 +335,7 @@ export function subscribeEntries(onChange, onError) {
 }
 
 // 일기 한 개를 저장한다. 작성자는 프로필 또는 로그인 정보에서 자동으로 붙는다.
-export async function addEntry({ title, body, image, mood }) {
+export async function addEntry({ title, body, image, mood, drawingData }) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
@@ -357,6 +357,11 @@ export async function addEntry({ title, body, image, mood }) {
   // 그림이 있을 때만 image 필드 추가 (null은 저장하지 않음)
   if (image) {
     entryData.image = image;
+  }
+
+  // 타임랩스 그림 데이터가 있을 때만 drawingData 필드 추가
+  if (drawingData && Array.isArray(drawingData) && drawingData.length > 0) {
+    entryData.drawingData = drawingData;
   }
 
   await addDoc(entriesRef, entryData);

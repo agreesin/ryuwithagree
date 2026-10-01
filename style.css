@@ -1307,6 +1307,86 @@ body {
 }
 
 /* =========================================================
+   5초 인라인 타임랩스 스타일
+   ========================================================= */
+
+.entry-image-container {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 14px auto 10px auto;
+}
+
+.entry-image-container .entry-image {
+  margin: 0 auto;
+}
+
+.entry-image-container.has-timelapse {
+  cursor: pointer;
+}
+
+.timelapse-canvas {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  width: calc(100% - 18px);
+  height: calc(100% - 30px);
+  border-radius: 4px;
+  display: none;
+  pointer-events: none;
+  z-index: 1;
+  background: #ffffff;
+}
+
+.timelapse-badge {
+  position: absolute;
+  right: 14px;
+  bottom: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #e66d7b;
+  border: 1px solid rgba(230, 109, 123, 0.35);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  box-shadow: 0 3px 10px rgba(230, 109, 123, 0.18);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 2;
+  user-select: none;
+}
+
+.timelapse-badge:hover {
+  background: #e66d7b;
+  color: #ffffff;
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 4px 14px rgba(230, 109, 123, 0.3);
+}
+
+.timelapse-badge.playing {
+  background: #ffe9ec;
+  border-color: #e66d7b;
+  color: #d84a5a;
+}
+
+.timelapse-badge.finished {
+  background: rgba(255, 255, 255, 0.94);
+  color: #555555;
+  border-color: #e2e8f0;
+}
+
+.timelapse-badge.finished:hover {
+  background: #f1f5f9;
+  color: #333333;
+}
+
+/* =========================================================
    댓글 영역 스타일
    ========================================================= */
 
@@ -3825,6 +3905,28 @@ body.modal-open {
   .entry-image {
     padding: 6px 6px 14px 6px;
     margin: 10px auto 6px auto;
+  }
+
+  .entry-image-container {
+    margin: 10px auto 6px auto;
+  }
+
+  .entry-image-container .entry-image {
+    margin: 0 auto;
+  }
+
+  .timelapse-canvas {
+    top: 7px;
+    left: 7px;
+    width: calc(100% - 14px);
+    height: calc(100% - 22px);
+  }
+
+  .timelapse-badge {
+    right: 10px;
+    bottom: 18px;
+    padding: 3px 8px;
+    font-size: 0.72rem;
   }
 
   .report-modal-card {
