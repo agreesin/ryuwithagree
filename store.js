@@ -603,18 +603,99 @@ export function subscribeDailyQuestion(dateStr, onChange) {
 }
 
 /**
+ * 커플 질문 진행 상태(_question_state) 실시간 감시
+ * @param {Function} onChange - 상태 변경 콜백 ({ currentOrder, completedIds })
+ */
+export function subscribeQuestionState(onChange) {
+  const stateDoc = doc(db, "daily_questions", "_question_state");
+  return onSnapshot(
+    stateDoc,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        onChange({
+          currentOrder: data.currentOrder || 1,
+          completedIds: Array.isArray(data.completedIds) ? data.completedIds : [],
+        });
+      } else {
+        // 초기 상태 생성
+        const initState = { currentOrder: 1, completedIds: [], updatedAt: Date.now() };
+        setDoc(stateDoc, initState, { merge: true }).catch(() => {});
+        onChange(initState);
+      }
+    },
+    (err) => {
+      console.warn("[store] 문답 상태 구독 오류:", err);
+      onChange({ currentOrder: 1, completedIds: [] });
+    }
+  );
+}
+
+/**
+ * 다음 질문으로 회차 전진 (Q.N -> Q.N+1)
+ * @param {number} nextOrder - 전진할 회차 번호
+ * @param {string} completedQuestionId - 방금 완료된 질문 ID
+ */
+export async function advanceToNextQuestion(nextOrder, completedQuestionId) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("로그인이 필요합니다.");
+
+  const stateDoc = doc(db, "daily_questions", "_question_state");
+  const updatePayload = {
+    currentOrder: Math.max(1, nextOrder),
+    updatedAt: Date.now(),
+  };
+
+  if (completedQuestionId) {
+    updatePayload.completedIds = arrayUnion(completedQuestionId);
+  }
+
+  await setDoc(stateDoc, updatePayload, { merge: true });
+}
+
+/**
+ * 지난 완료 문답 목록 전체 조회 (히스토리)
+ */
+export async function loadCompletedQuestions() {
+  const qColl = collection(db, "daily_questions");
+  const snap = await getDocs(qColl);
+  const items = [];
+
+  snap.forEach((d) => {
+    if (d.id === "_question_state") return;
+    const data = d.data();
+    if (data && data.question) {
+      items.push({
+        id: d.id,
+        ...data,
+      });
+    }
+  });
+
+  // 정렬: order 오름차순 또는 작성시간순
+  items.sort((a, b) => {
+    const orderA = a.question?.order || 9999;
+    const orderB = b.question?.order || 9999;
+    if (orderA !== orderB) return orderA - orderB;
+    return (b.lastUpdatedAt || 0) - (a.lastUpdatedAt || 0);
+  });
+
+  return items;
+}
+
+/**
  * 오늘의 질문에 대한 본인 답변을 저장(또는 수정)합니다.
- * @param {string} dateStr - YYYY-MM-DD
- * @param {Object} questionData - { id, badge, text, coupleDays }
+ * @param {string} docId - 질문 문서 ID (예: "order_1", "special_christmas_2026", "2026-10-01")
+ * @param {Object} questionData - { id, badge, text, coupleDays, order, isSpecial }
  * @param {string} answerText - 작성한 답변 텍스트
  */
-export async function saveDailyQuestionAnswer(dateStr, questionData, answerText) {
+export async function saveDailyQuestionAnswer(docId, questionData, answerText) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
   if (!answerText || !answerText.trim()) throw new Error("답변을 입력해 주세요.");
 
   const authorName = cachedProfiles[user.uid] || user.displayName || "이름 없음";
-  const questionDoc = doc(db, "daily_questions", dateStr);
+  const questionDoc = doc(db, "daily_questions", docId);
 
   const answerPayload = {
     uid: user.uid,
@@ -623,18 +704,37 @@ export async function saveDailyQuestionAnswer(dateStr, questionData, answerText)
     updatedAt: Date.now(),
   };
 
-  await setDoc(
-    questionDoc,
-    {
-      date: dateStr,
-      question: questionData,
-      answers: {
-        [user.uid]: answerPayload,
-      },
-      lastUpdatedAt: Date.now(),
-    },
-    { merge: true }
-  );
+  // 기존 문서 스냅샷 확인하여 양쪽 모두 작성되었는지 체크
+  const snap = await getDoc(questionDoc);
+  let existingAnswers = {};
+  if (snap.exists()) {
+    existingAnswers = snap.data().answers || {};
+  }
+  existingAnswers[user.uid] = answerPayload;
+
+  // 두 사람(현재 유저 외 최소 1명 더)의 답변이 있는지 판별
+  const answerKeys = Object.keys(existingAnswers);
+  const isBothAnswered = answerKeys.length >= 2;
+
+  const docPayload = {
+    id: docId,
+    question: questionData,
+    answers: existingAnswers,
+    isCompleted: isBothAnswered,
+    lastUpdatedAt: Date.now(),
+  };
+
+  if (isBothAnswered && !snap.data()?.completedAt) {
+    docPayload.completedAt = Date.now();
+  }
+
+  await setDoc(questionDoc, docPayload, { merge: true });
+
+  // 둘 다 작성 완료 시 _question_state에 완료 기록 추가
+  if (isBothAnswered) {
+    const stateDoc = doc(db, "daily_questions", "_question_state");
+    setDoc(stateDoc, { completedIds: arrayUnion(docId) }, { merge: true }).catch(() => {});
+  }
 
   return answerPayload;
 }

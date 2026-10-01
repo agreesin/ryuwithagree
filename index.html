@@ -406,13 +406,14 @@
         <section id="question-view-section" class="question-view-section" hidden>
           <div id="daily-question-section" class="daily-question-section">
             <div class="dq-card">
-              <!-- 질문 상단 헤더: 배지, 날짜 이동 탐색기 -->
+              <!-- 질문 상단 헤더: 배지, 지난 문답 목록 버튼 -->
               <div class="dq-header">
-                <span id="dq-badge" class="dq-badge">💌 오늘의 질문</span>
-                <div class="dq-nav">
-                  <button type="button" id="dq-prev-btn" class="dq-nav-btn" title="이전 질문">◀</button>
-                  <span id="dq-date-label" class="dq-date-label">오늘</span>
-                  <button type="button" id="dq-next-btn" class="dq-nav-btn" title="다음 질문" disabled>▶</button>
+                <span id="dq-badge" class="dq-badge">💌 Q.1</span>
+                <div class="dq-header-actions">
+                  <button type="button" id="dq-history-btn" class="dq-history-btn" title="완료된 문답 보관함">
+                    <span>📚 지난 문답</span>
+                    <span id="dq-history-count" class="dq-history-count">0</span>
+                  </button>
                 </div>
               </div>
 
@@ -465,6 +466,17 @@
                     <p id="dq-partner-text" class="dq-text"></p>
                   </div>
                 </div>
+              </div>
+
+              <!-- 두 사람 모두 작성 완료 시 나타나는 다음 질문 진행 바 -->
+              <div id="dq-next-question-wrap" class="dq-next-question-wrap" hidden>
+                <div class="dq-celebrate-box">
+                  <span class="dq-celebrate-icon">🎉</span>
+                  <span class="dq-celebrate-text">두 사람 모두 답변을 완료했어요! 서로의 마음을 확인해 보세요.</span>
+                </div>
+                <button type="button" id="dq-advance-btn" class="dq-advance-btn">
+                  다음 질문 열기 💌
+                </button>
               </div>
 
               <!-- 문답 댓글/대화 영역 -->
@@ -640,6 +652,25 @@
           <button type="button" id="profile-photo-cancel-btn" class="profile-modal-btn cancel">취소</button>
           <button type="button" id="profile-photo-save-btn" class="profile-modal-btn save">저장 완료</button>
         </div>
+      </div>
+    </div>
+
+    <!-- 지난 커플 문답 보관함 모달 -->
+    <div id="dq-history-modal" class="modal-overlay" hidden>
+      <div class="modal-content dq-history-modal-card">
+        <div class="dq-history-modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-icon">📚</span>
+            <h2 class="modal-title">우리가 함께한 문답 기록</h2>
+          </div>
+          <button id="dq-history-close-btn" class="dq-history-close-btn" type="button" title="닫기">✕</button>
+        </div>
+        <p class="modal-desc">둘이 함께 답변을 완성했던 소중한 질문들입니다.</p>
+
+        <div id="dq-history-empty" class="dq-history-empty" hidden>
+          아직 완료된 지난 문답이 없습니다. 첫 번째 질문을 완성해보세요! 💌
+        </div>
+        <ul id="dq-history-list" class="dq-history-list"></ul>
       </div>
     </div>
 

@@ -355,3 +355,119 @@ export function getTodayQuestion(ddayItems = [], targetDate = new Date()) {
     coupleDays,
   };
 }
+
+/**
+ * [신규] 오늘이 특별한 기념일(100일, n주년, 생일, 크리스마스 등)인지 감지하여 스페셜 질문 반환
+ * @param {Array} ddayItems - 디데이 항목들
+ * @param {Date} targetDate - 대상 날짜 객체 (기본 오늘)
+ * @returns {Object|null} 스페셜 질문 객체 또는 null
+ */
+export function checkSpecialDayQuestion(ddayItems, targetDate = new Date()) {
+  const coupleDays = getCoupleDays(ddayItems, targetDate);
+  const curYear = targetDate.getFullYear();
+  const curMonth = targetDate.getMonth() + 1;
+  const curDate = targetDate.getDate();
+
+  // 1. 디데이/기념일/생일 체크
+  if (Array.isArray(ddayItems)) {
+    for (const item of ddayItems) {
+      if (!item.date) continue;
+      const [y, m, d] = item.date.split("-").map(Number);
+
+      // 생일
+      if (item.type === "birthday" && m === curMonth && d === curDate) {
+        return {
+          id: `special_bday_${item.id}_${curYear}`,
+          isSpecial: true,
+          badge: `🎂 Special Q. ${item.title} 생일 특별 질문`,
+          text: `오늘 생일을 맞이한 소중한 사람에게 세상에서 가장 사랑을 듬뿍 담아 전하고 싶은 축하와 고마운 마음은?`,
+          coupleDays,
+        };
+      }
+
+      // 사귄 날짜 카운트업
+      if (item.type === "count_up") {
+        const startDate = new Date(y, m - 1, d).getTime();
+        const targetMid = new Date(curYear, targetDate.getMonth(), curDate).getTime();
+        const diffDays = Math.floor((targetMid - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+        const specialDays = [100, 200, 300, 500, 1000, 1500, 2000, 3000];
+        if (specialDays.includes(diffDays)) {
+          return {
+            id: `special_dday_${diffDays}`,
+            isSpecial: true,
+            badge: `💖 Special Q. 함께한 지 ${diffDays}일 기념 질문`,
+            text: `우리 함께한 지 벌써 ${diffDays}일째! 처음 만났을 때와 비교해서 지금 서로에 대해 가장 깊어지고 좋아진 점은?`,
+            coupleDays,
+          };
+        }
+
+        if (m === curMonth && d === curDate && curYear > y) {
+          const years = curYear - y;
+          return {
+            id: `special_anniversary_${years}y`,
+            isSpecial: true,
+            badge: `🎉 Special Q. 함께한 지 ${years}주년 기념 질문`,
+            text: `우리가 연인이 된 지 벌써 ${years}주년! 지난 ${years}년 동안 가장 잊지 못할 추억과, 앞으로 함께 걸어갈 시간에 전하고 싶은 마음은?`,
+            coupleDays,
+          };
+        }
+      }
+
+      // 맞춤 이벤트 당일
+      if (item.type === "event" && y === curYear && m === curMonth && d === curDate) {
+        return {
+          id: `special_event_${item.id}_${curYear}`,
+          isSpecial: true,
+          badge: `🌟 Special Q. ${item.title} 특별 질문`,
+          text: `오늘 맞이한 특별한 날('${item.title}'), 서로에게 전하고 싶은 가장 솔직하고 따뜻한 속마음은?`,
+          coupleDays,
+        };
+      }
+    }
+  }
+
+  // 2. 캘린더 시즌 특별 기념일 (크리스마스, 발렌타인 등)
+  for (const s of CALENDAR_SEASON_QUESTIONS) {
+    if (s.month === curMonth && s.date.includes(curDate)) {
+      return {
+        id: `special_season_${s.month}_${curDate}_${curYear}`,
+        isSpecial: true,
+        badge: `🎁 Special Q. ${s.badge.replace("질문", "").trim()}`,
+        text: s.text,
+        coupleDays,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * [신규] 회차 번호(order: 1, 2, 3...)에 해당하는 일반 질문 반환 (사귄 일 수 단계별 순차 배정)
+ * @param {number} order - 1부터 시작하는 회차 번호
+ * @param {number} coupleDays - 현재 사귄 일수
+ * @returns {Object} 질문 객체
+ */
+export function getQuestionByOrder(order = 1, coupleDays = 30) {
+  const safeOrder = Math.max(1, parseInt(order, 10) || 1);
+
+  // 연애 일수 단계별에 적합한 질문들을 우선 정렬
+  // 1단계(1~70일), 2단계(40~200일), 3단계(120~500일), 4단계(250일~)
+  const sortedPool = [...ROMANCE_QUESTIONS_POOL].sort((a, b) => {
+    if (a.minDays !== b.minDays) return a.minDays - b.minDays;
+    return a.maxDays - b.maxDays;
+  });
+
+  const index = (safeOrder - 1) % sortedPool.length;
+  const questionItem = sortedPool[index];
+
+  return {
+    id: `order_${safeOrder}`,
+    order: safeOrder,
+    isSpecial: false,
+    badge: `💌 Q.${safeOrder} (함께한 지 D+${coupleDays})`,
+    text: questionItem.text,
+    coupleDays,
+  };
+}
