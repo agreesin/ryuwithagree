@@ -37,6 +37,8 @@ let myTextEl = null;
 let partnerAvatarEl = null;
 let partnerNameEl = null;
 let partnerLockedEl = null;
+let lockIconEl = null;
+let lockTitleEl = null;
 let lockDescEl = null;
 let partnerWaitingEl = null;
 let partnerDisplayEl = null;
@@ -172,35 +174,47 @@ function renderCurrentDateQuestion() {
     if (editBtn) editBtn.hidden = true;
   }
 
-  // 상대방 답변 뷰 (★ 핵심 블라인드 잠금 로직 ★)
-  if (!myAnswer) {
-    // [상황 1] 내가 아직 답변을 안 씀 -> 무조건 블라인드 락(🔒)
-    if (partnerDisplayEl) partnerDisplayEl.hidden = true;
-    if (partnerWaitingEl) partnerWaitingEl.hidden = true;
-    if (partnerLockedEl) partnerLockedEl.hidden = false;
+  // 상대방 답변 뷰 (★ 명확한 상태 분기: 상대방 작성 여부 + 블라인드 잠금 ★)
+  const isPartnerAnswered = Boolean(partnerAnswer && partnerAnswer.text);
 
-    if (lockDescEl) {
-      if (partnerAnswer) {
-        lockDescEl.innerHTML = `<strong style="color: #e66d7b;">상대방이 이미 답변을 남겼어요! 💌</strong><br>내 답변을 먼저 남기면 즉시 잠금이 풀려요!`;
+  if (isPartnerAnswered) {
+    // [상대방이 작성한 경우]
+    if (!myAnswer) {
+      // 1) 상대방은 작성했는데, 내가 아직 안 씀 -> 블라인드 잠금 (🔒)
+      if (partnerDisplayEl) partnerDisplayEl.hidden = true;
+      if (partnerWaitingEl) partnerWaitingEl.hidden = true;
+      if (partnerLockedEl) {
+        partnerLockedEl.hidden = false;
         partnerLockedEl.classList.add("partner-ready");
-      } else {
-        lockDescEl.textContent = "내 답변을 먼저 남기면 상대방의 답변이 열려요!";
-        partnerLockedEl.classList.remove("partner-ready");
+      }
+      if (lockIconEl) lockIconEl.textContent = "🔒";
+      if (lockTitleEl) lockTitleEl.innerHTML = `<span style="color: #e66d7b;">상대방이 답변을 남겼어요! 💌</span>`;
+      if (lockDescEl) lockDescEl.textContent = "내 답변을 작성하면 상대방의 답변이 열려요!";
+    } else {
+      // 2) 둘 다 작성 완료 -> 🔓 잠금 해제되어 상대방 답변 공개!
+      if (partnerLockedEl) partnerLockedEl.hidden = true;
+      if (partnerWaitingEl) partnerWaitingEl.hidden = true;
+      if (partnerDisplayEl) {
+        partnerDisplayEl.hidden = false;
+        if (partnerTextEl) partnerTextEl.textContent = partnerAnswer.text;
       }
     }
   } else {
-    // [상황 2] 내가 답변을 씀 -> 🔓 잠금 해제
-    if (partnerLockedEl) partnerLockedEl.hidden = true;
-
-    if (partnerAnswer && partnerAnswer.text) {
-      // 상대방도 작성 완료 -> 답변 내용 공개!
-      if (partnerWaitingEl) partnerWaitingEl.hidden = true;
-      if (partnerDisplayEl) partnerDisplayEl.hidden = false;
-      if (partnerTextEl) partnerTextEl.textContent = partnerAnswer.text;
-    } else {
-      // 상대방은 아직 안 씀 -> 대기 상태
-      if (partnerDisplayEl) partnerDisplayEl.hidden = true;
-      if (partnerWaitingEl) partnerWaitingEl.hidden = false;
+    // [상대방이 아직 작성하지 않은 경우]
+    if (partnerDisplayEl) partnerDisplayEl.hidden = true;
+    if (partnerWaitingEl) partnerWaitingEl.hidden = true;
+    if (partnerLockedEl) {
+      partnerLockedEl.hidden = false;
+      partnerLockedEl.classList.remove("partner-ready");
+    }
+    if (lockIconEl) lockIconEl.textContent = "⏳";
+    if (lockTitleEl) lockTitleEl.textContent = "상대방이 아직 작성하지 않았어요";
+    if (lockDescEl) {
+      if (!myAnswer) {
+        lockDescEl.textContent = "내 답변을 먼저 남겨두면, 상대방이 작성했을 때 바로 확인할 수 있어요!";
+      } else {
+        lockDescEl.textContent = "상대방이 답변을 남기길 기다리는 중이에요...";
+      }
     }
   }
 }
@@ -245,6 +259,8 @@ export function initDailyQuestion() {
   partnerAvatarEl = document.getElementById("dq-partner-avatar");
   partnerNameEl = document.getElementById("dq-partner-name");
   partnerLockedEl = document.getElementById("dq-partner-locked");
+  lockIconEl = document.getElementById("dq-lock-icon");
+  lockTitleEl = document.getElementById("dq-lock-title");
   lockDescEl = document.getElementById("dq-lock-desc");
   partnerWaitingEl = document.getElementById("dq-partner-waiting");
   partnerDisplayEl = document.getElementById("dq-partner-display");

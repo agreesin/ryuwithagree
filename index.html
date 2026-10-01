@@ -266,11 +266,11 @@
                     <strong id="dq-partner-name">상대방의 답변</strong>
                   </span>
                 </div>
-                <!-- 1. 내가 아직 안 썼을 때: 블라인드 잠금 상태 -->
+                <!-- 1. 상대방 미작성 또는 블라인드 잠금 상태 -->
                 <div id="dq-partner-locked" class="dq-blind-card">
-                  <div class="dq-lock-icon">🔒</div>
-                  <strong class="dq-lock-title">답변이 숨겨져 있어요</strong>
-                  <p id="dq-lock-desc" class="dq-lock-desc">내 답변을 먼저 남기면 상대방의 답변이 열려요!</p>
+                  <div id="dq-lock-icon" class="dq-lock-icon">🔒</div>
+                  <strong id="dq-lock-title" class="dq-lock-title">상대방이 아직 작성하지 않았어요</strong>
+                  <p id="dq-lock-desc" class="dq-lock-desc">내 답변을 먼저 남겨보세요!</p>
                 </div>
                 <!-- 2. 내가 썼는데 상대방은 아직 안 썼을 때: 대기 상태 -->
                 <div id="dq-partner-waiting" class="dq-waiting-card" hidden>
