@@ -220,74 +220,17 @@
           </button>
         </div>
 
-        <!-- 독립형 오늘의 커플 문답 섹션 -->
-        <section id="daily-question-section" class="daily-question-section">
-          <div class="dq-card">
-            <!-- 질문 상단 헤더: 배지, 날짜 이동 탐색기 -->
-            <div class="dq-header">
-              <span id="dq-badge" class="dq-badge">💌 오늘의 질문</span>
-              <div class="dq-nav">
-                <button type="button" id="dq-prev-btn" class="dq-nav-btn" title="이전 질문">◀</button>
-                <span id="dq-date-label" class="dq-date-label">오늘</span>
-                <button type="button" id="dq-next-btn" class="dq-nav-btn" title="다음 질문" disabled>▶</button>
-              </div>
-            </div>
+        <!-- 뷰 모드 전환 탭 (피드 보기 / 달력 보기 / 오늘의 질문) -->
+        <div class="view-mode-tabs">
+          <button id="view-tab-feed" class="view-tab-btn active" type="button">📜 피드 보기</button>
+          <button id="view-tab-cal" class="view-tab-btn" type="button">📅 달력 보기</button>
+          <button id="view-tab-question" class="view-tab-btn" type="button">💌 오늘의 질문</button>
+        </div>
 
-            <!-- 질문 본문 -->
-            <h3 id="dq-question-text" class="dq-question-text">질문을 불러오는 중입니다...</h3>
-
-            <!-- 문답 상태 컨테이너 -->
-            <div id="dq-answers-wrap" class="dq-answers-wrap">
-              <!-- 나의 답변 영역 -->
-              <div class="dq-answer-box my-box">
-                <div class="dq-box-header">
-                  <span class="dq-box-user">
-                    <span id="dq-my-avatar" class="dq-avatar">👤</span>
-                    <strong id="dq-my-name">나의 답변</strong>
-                  </span>
-                  <button type="button" id="dq-edit-btn" class="dq-edit-btn" hidden>✏️ 수정</button>
-                </div>
-                <!-- 작성 폼 -->
-                <div id="dq-my-form" class="dq-form">
-                  <textarea id="dq-my-input" class="dq-textarea" rows="3" placeholder="질문에 대한 솔직한 생각을 남겨보세요..."></textarea>
-                  <button type="button" id="dq-submit-btn" class="dq-submit-btn">답변 남기기 💌</button>
-                </div>
-                <!-- 작성 완료 시 내 답변 표시 -->
-                <div id="dq-my-display" class="dq-display" hidden>
-                  <p id="dq-my-text" class="dq-text"></p>
-                </div>
-              </div>
-
-              <!-- 상대방 답변 영역 (블라인드 락 🔒) -->
-              <div class="dq-answer-box partner-box">
-                <div class="dq-box-header">
-                  <span class="dq-box-user">
-                    <span id="dq-partner-avatar" class="dq-avatar">💖</span>
-                    <strong id="dq-partner-name">상대방의 답변</strong>
-                  </span>
-                </div>
-                <!-- 1. 상대방 미작성 또는 블라인드 잠금 상태 -->
-                <div id="dq-partner-locked" class="dq-blind-card">
-                  <div id="dq-lock-icon" class="dq-lock-icon">🔒</div>
-                  <strong id="dq-lock-title" class="dq-lock-title">상대방이 아직 작성하지 않았어요</strong>
-                  <p id="dq-lock-desc" class="dq-lock-desc">내 답변을 먼저 남겨보세요!</p>
-                </div>
-                <!-- 2. 내가 썼는데 상대방은 아직 안 썼을 때: 대기 상태 -->
-                <div id="dq-partner-waiting" class="dq-waiting-card" hidden>
-                  <div class="dq-wait-icon">⏳</div>
-                  <p class="dq-wait-desc">상대방의 답변을 기다리는 중이에요...</p>
-                </div>
-                <!-- 3. 둘 다 썼을 때: 상대방 답변 공개 -->
-                <div id="dq-partner-display" class="dq-display" hidden>
-                  <p id="dq-partner-text" class="dq-text"></p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- 글 쓰는 곳 -->
-        <section class="editor">
+        <!-- 1. 피드 뷰 모드 섹션 (글 작성 + 검색/필터 + 타임라인 피드) -->
+        <div id="feed-view-section">
+          <!-- 글 쓰는 곳 -->
+          <section class="editor">
           <!-- 오늘의 기분 선택 바 -->
           <div class="mood-selector-container">
             <span class="mood-title">오늘의 기분:</span>
@@ -369,15 +312,7 @@
           </button>
         </section>
 
-        <!-- 뷰 모드 전환 탭 (피드 보기 / 달력 보기) -->
-        <div class="view-mode-tabs">
-          <button id="view-tab-feed" class="view-tab-btn active" type="button">📜 피드 보기</button>
-          <button id="view-tab-cal" class="view-tab-btn" type="button">📅 달력 보기</button>
-        </div>
-
-        <!-- 1. 피드 뷰 모드 섹션 -->
-        <div id="feed-view-section">
-          <!-- 실시간 검색 및 필터 바 -->
+        <!-- 실시간 검색 및 필터 바 -->
           <section class="search-filter-section">
             <div class="search-box">
               <span class="search-icon">🔍</span>
@@ -464,6 +399,74 @@
             <div id="cal-selected-events-wrap" class="cal-selected-events-wrap" hidden></div>
             <p id="cal-selected-empty" class="cal-selected-empty" hidden>이 날짜에 작성된 일기나 일정이 없습니다. 🍃</p>
             <ul id="cal-selected-entries-list" class="cal-selected-entries-list"></ul>
+          </div>
+        </section>
+
+        <!-- 3. 오늘의 커플 문답 뷰 모드 섹션 -->
+        <section id="question-view-section" class="question-view-section" hidden>
+          <div id="daily-question-section" class="daily-question-section">
+            <div class="dq-card">
+              <!-- 질문 상단 헤더: 배지, 날짜 이동 탐색기 -->
+              <div class="dq-header">
+                <span id="dq-badge" class="dq-badge">💌 오늘의 질문</span>
+                <div class="dq-nav">
+                  <button type="button" id="dq-prev-btn" class="dq-nav-btn" title="이전 질문">◀</button>
+                  <span id="dq-date-label" class="dq-date-label">오늘</span>
+                  <button type="button" id="dq-next-btn" class="dq-nav-btn" title="다음 질문" disabled>▶</button>
+                </div>
+              </div>
+
+              <!-- 질문 본문 -->
+              <h3 id="dq-question-text" class="dq-question-text">질문을 불러오는 중입니다...</h3>
+
+              <!-- 문답 상태 컨테이너 -->
+              <div id="dq-answers-wrap" class="dq-answers-wrap">
+                <!-- 나의 답변 영역 -->
+                <div class="dq-answer-box my-box">
+                  <div class="dq-box-header">
+                    <span class="dq-box-user">
+                      <span id="dq-my-avatar" class="dq-avatar">👤</span>
+                      <strong id="dq-my-name">나의 답변</strong>
+                    </span>
+                    <button type="button" id="dq-edit-btn" class="dq-edit-btn" hidden>✏️ 수정</button>
+                  </div>
+                  <!-- 작성 폼 -->
+                  <div id="dq-my-form" class="dq-form">
+                    <textarea id="dq-my-input" class="dq-textarea" rows="3" placeholder="질문에 대한 솔직한 생각을 남겨보세요..."></textarea>
+                    <button type="button" id="dq-submit-btn" class="dq-submit-btn">답변 남기기 💌</button>
+                  </div>
+                  <!-- 작성 완료 시 내 답변 표시 -->
+                  <div id="dq-my-display" class="dq-display" hidden>
+                    <p id="dq-my-text" class="dq-text"></p>
+                  </div>
+                </div>
+
+                <!-- 상대방 답변 영역 (블라인드 락 🔒) -->
+                <div class="dq-answer-box partner-box">
+                  <div class="dq-box-header">
+                    <span class="dq-box-user">
+                      <span id="dq-partner-avatar" class="dq-avatar">💖</span>
+                      <strong id="dq-partner-name">상대방의 답변</strong>
+                    </span>
+                  </div>
+                  <!-- 1. 상대방 미작성 또는 블라인드 잠금 상태 -->
+                  <div id="dq-partner-locked" class="dq-blind-card">
+                    <div id="dq-lock-icon" class="dq-lock-icon">🔒</div>
+                    <strong id="dq-lock-title" class="dq-lock-title">상대방이 아직 작성하지 않았어요</strong>
+                    <p id="dq-lock-desc" class="dq-lock-desc">내 답변을 먼저 남겨보세요!</p>
+                  </div>
+                  <!-- 2. 내가 썼는데 상대방은 아직 안 썼을 때: 대기 상태 -->
+                  <div id="dq-partner-waiting" class="dq-waiting-card" hidden>
+                    <div class="dq-wait-icon">⏳</div>
+                    <p class="dq-wait-desc">상대방의 답변을 기다리는 중이에요...</p>
+                  </div>
+                  <!-- 3. 둘 다 썼을 때: 상대방 답변 공개 -->
+                  <div id="dq-partner-display" class="dq-display" hidden>
+                    <p id="dq-partner-text" class="dq-text"></p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </div>

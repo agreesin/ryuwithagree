@@ -6,12 +6,15 @@ import { createEntryCard } from "./entry-card.js";
 import { getDdayItems, calculateDdayInfo, onDdayChange, getMilestonesForDate } from "./dday.js";
 import { getCurrentProfiles } from "./state.js";
 import { formatDateString } from "./ui.js";
+import { renderCurrentDateQuestion } from "./daily-question.js";
 
 // 화면 요소
 const viewTabFeed = document.getElementById("view-tab-feed");
 const viewTabCal = document.getElementById("view-tab-cal");
+const viewTabQuestion = document.getElementById("view-tab-question");
 const feedViewSection = document.getElementById("feed-view-section");
 const calViewSection = document.getElementById("calendar-view-section");
+const questionViewSection = document.getElementById("question-view-section");
 
 const calMonthTitle = document.getElementById("cal-month-title");
 const calPrevBtn = document.getElementById("cal-prev-btn");
@@ -349,27 +352,43 @@ function renderSelectedDateEntries(dateKey, entries, events = []) {
 }
 
 /**
+ * 뷰 모드 탭 전환 ('feed' | 'cal' | 'question')
+ */
+export function switchViewTab(mode = "feed") {
+  const tabs = [
+    { key: "feed", btn: viewTabFeed, section: feedViewSection },
+    { key: "cal", btn: viewTabCal, section: calViewSection, onActive: renderCalendar },
+    { key: "question", btn: viewTabQuestion, section: questionViewSection, onActive: renderCurrentDateQuestion },
+  ];
+
+  tabs.forEach((t) => {
+    const isActive = t.key === mode;
+    if (t.btn) {
+      if (isActive) t.btn.classList.add("active");
+      else t.btn.classList.remove("active");
+    }
+    if (t.section) {
+      t.section.hidden = !isActive;
+    }
+    if (isActive && typeof t.onActive === "function") {
+      t.onActive();
+    }
+  });
+}
+
+/**
  * 캘린더 모듈 초기화
  */
 export function initCalendar() {
-  // 1. 뷰 모드 전환 탭
-  if (viewTabFeed && viewTabCal) {
-    viewTabFeed.addEventListener("click", () => {
-      viewTabFeed.classList.add("active");
-      viewTabCal.classList.remove("active");
-      if (feedViewSection) feedViewSection.hidden = false;
-      if (calViewSection) calViewSection.hidden = true;
-    });
-
-    viewTabCal.addEventListener("click", () => {
-      viewTabCal.classList.add("active");
-      viewTabFeed.classList.remove("active");
-      if (feedViewSection) feedViewSection.hidden = true;
-      if (calViewSection) {
-        calViewSection.hidden = false;
-        renderCalendar();
-      }
-    });
+  // 1. 뷰 모드 전환 탭 (피드 / 달력 / 오늘의 질문)
+  if (viewTabFeed) {
+    viewTabFeed.addEventListener("click", () => switchViewTab("feed"));
+  }
+  if (viewTabCal) {
+    viewTabCal.addEventListener("click", () => switchViewTab("cal"));
+  }
+  if (viewTabQuestion) {
+    viewTabQuestion.addEventListener("click", () => switchViewTab("question"));
   }
 
   // 2. 월 이동 버튼

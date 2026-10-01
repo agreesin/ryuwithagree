@@ -11,7 +11,7 @@ import { initNotices } from "./notice.js";
 import { initNotify } from "./notify.js";
 import { initDday } from "./dday.js";
 import { initSearchFilter, render } from "./render.js";
-import { initCalendar } from "./calendar.js";
+import { initCalendar, switchViewTab } from "./calendar.js";
 import { initChangelog } from "./changelog.js";
 import { initAuth } from "./auth.js";
 import { initReport } from "./report.js";
@@ -35,18 +35,8 @@ function initHeaderHome() {
   if (!headerHomeBtn) return;
 
   headerHomeBtn.addEventListener("click", () => {
-    // 1. 피드 보기 모드로 복귀
-    const viewTabFeed = document.getElementById("view-tab-feed");
-    const viewTabCal = document.getElementById("view-tab-cal");
-    const feedViewSection = document.getElementById("feed-view-section");
-    const calViewSection = document.getElementById("calendar-view-section");
-
-    if (viewTabFeed && viewTabCal) {
-      viewTabFeed.classList.add("active");
-      viewTabCal.classList.remove("active");
-    }
-    if (feedViewSection) feedViewSection.hidden = false;
-    if (calViewSection) calViewSection.hidden = true;
+    // 1. 피드 보기 모드로 복귀 (3단 탭 전환 일원화)
+    switchViewTab("feed");
 
     // 2. 검색창 및 필터 초기화
     const searchInput = document.getElementById("search-input");
