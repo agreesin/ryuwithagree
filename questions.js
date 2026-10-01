@@ -189,8 +189,10 @@ const ROMANCE_QUESTIONS_POOL = [
 export function getCoupleDays(ddayItems = []) {
   if (!Array.isArray(ddayItems)) return 1;
   const item = ddayItems.find((it) => (it.type || "count_up") === "count_up");
-  if (!item || !item.date) return 1;
-  const [y, m, d] = item.date.split("-").map(Number);
+  if (!item || !item.date || typeof item.date !== "string") return 1;
+  const parts = item.date.split("-").map(Number);
+  if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return 1;
+  const [y, m, d] = parts;
   const now = new Date();
   const startDate = new Date(y, m - 1, d).getTime();
   const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -239,8 +241,10 @@ export function getTodayQuestion(ddayItems = [], targetDate = new Date()) {
   // ----------------------------------------------------
   if (Array.isArray(ddayItems) && ddayItems.length > 0) {
     for (const item of ddayItems) {
-      if (!item.date) continue;
-      const [y, m, d] = item.date.split("-").map(Number);
+      if (!item || !item.date || typeof item.date !== "string") continue;
+      const parts = item.date.split("-").map(Number);
+      if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) continue;
+      const [y, m, d] = parts;
 
       // (1) 생일 당일
       if (item.type === "birthday" && m === curMonth && d === curDate) {

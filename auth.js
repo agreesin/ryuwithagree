@@ -28,6 +28,7 @@ import {
   syncUserFcm,
 } from "./notify.js";
 import { startDdaySubscription, stopDdaySubscription } from "./dday.js";
+import { renderCurrentDateQuestion } from "./daily-question.js";
 
 // 화면 요소
 const loginButton = document.getElementById("login-button");
@@ -129,6 +130,7 @@ async function grantAccess(user) {
         }
         updateHeaderAvatar();
         render(); // 프로필 또는 사진 변경 시 타임라인 피드 실시간 갱신
+        renderCurrentDateQuestion(); // 문답 카드 프로필 갱신
       });
     }
   } catch (e) {

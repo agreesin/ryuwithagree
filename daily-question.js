@@ -13,7 +13,7 @@ import {
 } from "./store.js";
 import { getCurrentUser, getCurrentProfiles, getProfilePhoto, getUserInitial } from "./state.js";
 import { getTodayQuestion, getCoupleDays } from "./questions.js";
-import { getCurrentDdayItems } from "./dday.js";
+import { getCurrentDdayItems, onDdayChange } from "./dday.js";
 import { sendPushToPartner, showToastNotification } from "./notify.js";
 import { showError } from "./ui.js";
 
@@ -111,111 +111,110 @@ function getPartnerInfo() {
 /**
  * 현재 선택된 날짜의 문답 화면을 갱신합니다.
  */
-function renderCurrentDateQuestion() {
-  const dateStr = toDateString(currentDateObj);
-  const todayStr = toDateString(new Date());
+export function renderCurrentDateQuestion() {
+  try {
+    const dateStr = toDateString(currentDateObj);
+    const todayStr = toDateString(new Date());
 
-  // 이전/다음 날짜 버튼 제어 (미래로는 이동 불가)
-  if (nextBtn) {
-    nextBtn.disabled = dateStr >= todayStr;
-  }
-  if (dateLabelEl) {
-    dateLabelEl.textContent = getNavDateLabel(currentDateObj);
-  }
+    // 이전/다음 날짜 버튼 제어 (미래로는 이동 불가)
+    if (nextBtn) {
+      nextBtn.disabled = dateStr >= todayStr;
+    }
+    if (dateLabelEl) {
+      dateLabelEl.textContent = getNavDateLabel(currentDateObj);
+    }
 
-  // 1. 해당 날짜에 해당하는 질문 도출
-  const ddayItems = getCurrentDdayItems();
-  currentQuestionData = getTodayQuestion(ddayItems, currentDateObj);
+    // 1. 해당 날짜에 해당하는 질문 도출 (즉시 계산)
+    const ddayItems = getCurrentDdayItems();
+    currentQuestionData = getTodayQuestion(ddayItems, currentDateObj);
 
-  // Firestore 문서에 기존 저장된 질문이 있으면 그것을 존중
-  const displayBadge = currentQuestionDoc?.question?.badge || currentQuestionData.badge;
-  const displayText = currentQuestionDoc?.question?.text || currentQuestionData.text;
+    // Firestore 문서에 기존 저장된 질문이 있으면 그것을 우선 존중
+    const displayBadge = currentQuestionDoc?.question?.badge || currentQuestionData?.badge || "💌 오늘의 질문";
+    const displayText = currentQuestionDoc?.question?.text || currentQuestionData?.text || "오늘의 질문을 불러왔습니다.";
 
-  if (badgeEl) badgeEl.textContent = displayBadge;
-  if (questionTextEl) questionTextEl.textContent = displayText;
+    if (badgeEl) badgeEl.textContent = displayBadge;
+    if (questionTextEl) questionTextEl.textContent = displayText;
 
-  // 2. 사용자 프로필 및 아바타 세팅
-  const user = getCurrentUser();
-  const profiles = getCurrentProfiles();
-  const myName = (user && profiles[user.uid]) ? profiles[user.uid] : (user?.displayName || "나");
-  const partnerInfo = getPartnerInfo();
+    // 2. 사용자 프로필 및 아바타 세팅
+    const user = getCurrentUser();
+    const profiles = getCurrentProfiles() || {};
+    const myName = (user && profiles[user.uid]) ? profiles[user.uid] : (user?.displayName || "나");
+    const partnerInfo = getPartnerInfo();
 
-  if (myNameEl) myNameEl.textContent = myName;
-  if (myAvatarEl) renderAvatar(myAvatarEl, user?.uid, myName);
+    if (myNameEl) myNameEl.textContent = myName;
+    if (myAvatarEl) renderAvatar(myAvatarEl, user?.uid, myName);
 
-  if (partnerNameEl) partnerNameEl.textContent = partnerInfo.name;
-  if (partnerAvatarEl) renderAvatar(partnerAvatarEl, partnerInfo.uid, partnerInfo.name);
+    if (partnerNameEl) partnerNameEl.textContent = partnerInfo.name;
+    if (partnerAvatarEl) renderAvatar(partnerAvatarEl, partnerInfo.uid, partnerInfo.name);
 
-  // 3. 답변 및 블라인드 상태 계산
-  const answers = currentQuestionDoc?.answers || {};
-  const myAnswer = user ? answers[user.uid] : null;
+    // 3. 답변 및 블라인드 상태 계산
+    const answers = currentQuestionDoc?.answers || {};
+    const myAnswer = user ? answers[user.uid] : null;
 
-  // 상대방 답변 찾기 (파트너 UID 또는 내 UID가 아닌 다른 첫 번째 답변)
-  let partnerAnswer = null;
-  if (user) {
-    for (const [ansUid, ansData] of Object.entries(answers)) {
-      if (ansUid !== user.uid) {
-        partnerAnswer = ansData;
-        break;
+    let partnerAnswer = null;
+    if (user) {
+      for (const [ansUid, ansData] of Object.entries(answers)) {
+        if (ansUid !== user.uid) {
+          partnerAnswer = ansData;
+          break;
+        }
       }
     }
-  }
 
-  // 나의 답변 뷰
-  if (myAnswer && myAnswer.text) {
-    if (myFormEl) myFormEl.hidden = true;
-    if (myDisplayEl) myDisplayEl.hidden = false;
-    if (myTextEl) myTextEl.textContent = myAnswer.text;
-    if (editBtn) editBtn.hidden = false;
-  } else {
-    if (myFormEl) myFormEl.hidden = false;
-    if (myDisplayEl) myDisplayEl.hidden = true;
-    if (myInputEl) myInputEl.value = "";
-    if (editBtn) editBtn.hidden = true;
-  }
+    // 나의 답변 뷰
+    if (myAnswer && myAnswer.text) {
+      if (myFormEl) myFormEl.hidden = true;
+      if (myDisplayEl) myDisplayEl.hidden = false;
+      if (myTextEl) myTextEl.textContent = myAnswer.text;
+      if (editBtn) editBtn.hidden = false;
+    } else {
+      if (myFormEl) myFormEl.hidden = false;
+      if (myDisplayEl) myDisplayEl.hidden = true;
+      if (myInputEl && !myInputEl.value) myInputEl.value = "";
+      if (editBtn) editBtn.hidden = true;
+    }
 
-  // 상대방 답변 뷰 (★ 명확한 상태 분기: 상대방 작성 여부 + 블라인드 잠금 ★)
-  const isPartnerAnswered = Boolean(partnerAnswer && partnerAnswer.text);
+    // 상대방 답변 뷰 (★ 명확한 상태 분기: 상대방 작성 여부 + 블라인드 잠금 ★)
+    const isPartnerAnswered = Boolean(partnerAnswer && partnerAnswer.text);
 
-  if (isPartnerAnswered) {
-    // [상대방이 작성한 경우]
-    if (!myAnswer) {
-      // 1) 상대방은 작성했는데, 내가 아직 안 씀 -> 블라인드 잠금 (🔒)
+    if (isPartnerAnswered) {
+      if (!myAnswer) {
+        if (partnerDisplayEl) partnerDisplayEl.hidden = true;
+        if (partnerWaitingEl) partnerWaitingEl.hidden = true;
+        if (partnerLockedEl) {
+          partnerLockedEl.hidden = false;
+          partnerLockedEl.classList.add("partner-ready");
+        }
+        if (lockIconEl) lockIconEl.textContent = "🔒";
+        if (lockTitleEl) lockTitleEl.innerHTML = `<span style="color: #e66d7b;">상대방이 답변을 남겼어요! 💌</span>`;
+        if (lockDescEl) lockDescEl.textContent = "내 답변을 작성하면 상대방의 답변이 열려요!";
+      } else {
+        if (partnerLockedEl) partnerLockedEl.hidden = true;
+        if (partnerWaitingEl) partnerWaitingEl.hidden = true;
+        if (partnerDisplayEl) {
+          partnerDisplayEl.hidden = false;
+          if (partnerTextEl) partnerTextEl.textContent = partnerAnswer.text;
+        }
+      }
+    } else {
       if (partnerDisplayEl) partnerDisplayEl.hidden = true;
       if (partnerWaitingEl) partnerWaitingEl.hidden = true;
       if (partnerLockedEl) {
         partnerLockedEl.hidden = false;
-        partnerLockedEl.classList.add("partner-ready");
+        partnerLockedEl.classList.remove("partner-ready");
       }
-      if (lockIconEl) lockIconEl.textContent = "🔒";
-      if (lockTitleEl) lockTitleEl.innerHTML = `<span style="color: #e66d7b;">상대방이 답변을 남겼어요! 💌</span>`;
-      if (lockDescEl) lockDescEl.textContent = "내 답변을 작성하면 상대방의 답변이 열려요!";
-    } else {
-      // 2) 둘 다 작성 완료 -> 🔓 잠금 해제되어 상대방 답변 공개!
-      if (partnerLockedEl) partnerLockedEl.hidden = true;
-      if (partnerWaitingEl) partnerWaitingEl.hidden = true;
-      if (partnerDisplayEl) {
-        partnerDisplayEl.hidden = false;
-        if (partnerTextEl) partnerTextEl.textContent = partnerAnswer.text;
+      if (lockIconEl) lockIconEl.textContent = "⏳";
+      if (lockTitleEl) lockTitleEl.textContent = "상대방이 아직 작성하지 않았어요";
+      if (lockDescEl) {
+        if (!myAnswer) {
+          lockDescEl.textContent = "내 답변을 먼저 남겨두면, 상대방이 작성했을 때 바로 확인할 수 있어요!";
+        } else {
+          lockDescEl.textContent = "상대방이 답변을 남기길 기다리는 중이에요...";
+        }
       }
     }
-  } else {
-    // [상대방이 아직 작성하지 않은 경우]
-    if (partnerDisplayEl) partnerDisplayEl.hidden = true;
-    if (partnerWaitingEl) partnerWaitingEl.hidden = true;
-    if (partnerLockedEl) {
-      partnerLockedEl.hidden = false;
-      partnerLockedEl.classList.remove("partner-ready");
-    }
-    if (lockIconEl) lockIconEl.textContent = "⏳";
-    if (lockTitleEl) lockTitleEl.textContent = "상대방이 아직 작성하지 않았어요";
-    if (lockDescEl) {
-      if (!myAnswer) {
-        lockDescEl.textContent = "내 답변을 먼저 남겨두면, 상대방이 작성했을 때 바로 확인할 수 있어요!";
-      } else {
-        lockDescEl.textContent = "상대방이 답변을 남기길 기다리는 중이에요...";
-      }
-    }
+  } catch (err) {
+    console.error("[daily-question] 문답 렌더링 오류:", err);
   }
 }
 
@@ -340,7 +339,19 @@ export function initDailyQuestion() {
     });
   }
 
-  // 오늘 날짜로 최초 구독 시작
+  // 1. 오늘 날짜로 즉시 동기적 1회 렌더링 (질문을 즉각 화면에 노출)
   currentDateObj = new Date();
+  renderCurrentDateQuestion();
+
+  // 2. D-Day 로드 시 질문 재계산 연동
+  try {
+    onDdayChange(() => {
+      renderCurrentDateQuestion();
+    });
+  } catch (e) {
+    console.warn("[daily-question] onDdayChange 바인딩 경고:", e);
+  }
+
+  // 3. 오늘 날짜로 Firestore 실시간 구독 시작
   listenToDate(toDateString(currentDateObj));
 }
