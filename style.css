@@ -843,6 +843,116 @@ body {
   box-shadow: 0 2px 6px rgba(230, 109, 123, 0.3);
 }
 
+/* =========================================================
+   썸원 스타일 오늘의 질문 섹션
+   ========================================================= */
+
+.today-question-wrap {
+  margin: 10px 0 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.today-question-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #fff0f3 0%, #ffe3e8 100%);
+  color: var(--primary-color, #e66d7b);
+  border: 1px solid #f6c8d1;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 2px 8px rgba(230, 109, 123, 0.12);
+}
+
+.today-question-btn:hover {
+  background: linear-gradient(135deg, #ffe3e8 0%, #ffd6dd 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(230, 109, 123, 0.2);
+}
+
+.today-question-btn.active {
+  background: var(--primary-color, #e66d7b);
+  color: #ffffff;
+  border-color: var(--primary-color, #e66d7b);
+  box-shadow: 0 3px 10px rgba(230, 109, 123, 0.3);
+}
+
+.today-question-card {
+  background: #ffffff;
+  border: 1.5px solid #f6c8d1;
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 14px rgba(230, 109, 123, 0.08);
+  position: relative;
+  animation: fadeInQuestion 0.28s ease-out;
+}
+
+@keyframes fadeInQuestion {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.question-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.question-card-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary-color, #e66d7b);
+  background: #fff0f3;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid #ffd1dc;
+}
+
+.question-close-btn {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.question-close-btn:hover {
+  background: #f1f1f1;
+  color: #444;
+}
+
+.question-card-text {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #2c3e50;
+  word-break: keep-all;
+}
+
+.question-card-tip {
+  font-size: 0.78rem;
+  color: #888;
+  display: block;
+}
+
 .title-input,
 .body-input {
   width: 100%;
@@ -3900,6 +4010,19 @@ body.modal-open {
   .entry {
     padding: 16px 14px;
     border-radius: 12px;
+  }
+
+  .today-question-btn {
+    font-size: 0.82rem;
+    padding: 7px 12px;
+  }
+
+  .today-question-card {
+    padding: 12px 14px;
+  }
+
+  .question-card-text {
+    font-size: 0.94rem;
   }
 
   .entry-image {

@@ -235,6 +235,22 @@
             </div>
           </div>
 
+          <!-- 썸원 스타일 오늘의 질문 섹션 -->
+          <div class="today-question-wrap">
+            <button type="button" id="today-question-btn" class="today-question-btn">
+              <span class="question-btn-icon">💬</span>
+              <span class="question-btn-text">오늘의 질문 받기</span>
+            </button>
+            <div id="today-question-card" class="today-question-card" hidden>
+              <div class="question-card-header">
+                <span id="question-card-badge" class="question-card-badge">💌 오늘의 질문</span>
+                <button type="button" id="question-close-btn" class="question-close-btn" title="질문 닫기">✕</button>
+              </div>
+              <p id="question-card-text" class="question-card-text"></p>
+              <span class="question-card-tip">💡 질문에 대한 생각을 일기로 남겨보세요!</span>
+            </div>
+          </div>
+
           <input
             id="title-input"
             class="title-input"

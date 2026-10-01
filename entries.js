@@ -19,12 +19,21 @@ import {
 import { showError } from "./ui.js";
 import { sendPushToPartner, showToastNotification } from "./notify.js";
 import { getCurrentUser, getCurrentProfiles } from "./state.js";
+import { getTodayQuestion } from "./questions.js";
+import { getCurrentDdayItems } from "./dday.js";
 
 // 입력 요소
 const titleInput = document.getElementById("title-input");
 const bodyInput = document.getElementById("body-input");
 const saveButton = document.getElementById("save-button");
 const moodBtns = document.querySelectorAll(".mood-btn");
+
+// 썸원 스타일 오늘의 질문 화면 요소
+const todayQuestionBtn = document.getElementById("today-question-btn");
+const todayQuestionCard = document.getElementById("today-question-card");
+const questionCardBadge = document.getElementById("question-card-badge");
+const questionCardText = document.getElementById("question-card-text");
+const questionCloseBtn = document.getElementById("question-close-btn");
 
 // 사진 첨부 화면 요소
 const photoToggleBtn = document.getElementById("photo-toggle-btn");
@@ -163,6 +172,10 @@ async function onSave() {
       drawToggleBtn.textContent = "🎨 그림 그리기";
     }
 
+    // 오늘의 질문 카드 초기화
+    if (todayQuestionCard) todayQuestionCard.hidden = true;
+    if (todayQuestionBtn) todayQuestionBtn.classList.remove("active");
+
     titleInput.focus();
     showToastNotification("일기가 등록되었습니다! 💌", "📖");
   } catch (error) {
@@ -201,6 +214,49 @@ export function initEditor() {
       }
     });
   });
+
+  // 썸원 스타일 오늘의 질문 받기 버튼 배선
+  if (todayQuestionBtn && todayQuestionCard) {
+    todayQuestionBtn.addEventListener("click", () => {
+      const isCardOpen = !todayQuestionCard.hidden;
+
+      // 이미 열려있다면 닫기 토글
+      if (isCardOpen) {
+        todayQuestionCard.hidden = true;
+        todayQuestionBtn.classList.remove("active");
+        return;
+      }
+
+      // 시스템이 오늘 날짜/기념일/계절을 분석하여 1개의 질문 자동 도출
+      const ddayItems = getCurrentDdayItems();
+      const q = getTodayQuestion(ddayItems);
+
+      if (questionCardBadge) questionCardBadge.textContent = q.badge;
+      if (questionCardText) questionCardText.textContent = q.text;
+
+      todayQuestionCard.hidden = false;
+      todayQuestionBtn.classList.add("active");
+
+      // 제목이 비어있거나 기존 질문 제목인 경우 자동으로 질문 세팅
+      if (!titleInput.value || titleInput.value.startsWith("[질문]")) {
+        titleInput.value = `[질문] ${q.text}`;
+      }
+
+      // 본문 입력란으로 자동 포커스
+      bodyInput.focus();
+    });
+  }
+
+  // 오늘의 질문 카드 닫기(✕) 버튼 배선
+  if (questionCloseBtn && todayQuestionCard) {
+    questionCloseBtn.addEventListener("click", () => {
+      todayQuestionCard.hidden = true;
+      if (todayQuestionBtn) todayQuestionBtn.classList.remove("active");
+      if (titleInput.value.startsWith("[질문]")) {
+        titleInput.value = "";
+      }
+    });
+  }
 
   // 사진 첨부 버튼 클릭 시 파일 선택창 열기
   if (photoToggleBtn && photoFileInput) {

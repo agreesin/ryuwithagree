@@ -57,6 +57,14 @@ let currentDdayConfig = { mainId: null, items: [] };
 let selectedIcon = "💖";
 
 /**
+ * 현재 메모리에 로드된 전체 기념일 항목 목록을 반환합니다.
+ * @returns {Array}
+ */
+export function getCurrentDdayItems() {
+  return currentDdayConfig.items || [];
+}
+
+/**
  * 아이콘 선택기에서 특정 아이콘을 활성화합니다.
  */
 function setActiveIcon(icon) {
