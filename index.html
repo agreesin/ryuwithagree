@@ -220,6 +220,72 @@
           </button>
         </div>
 
+        <!-- 독립형 오늘의 커플 문답 섹션 -->
+        <section id="daily-question-section" class="daily-question-section">
+          <div class="dq-card">
+            <!-- 질문 상단 헤더: 배지, 날짜 이동 탐색기 -->
+            <div class="dq-header">
+              <span id="dq-badge" class="dq-badge">💌 오늘의 질문</span>
+              <div class="dq-nav">
+                <button type="button" id="dq-prev-btn" class="dq-nav-btn" title="이전 질문">◀</button>
+                <span id="dq-date-label" class="dq-date-label">오늘</span>
+                <button type="button" id="dq-next-btn" class="dq-nav-btn" title="다음 질문" disabled>▶</button>
+              </div>
+            </div>
+
+            <!-- 질문 본문 -->
+            <h3 id="dq-question-text" class="dq-question-text">질문을 불러오는 중입니다...</h3>
+
+            <!-- 문답 상태 컨테이너 -->
+            <div id="dq-answers-wrap" class="dq-answers-wrap">
+              <!-- 나의 답변 영역 -->
+              <div class="dq-answer-box my-box">
+                <div class="dq-box-header">
+                  <span class="dq-box-user">
+                    <span id="dq-my-avatar" class="dq-avatar">👤</span>
+                    <strong id="dq-my-name">나의 답변</strong>
+                  </span>
+                  <button type="button" id="dq-edit-btn" class="dq-edit-btn" hidden>✏️ 수정</button>
+                </div>
+                <!-- 작성 폼 -->
+                <div id="dq-my-form" class="dq-form">
+                  <textarea id="dq-my-input" class="dq-textarea" rows="3" placeholder="질문에 대한 솔직한 생각을 남겨보세요..."></textarea>
+                  <button type="button" id="dq-submit-btn" class="dq-submit-btn">답변 남기기 💌</button>
+                </div>
+                <!-- 작성 완료 시 내 답변 표시 -->
+                <div id="dq-my-display" class="dq-display" hidden>
+                  <p id="dq-my-text" class="dq-text"></p>
+                </div>
+              </div>
+
+              <!-- 상대방 답변 영역 (블라인드 락 🔒) -->
+              <div class="dq-answer-box partner-box">
+                <div class="dq-box-header">
+                  <span class="dq-box-user">
+                    <span id="dq-partner-avatar" class="dq-avatar">💖</span>
+                    <strong id="dq-partner-name">상대방의 답변</strong>
+                  </span>
+                </div>
+                <!-- 1. 내가 아직 안 썼을 때: 블라인드 잠금 상태 -->
+                <div id="dq-partner-locked" class="dq-blind-card">
+                  <div class="dq-lock-icon">🔒</div>
+                  <strong class="dq-lock-title">답변이 숨겨져 있어요</strong>
+                  <p id="dq-lock-desc" class="dq-lock-desc">내 답변을 먼저 남기면 상대방의 답변이 열려요!</p>
+                </div>
+                <!-- 2. 내가 썼는데 상대방은 아직 안 썼을 때: 대기 상태 -->
+                <div id="dq-partner-waiting" class="dq-waiting-card" hidden>
+                  <div class="dq-wait-icon">⏳</div>
+                  <p class="dq-wait-desc">상대방의 답변을 기다리는 중이에요...</p>
+                </div>
+                <!-- 3. 둘 다 썼을 때: 상대방 답변 공개 -->
+                <div id="dq-partner-display" class="dq-display" hidden>
+                  <p id="dq-partner-text" class="dq-text"></p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- 글 쓰는 곳 -->
         <section class="editor">
           <!-- 오늘의 기분 선택 바 -->
@@ -232,22 +298,6 @@
               <button type="button" class="mood-btn" data-mood="🤬" title="화남/분노">🤬</button>
               <button type="button" class="mood-btn" data-mood="🤯" title="멘붕/멍함">🤯</button>
               <button type="button" class="mood-btn" data-mood="😴" title="피곤/졸림">😴</button>
-            </div>
-          </div>
-
-          <!-- 오늘의 질문 섹션 -->
-          <div class="today-question-wrap">
-            <button type="button" id="today-question-btn" class="today-question-btn">
-              <span class="question-btn-icon">💬</span>
-              <span class="question-btn-text">오늘의 질문 받기</span>
-            </button>
-            <div id="today-question-card" class="today-question-card" hidden>
-              <div class="question-card-header">
-                <span id="question-card-badge" class="question-card-badge">💌 오늘의 질문</span>
-                <button type="button" id="question-close-btn" class="question-close-btn" title="질문 닫기">✕</button>
-              </div>
-              <p id="question-card-text" class="question-card-text"></p>
-              <span class="question-card-tip">💡 질문에 대한 생각을 일기로 남겨보세요!</span>
             </div>
           </div>
 

@@ -571,6 +571,74 @@ export async function saveDdayConfig(configData) {
   });
 }
 
+// =========================================================
+// 오늘의 커플 문답 (Daily Question) 관리
+// =========================================================
+
+const dailyQuestionsRef = collection(db, "daily_questions");
+
+/**
+ * 특정 날짜의 문답 데이터를 실시간 구독합니다.
+ * @param {string} dateStr - YYYY-MM-DD
+ * @param {Function} onChange - (data) => void
+ * @returns {Function} 구독 해제 함수
+ */
+export function subscribeDailyQuestion(dateStr, onChange) {
+  if (!dateStr) return () => {};
+  const questionDoc = doc(db, "daily_questions", dateStr);
+  return onSnapshot(
+    questionDoc,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        onChange(snapshot.data());
+      } else {
+        onChange(null);
+      }
+    },
+    (err) => {
+      console.warn("[store] 문답 구독 오류:", err);
+      onChange(null);
+    }
+  );
+}
+
+/**
+ * 오늘의 질문에 대한 본인 답변을 저장(또는 수정)합니다.
+ * @param {string} dateStr - YYYY-MM-DD
+ * @param {Object} questionData - { id, badge, text, coupleDays }
+ * @param {string} answerText - 작성한 답변 텍스트
+ */
+export async function saveDailyQuestionAnswer(dateStr, questionData, answerText) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("로그인이 필요합니다.");
+  if (!answerText || !answerText.trim()) throw new Error("답변을 입력해 주세요.");
+
+  const authorName = cachedProfiles[user.uid] || user.displayName || "이름 없음";
+  const questionDoc = doc(db, "daily_questions", dateStr);
+
+  const answerPayload = {
+    uid: user.uid,
+    author: authorName,
+    text: answerText.trim(),
+    updatedAt: Date.now(),
+  };
+
+  await setDoc(
+    questionDoc,
+    {
+      date: dateStr,
+      question: questionData,
+      answers: {
+        [user.uid]: answerPayload,
+      },
+      lastUpdatedAt: Date.now(),
+    },
+    { merge: true }
+  );
+
+  return answerPayload;
+}
+
 
 
 

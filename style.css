@@ -844,113 +844,318 @@ body {
 }
 
 /* =========================================================
-   오늘의 질문 섹션
+   독립형 오늘의 커플 문답 섹션 스타일
    ========================================================= */
 
-.today-question-wrap {
-  margin: 10px 0 14px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.daily-question-section {
+  margin: 16px 0 22px 0;
 }
 
-.today-question-btn {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: linear-gradient(135deg, #fff0f3 0%, #ffe3e8 100%);
-  color: var(--primary-color, #e66d7b);
-  border: 1px solid #f6c8d1;
-  padding: 8px 14px;
+.dq-card {
+  background: linear-gradient(180deg, #fffafd 0%, #ffffff 100%);
+  border: 1.5px solid #fed7e2;
   border-radius: 20px;
-  font-size: 0.88rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  box-shadow: 0 2px 8px rgba(230, 109, 123, 0.12);
-}
-
-.today-question-btn:hover {
-  background: linear-gradient(135deg, #ffe3e8 0%, #ffd6dd 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(230, 109, 123, 0.2);
-}
-
-.today-question-btn.active {
-  background: var(--primary-color, #e66d7b);
-  color: #ffffff;
-  border-color: var(--primary-color, #e66d7b);
-  box-shadow: 0 3px 10px rgba(230, 109, 123, 0.3);
-}
-
-.today-question-card {
-  background: #ffffff;
-  border: 1.5px solid #f6c8d1;
-  border-radius: 14px;
-  padding: 14px 16px;
-  box-shadow: 0 4px 14px rgba(230, 109, 123, 0.08);
+  padding: 18px 18px 20px 18px;
+  box-shadow: 0 8px 24px rgba(230, 109, 123, 0.12);
   position: relative;
-  animation: fadeInQuestion 0.28s ease-out;
+  transition: box-shadow 0.25s ease;
 }
 
-@keyframes fadeInQuestion {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.dq-card:hover {
+  box-shadow: 0 10px 28px rgba(230, 109, 123, 0.16);
 }
 
-.question-card-header {
+.dq-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
-.question-card-badge {
+.dq-badge {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #e66d7b;
+  background: #fff0f3;
+  padding: 4px 12px;
+  border-radius: 14px;
+  border: 1px solid #ffd1dc;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dq-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dq-nav-btn {
+  background: #ffffff;
+  border: 1px solid #ffd1dc;
+  color: #e66d7b;
+  font-size: 0.72rem;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s ease;
+}
+
+.dq-nav-btn:hover:not(:disabled) {
+  background: #e66d7b;
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+.dq-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: #cbd5e1;
+  color: #a0aec0;
+}
+
+.dq-date-label {
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--primary-color, #e66d7b);
-  background: #fff0f3;
-  padding: 3px 10px;
-  border-radius: 12px;
-  border: 1px solid #ffd1dc;
+  color: #718096;
+  min-width: 44px;
+  text-align: center;
 }
 
-.question-close-btn {
+.dq-question-text {
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.55;
+  color: #2d3748;
+  margin: 0 0 16px 0;
+  text-align: center;
+  word-break: keep-all;
+  padding: 4px 10px;
+}
+
+.dq-answers-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.dq-answer-box {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 14px;
+  border: 1.5px solid #f2e2e5;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 140px;
+}
+
+.dq-answer-box.my-box {
+  border-color: #ffccd5;
+  background: #fffdfd;
+}
+
+.dq-answer-box.partner-box {
+  border-color: #fed7e2;
+}
+
+.dq-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.dq-box-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dq-box-user strong {
+  font-size: 0.88rem;
+  color: #4a5568;
+}
+
+.dq-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid #e66d7b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffe3e8;
+  color: #e66d7b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.dq-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dq-edit-btn {
   background: none;
   border: none;
-  color: #999;
-  font-size: 1rem;
+  color: #718096;
+  font-size: 0.76rem;
+  font-weight: 600;
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: 4px;
   transition: all 0.15s;
 }
 
-.question-close-btn:hover {
-  background: #f1f1f1;
-  color: #444;
+.dq-edit-btn:hover {
+  background: #edf2f7;
+  color: #e66d7b;
 }
 
-.question-card-text {
-  margin: 0 0 8px 0;
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.5;
-  color: #2c3e50;
-  word-break: keep-all;
+.dq-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
 }
 
-.question-card-tip {
+.dq-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #ffd1dc;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  background: #ffffff;
+  color: #2d3748;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.dq-textarea:focus {
+  border-color: #e66d7b;
+  box-shadow: 0 0 0 3px rgba(230, 109, 123, 0.15);
+}
+
+.dq-submit-btn {
+  align-self: flex-end;
+  background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+  color: #ffffff;
+  border: none;
+  padding: 7px 14px;
+  border-radius: 18px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 3px 8px rgba(230, 109, 123, 0.2);
+}
+
+.dq-submit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 12px rgba(230, 109, 123, 0.3);
+}
+
+.dq-display {
+  flex: 1;
+  padding: 8px 10px;
+  background: #ffffff;
+  border-radius: 10px;
+}
+
+.dq-text {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.6;
+  color: #2d3748;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 🔒 블라인드 잠금 카드 */
+.dq-blind-card {
+  flex: 1;
+  background: linear-gradient(135deg, #fdf6f7 0%, #fcf0f2 100%);
+  border: 1.5px dashed #f6ccd3;
+  border-radius: 12px;
+  padding: 16px 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.dq-blind-card.partner-ready {
+  border-color: #e66d7b;
+  background: linear-gradient(135deg, #fff0f3 0%, #ffe6eb 100%);
+  animation: partnerPulse 2.2s infinite ease-in-out;
+}
+
+@keyframes partnerPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(230, 109, 123, 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 9px rgba(230, 109, 123, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(230, 109, 123, 0);
+  }
+}
+
+.dq-lock-icon {
+  font-size: 2rem;
+  margin-bottom: 4px;
+}
+
+.dq-lock-title {
+  font-size: 0.88rem;
+  color: #718096;
+  margin-bottom: 4px;
+}
+
+.dq-lock-desc {
   font-size: 0.78rem;
-  color: #888;
-  display: block;
+  color: #a0aec0;
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* ⏳ 대기 카드 */
+.dq-waiting-card {
+  flex: 1;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 16px 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.dq-wait-icon {
+  font-size: 1.8rem;
+  margin-bottom: 4px;
+}
+
+.dq-wait-desc {
+  font-size: 0.82rem;
+  color: #718096;
+  margin: 0;
 }
 
 .title-input,
@@ -4012,17 +4217,25 @@ body.modal-open {
     border-radius: 12px;
   }
 
-  .today-question-btn {
-    font-size: 0.82rem;
-    padding: 7px 12px;
+  .dq-card {
+    padding: 14px 12px 16px 12px;
+    border-radius: 16px;
   }
 
-  .today-question-card {
-    padding: 12px 14px;
+  .dq-question-text {
+    font-size: 1.02rem;
+    padding: 0 4px;
+    margin-bottom: 12px;
   }
 
-  .question-card-text {
-    font-size: 0.94rem;
+  .dq-answers-wrap {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .dq-answer-box {
+    padding: 12px;
+    min-height: 120px;
   }
 
   .entry-image {
