@@ -28,7 +28,7 @@ const bodyInput = document.getElementById("body-input");
 const saveButton = document.getElementById("save-button");
 const moodBtns = document.querySelectorAll(".mood-btn");
 
-// 썸원 스타일 오늘의 질문 화면 요소
+// 오늘의 질문 화면 요소
 const todayQuestionBtn = document.getElementById("today-question-btn");
 const todayQuestionCard = document.getElementById("today-question-card");
 const questionCardBadge = document.getElementById("question-card-badge");
@@ -215,7 +215,7 @@ export function initEditor() {
     });
   });
 
-  // 썸원 스타일 오늘의 질문 받기 버튼 배선
+  // 오늘의 질문 받기 버튼 배선
   if (todayQuestionBtn && todayQuestionCard) {
     todayQuestionBtn.addEventListener("click", () => {
       const isCardOpen = !todayQuestionCard.hidden;

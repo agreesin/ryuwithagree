@@ -1,5 +1,5 @@
 // =========================================================
-// questions.js - 썸원(SumOne) 스타일 오늘의 커플 질문 엔진
+// questions.js - 오늘의 커플 질문 엔진
 //
 // 사람이 직접 고를 필요 없이, 오늘 날짜·커플 기념일·계절을
 // 시스템이 스스로 분석하여 "오늘의 단 하나의 질문"을 자동 배달합니다.
@@ -101,7 +101,7 @@ const SEASONAL_QUESTIONS = {
   ],
 };
 
-// 3. 썸원 스타일 일상·연애·가치관·추억 질문 풀 (100개)
+// 3. 일상·연애·가치관·추억 질문 풀 (100개)
 const DAILY_ROMANCE_QUESTIONS = [
   // [첫 만남 & 첫인상]
   "우리가 처음 만났던 날, 상대방의 첫인상은 어땠나요?",
@@ -303,7 +303,7 @@ export function getTodayQuestion(ddayItems = []) {
   // ----------------------------------------------------
   // 3순위: 오늘 날짜 해시 기반 질문 배정
   // - 일주일 중 하루(예: 일요일)는 계절 감성 질문 제공
-  // - 그 외 요일은 100개의 썸원 연애 질문 풀에서 날짜 기반으로 순환 배정
+  // - 그 외 요일은 100개의 연애 질문 풀에서 날짜 기반으로 순환 배정
   // ----------------------------------------------------
   const dayHash = getDayHash(now);
   const dayOfWeek = now.getDay(); // 0: 일요일
@@ -326,13 +326,13 @@ export function getTodayQuestion(ddayItems = []) {
     };
   }
 
-  // 4순위: 100개 상시 썸원 감성 질문 풀에서 결정론적 배정
+  // 4순위: 100개 상시 감성 질문 풀에서 결정론적 배정
   const qIndex = dayHash % DAILY_ROMANCE_QUESTIONS.length;
   const qNumber = (qIndex + 1);
 
   return {
     id: `daily-q-${qNumber}`,
-    badge: `💌 오늘의 썸원 질문 #Q${qNumber}`,
+    badge: `💌 오늘의 질문 #Q${qNumber}`,
     text: DAILY_ROMANCE_QUESTIONS[qIndex],
   };
 }
