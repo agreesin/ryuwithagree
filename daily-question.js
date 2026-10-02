@@ -1,10 +1,10 @@
-﻿// =========================================================
-// daily-question.js - 회차별 순차 진행 & 기념일 특별 질문 커플 문답 모듈
+// =========================================================
+// daily-question.js - 독립형 블라인드 커플 문답 모듈
 //
-// 1. 회차별 순차 진행: 둘 다 쓸 때까지 현재 질문(Q.1, Q.2...) 대기 (질문 밀림/중복 방지)
-// 2. 기념일 특별 질문 인터럽트: 크리스마스, 100일, 생일 등 당일엔 스페셜 질문 우선 배정
-// 3. 상호 작성 블라인드 잠금(🔒 -> 🔓) 및 완료 시 실시간 댓글(우리들의 한마디) 활성화
-// 4. 둘 다 답변 완료 시 다음 질문 열기(Q.N -> Q.N+1) 및 지난 문답 보관함 지원
+// 1. 일기장과 완전히 분리된 전용 1:1 문답 카드
+// 2. 블라인드 잠금(🔒): 내가 답변을 등록하기 전까지 상대방의 답변을 숨김
+// 3. 내가 답변을 등록하면 실시간으로 잠금 해제(🔓)되어 나란히 공개
+// 4. D-Day 연애 단계별 질문 필터링 및 이전/다음 날짜 탐색 지원
 // =========================================================
 
 import {
@@ -51,7 +51,7 @@ let partnerTextEl = null;
 let nextQuestionWrapEl = null;
 let advanceBtn = null;
 
-// 댓글 DOM
+// 댓글 DOM 요소
 let commentsContainerEl = null;
 let commentsCountEl = null;
 let commentsLockedNoticeEl = null;
@@ -62,7 +62,7 @@ let commentFormEl = null;
 let commentInputEl = null;
 let commentSubmitBtn = null;
 
-// 히스토리 모달 DOM
+// 지난 문답 모달 DOM
 let historyModalEl = null;
 let historyCloseBtn = null;
 let historyEmptyEl = null;
@@ -72,7 +72,7 @@ let historyListEl = null;
 let questionState = { currentOrder: 1, completedIds: [] };
 let activeDocId = null; // 현재 화면에 렌더링 중인 질문 문서 ID
 let activeQuestionData = null; // 현재 화면 질문 메타데이터
-let currentQuestionDoc = null; // Firestore에서 수신한 현재 질문 문서
+let currentQuestionDoc = null; // Firestore에서 받아온 현재 질문 데이터
 let unsubscribeQuestion = null;
 let unsubscribeState = null;
 let isViewingHistory = false; // 과거 문답 열람 중인지 여부
@@ -84,7 +84,7 @@ function renderAvatar(container, uid, name) {
   if (!container) return;
   const photo = uid ? getProfilePhoto(uid) : null;
   if (photo) {
-    container.innerHTML = <img src="\" alt="\ 프로필" />;
+    container.innerHTML = `<img src="${photo}" alt="${name} 프로필" />`;
   } else {
     container.textContent = getUserInitial(name);
   }
@@ -101,10 +101,7 @@ function getPartnerInfo() {
   const partnerUid = Object.keys(profiles).find((uid) => uid !== user.uid);
   const partnerName = partnerUid ? profiles[partnerUid] || "상대방" : "상대방";
 
-  return {
-    uid: partnerUid || null,
-    name: partnerName,
-  };
+  return { uid: partnerUid || null, name: partnerName };
 }
 
 /**
@@ -149,111 +146,6 @@ function listenToQuestionDoc(docId) {
   unsubscribeQuestion = subscribeDailyQuestion(docId, (docData) => {
     currentQuestionDoc = docData;
     renderCurrentQuestionView();
-  });
-}
-
-/**
- * 댓글 작성 시간 포맷 (방금 전, n분 전, HH:mm, M/D HH:mm)
- */
-function formatCommentTime(ts) {
-  if (!ts) return "";
-  const d = new Date(ts);
-  const now = new Date();
-  const diffSec = Math.floor((now - d) / 1000);
-  if (diffSec < 60) return "방금 전";
-  if (diffSec < 3600) return \분 전;
-
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-
-  const isSameDay = d.toDateString() === now.toDateString();
-  if (isSameDay) {
-    return \:\;
-  }
-  return \/\ \:\;
-}
-
-/**
- * 댓글 목록 렌더링
- */
-function renderComments(myAnswer, partnerAnswer) {
-  if (!commentsContainerEl) return;
-
-  const isUnlocked = Boolean(myAnswer?.text && partnerAnswer?.text);
-  const comments = currentQuestionDoc?.comments || [];
-
-  if (commentsCountEl) {
-    commentsCountEl.textContent = String(comments.length);
-  }
-
-  // 두 사람 모두 답변을 작성해야 댓글창이 활성화됨
-  if (!isUnlocked) {
-    if (commentsLockedNoticeEl) commentsLockedNoticeEl.hidden = false;
-    if (commentsContentEl) commentsContentEl.hidden = true;
-    return;
-  }
-
-  if (commentsLockedNoticeEl) commentsLockedNoticeEl.hidden = true;
-  if (commentsContentEl) commentsContentEl.hidden = false;
-
-  if (!commentsListEl) return;
-  commentsListEl.innerHTML = "";
-
-  if (comments.length === 0) {
-    if (commentsEmptyEl) commentsEmptyEl.hidden = false;
-    return;
-  }
-
-  if (commentsEmptyEl) commentsEmptyEl.hidden = true;
-
-  const currentUser = getCurrentUser();
-  const profiles = getCurrentProfiles() || {};
-
-  comments.forEach((c) => {
-    const isMe = currentUser && c.uid === currentUser.uid;
-    const li = document.createElement("li");
-    li.className = dq-comment-item \;
-
-    const authorName = (c.uid && profiles[c.uid]) ? profiles[c.uid] : (c.author || "이름 없음");
-    const photo = c.uid ? getProfilePhoto(c.uid) : null;
-    const avatarHtml = photo
-      ? <img src="\" alt="\" class="dq-comment-avatar-img" />
-      : <span class="dq-comment-avatar-initial">\</span>;
-
-    li.innerHTML = 
-      <div class="dq-comment-avatar">\</div>
-      <div class="dq-comment-body">
-        <div class="dq-comment-meta">
-          <strong class="dq-comment-author">\</strong>
-          <span class="dq-comment-time">\</span>
-          \
-        </div>
-        <p class="dq-comment-text"></p>
-      </div>
-    ;
-
-    const textP = li.querySelector(".dq-comment-text");
-    if (textP) textP.textContent = c.text;
-
-    if (isMe) {
-      const delBtn = li.querySelector(".dq-comment-del-btn");
-      if (delBtn) {
-        delBtn.addEventListener("click", async () => {
-          if (!confirm("이 댓글을 삭제하시겠습니까?")) return;
-          try {
-            await removeDailyQuestionComment(activeDocId, c.id);
-            showToastNotification("댓글이 삭제되었습니다.", "🗑️");
-          } catch (err) {
-            console.error(err);
-            showError("댓글 삭제에 실패했습니다: " + err.message);
-          }
-        });
-      }
-    }
-
-    commentsListEl.appendChild(li);
   });
 }
 
@@ -337,7 +229,7 @@ export function renderCurrentQuestionView() {
           partnerLockedEl.classList.add("partner-ready");
         }
         if (lockIconEl) lockIconEl.textContent = "🔒";
-        if (lockTitleEl) lockTitleEl.innerHTML = <span style="color: #e66d7b;">상대방이 답변을 남겼어요! 💌</span>;
+        if (lockTitleEl) lockTitleEl.innerHTML = `<span style="color: #e66d7b;">상대방이 답변을 남겼어요! 💌</span>`;
         if (lockDescEl) lockDescEl.textContent = "내 답변을 작성하면 상대방의 답변이 열려요!";
       } else {
         if (partnerLockedEl) partnerLockedEl.hidden = true;
@@ -385,6 +277,111 @@ export function renderCurrentDateQuestion() {
 }
 
 /**
+ * 댓글 작성 시간 포맷 (방금 전, n분 전, HH:mm, M/D HH:mm)
+ */
+function formatCommentTime(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const now = new Date();
+  const diffSec = Math.floor((now - d) / 1000);
+  if (diffSec < 60) return "방금 전";
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전`;
+
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+
+  const isSameDay = d.toDateString() === now.toDateString();
+  if (isSameDay) {
+    return `${hours}:${minutes}`;
+  }
+  return `${m}/${day} ${hours}:${minutes}`;
+}
+
+/**
+ * 문답 댓글 목록 렌더링
+ */
+function renderComments(myAnswer, partnerAnswer) {
+  if (!commentsContainerEl) return;
+
+  const isUnlocked = Boolean(myAnswer?.text && partnerAnswer?.text);
+  const comments = currentQuestionDoc?.comments || [];
+
+  if (commentsCountEl) {
+    commentsCountEl.textContent = String(comments.length);
+  }
+
+  // 두 사람 모두 답변을 작성해야 댓글창이 활성화됨
+  if (!isUnlocked) {
+    if (commentsLockedNoticeEl) commentsLockedNoticeEl.hidden = false;
+    if (commentsContentEl) commentsContentEl.hidden = true;
+    return;
+  }
+
+  if (commentsLockedNoticeEl) commentsLockedNoticeEl.hidden = true;
+  if (commentsContentEl) commentsContentEl.hidden = false;
+
+  if (!commentsListEl) return;
+  commentsListEl.innerHTML = "";
+
+  if (comments.length === 0) {
+    if (commentsEmptyEl) commentsEmptyEl.hidden = false;
+    return;
+  }
+
+  if (commentsEmptyEl) commentsEmptyEl.hidden = true;
+
+  const currentUser = getCurrentUser();
+  const profiles = getCurrentProfiles() || {};
+
+  comments.forEach((c) => {
+    const isMe = currentUser && c.uid === currentUser.uid;
+    const li = document.createElement("li");
+    li.className = `dq-comment-item ${isMe ? "is-me" : "is-partner"}`;
+
+    const authorName = (c.uid && profiles[c.uid]) ? profiles[c.uid] : (c.author || "이름 없음");
+    const photo = c.uid ? getProfilePhoto(c.uid) : null;
+    const avatarHtml = photo
+      ? `<img src="${photo}" alt="${authorName}" class="dq-comment-avatar-img" />`
+      : `<span class="dq-comment-avatar-initial">${getUserInitial(authorName)}</span>`;
+
+    li.innerHTML = `
+      <div class="dq-comment-avatar">${avatarHtml}</div>
+      <div class="dq-comment-body">
+        <div class="dq-comment-meta">
+          <strong class="dq-comment-author">${authorName}</strong>
+          <span class="dq-comment-time">${formatCommentTime(c.createdAt)}</span>
+          ${isMe ? `<button type="button" class="dq-comment-del-btn" title="댓글 삭제">✕</button>` : ""}
+        </div>
+        <p class="dq-comment-text"></p>
+      </div>
+    `;
+
+    const textP = li.querySelector(".dq-comment-text");
+    if (textP) textP.textContent = c.text;
+
+    if (isMe) {
+      const delBtn = li.querySelector(".dq-comment-del-btn");
+      if (delBtn) {
+        delBtn.addEventListener("click", async () => {
+          if (!confirm("이 댓글을 삭제하시겠습니까?")) return;
+          try {
+            await removeDailyQuestionComment(activeDocId, c.id);
+            showToastNotification("댓글이 삭제되었습니다.", "🗑️");
+          } catch (err) {
+            console.error(err);
+            showError("댓글 삭제에 실패했습니다: " + err.message);
+          }
+        });
+      }
+    }
+
+    commentsListEl.appendChild(li);
+  });
+}
+
+/**
  * 지난 문답 모달 열기 및 목록 렌더링
  */
 async function openHistoryModal() {
@@ -393,7 +390,7 @@ async function openHistoryModal() {
   document.body.classList.add("modal-open");
 
   if (historyListEl) {
-    historyListEl.innerHTML = <li class="dq-history-loading">기록을 불러오는 중입니다... 💌</li>;
+    historyListEl.innerHTML = `<li class="dq-history-loading">기록을 불러오는 중입니다... 💌</li>`;
   }
 
   try {
@@ -418,14 +415,14 @@ async function openHistoryModal() {
       const answers = item.answers || {};
       const answerCount = Object.keys(answers).length;
 
-      li.innerHTML = 
+      li.innerHTML = `
         <div class="dq-hitem-header">
-          <span class="dq-hitem-badge \">\</span>
-          <span class="dq-hitem-status">답변 \개 💖</span>
+          <span class="dq-hitem-badge ${q.isSpecial ? "special" : ""}">${badgeText}</span>
+          <span class="dq-hitem-status">답변 ${answerCount}개 💖</span>
         </div>
-        <h4 class="dq-hitem-title">\</h4>
+        <h4 class="dq-hitem-title">${questionText}</h4>
         <button type="button" class="dq-hitem-view-btn">열람하기 📖</button>
-      ;
+      `;
 
       li.querySelector(".dq-hitem-view-btn")?.addEventListener("click", () => {
         // 과거 문답 열람 화면으로 전환
@@ -437,7 +434,7 @@ async function openHistoryModal() {
         document.body.classList.remove("modal-open");
 
         listenToQuestionDoc(activeDocId);
-        showToastNotification('\' 문답을 불러왔습니다., "📖");
+        showToastNotification(`'${badgeText}' 문답을 불러왔습니다.`, "📖");
       });
 
       historyListEl.appendChild(li);
@@ -445,7 +442,7 @@ async function openHistoryModal() {
   } catch (err) {
     console.error(err);
     if (historyListEl) {
-      historyListEl.innerHTML = <li class="dq-history-loading">목록을 불러오지 못했습니다: \</li>;
+      historyListEl.innerHTML = `<li class="dq-history-loading">목록을 불러오지 못했습니다: ${err.message}</li>`;
     }
   }
 }
@@ -584,7 +581,7 @@ export function initDailyQuestion() {
         await advanceToNextQuestion(nextOrder, activeDocId);
 
         showToastNotification(
-          isSpecial ? "스페셜 문답 완료! 원래 순서로 복귀합니다 💌" : Q.\ 질문이 새로 오픈되었습니다! 🎉,
+          isSpecial ? "스페셜 문답 완료! 원래 순서로 복귀합니다 💌" : `Q.${nextOrder} 질문이 새로 오픈되었습니다! 🎉`,
           "💌"
         );
       } catch (err) {
@@ -629,7 +626,7 @@ export function initDailyQuestion() {
 
         sendPushToPartner({
           title: "💬 오늘의 질문 댓글",
-          message: \: "\",
+          message: `${myName}: "${preview}"`,
         });
       } catch (err) {
         console.error(err);
