@@ -1,12 +1,11 @@
 // =========================================================
-// nudge.js - 듀오링고 감성 커플 "콕 찌르기(Nudge)" 모듈
+// nudge.js - 듀오링고 감성 원클릭 "콕 찌르기(Nudge)" 모듈
 //
-// 1. 최대 5회 연속 찌르기 + 5회 소진 시 1시간 쿨타임 시스템
-// 2. 3가지 상황별 찌르기 (오늘의 질문 / 오늘 일기 / 생각나서 자유 콕)
-// 3. 재치 있는 상황별 프리셋 멘트 & 랜덤 선택 & 직접 입력 지원
-// 4. 듀오링고 스타일 핵심 디테일:
-//    - 발신자: 손가락 바운스 애니메이션 & 실시간 쿼터/쿨타임 카운터 & FCM 웹 푸시
-//    - 수신자: 실시간 감지 시 듀오 화면 지진 효과(Screen Shake) & 대형 팝업 모달 & 맞춤형 액션 바로가기
+// 1. 원클릭 즉시 발송: 멘트 선택 창 없이 클릭 즉시 랜덤 멘트 발송!
+// 2. 최대 5회 연속 찌르기 + 5회 소진 시 1시간 쿨타임 시스템
+// 3. 듀오링고식 킹받고 재치 있는 찰진 한국어 멘트 풀
+// 4. 발신자: 쫀득한 3D 버튼 바운스 & 실시간 쿼터(5/5) 차감 & 발송 멘트 토스트
+// 5. 수신자: 실시간 화면 지진(Screen Shake) 효과 & 대형 팝업 모달 & 즉각 맞찌르기
 // =========================================================
 
 import { doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
@@ -19,56 +18,70 @@ import { switchViewTab } from "./calendar.js";
 // 상수 설정
 export const MAX_NUDGES = 5;
 export const COOLDOWN_MS = 60 * 60 * 1000; // 1시간
-const STORAGE_KEY_QUOTA = "diary_nudge_quota_v2";
-const STORAGE_KEY_LAST_SEEN = "diary_nudge_last_seen_ts_v2";
+const STORAGE_KEY_QUOTA = "diary_nudge_quota_v3";
+const STORAGE_KEY_LAST_SEEN = "diary_nudge_last_seen_ts_v3";
 
-// 상황별 재치 있는 프리셋 멘트 목록
+// 듀오링고 감성 100% 찰진 현실 커플 멘트 풀 (오글거림 0%, 킹받음/재치 극대화)
 export const NUDGE_PRESETS = {
+  // 1. 오늘의 질문 재촉 (내가 썼는데 상대방이 안 썼을 때)
   question: [
-    "나 답변 썼는데 너는 언제 써줄 거야? 궁금해 죽겠어! 🥺",
-    "얼른 쓰고 내 비밀 답변 확인해봐! 뭐가 써있게? 🔓",
-    "오늘 질문 진짜 재밌는데! 빨리 와서 써줘 💌",
-    "빨리 안 쓰면 볼 꼬집는다! 🤏 볼 대기해~",
-    "기다리다 목 빠지겠어~ 나 기린 되는 중 🦒",
-    "우리 커플 질문에 얼른 도장 쾅 찍어줘 🐾",
+    "답변 안 쓰고 딴짓하는 거 다 압니다.",
+    "답변 쓰는 데 30초도 안 걸릴 텐데요?",
+    "제 답변은 이미 등록되었습니다. 당신 차례예요.",
+    "답변 쓰기 vs 꿀밤 맞기 (선택권 없음)",
+    "지금 안 쓰면 내일 아침까지 안 보여줄 겁니다.",
+    "혹시 답변 쓰는 법을 잊으셨나요? 제가 알려드릴까요?",
+    "폰 보고 있는 거 다 압니다. 얼른 쓰시죠.",
+    "답변 안 쓰면 오늘 저녁 반찬에서 소시지 뺍니다.",
+    "읽씹은 죄가 아니지만 문답 안 쓰기는 유죄입니다.",
+    "오늘 답변 패스하시게요? 양심이 찔리지 않으신가요?",
+    "두 사람 모두 써야 열리는 문입니다. 열쇠는 당신 손에 있어요.",
+    "제 답변이 안 궁금하신가요? 전 엄청 궁금한데요.",
   ],
+
+  // 2. 오늘 일기 재촉 (상대방이 오늘 일기 안 썼을 때)
   diary: [
-    "오늘 하루 어땠어? 자기 일기 기다리고 있어 📖",
-    "오늘 일기 안 쓰고 잘 생각은 아니겠지? 🧐 딱 걸림!",
-    "너의 하루가 궁금해! 짧게 한 줄이라도 써줘 ✏️",
-    "오늘 하루도 수고 많았어, 일기장에서 만나자 🌙",
-    "일기 스트릭 끊기면 큰일나! 얼른 기록 남기자 🔥",
-    "자기 생각하며 일기 다 썼지롱! 얼른 써줘 🥰",
+    "오늘 하루를 그냥 날려버리실 생각인가요?",
+    "일기 쓰는 데 1분도 안 걸립니다. 핑계 대지 마세요.",
+    "오늘 일기 안 쓰면 스트릭(기록) 끊깁니다. 진짜로요.",
+    "일기 안 쓰고 그냥 자려고 침대 누웠죠? 딱 걸렸습니다.",
+    "기억력 좋으신가 봐요? 오늘 일을 내일도 기억할 수 있을까요?",
+    "점 하나라도 찍고 자세요. 일기장이 울고 있습니다.",
+    "오늘 일기 쓸 사람? (당신을 가리키며)",
+    "바쁘다고 하지 마세요. 인스타는 보셨잖아요.",
+    "일기 안 쓰면 내일 하루 종일 잔소리 폭격 갑니다.",
+    "오늘 일기장 비워두면 벌금 500원입니다.",
+    "하루의 마무리는 일기입니다. 아직 하루 안 끝났어요.",
+    "일기장 앞에서 망설이는 당신의 손가락이 보입니다.",
   ],
+
+  // 3. 그냥 생각나서 콕! (평소 자유 찌르기)
   free: [
-    "그냥 자기 생각나서 찔러봤어 💕 보고 싶다!",
-    "지금 뭐해? 딴 생각하지 말고 내 생각해 👉",
-    "나 심심해~ 나랑 놀아줘 🐾 힝...",
-    "사랑해! 뜬금없는 사랑 고백 투척 💘",
-    "답장 안 하면 계속 찌른다? 콕콕콕콕 👉👉",
-    "자기한테 보낼 하트 충전 완료! 받아라 뿅 💌",
+    "그냥 찔러봤습니다. 반박은 안 받습니다.",
+    "딴 생각 금지. 내 생각이나 하세요.",
+    "심심해서 찔렀는데 왜요.",
+    "지금 폰 보고 있죠? 딱 걸렸습니다.",
+    "살아있나 생존 확인차 찔러봤습니다.",
+    "답장 안 하면 5번 다 찌를 때까지 안 멈춥니다.",
+    "딴짓하다가 찔리니까 깜짝 놀랐죠?",
+    "이 찌르기는 무료지만 답장은 필수입니다.",
+    "멍때리지 말고 집중하세요. 저한테요.",
+    "아무 이유 없이 찌르는 게 제일 재밌습니다.",
+    "할 일 없어서 찌른 거 아닙니다. (맞음)",
+    "지금 이 순간, 당신을 콕 찌른 사람이 누군지 아시죠?",
   ],
 };
 
-// 상황별 모달 타이틀 & 아이콘
+// 상황별 수신 모달 메타
 const SITUATION_META = {
   question: {
-    icon: "💌",
-    title: "오늘의 질문 콕 찌르기",
-    actionLabel: "답변 작성하러 가기 💌",
-    defaultMessage: NUDGE_PRESETS.question[0],
+    actionLabel: "얼른 답변 쓰러 가기 ✏️",
   },
   diary: {
-    icon: "📖",
-    title: "오늘 일기 콕 찌르기",
-    actionLabel: "일기 쓰러 가기 📖",
-    defaultMessage: NUDGE_PRESETS.diary[0],
+    actionLabel: "얼른 일기 쓰러 가기 📖",
   },
   free: {
-    icon: "👉",
-    title: "생각나서 콕 찌르기",
-    actionLabel: "나도 맞찌르기! 👉",
-    defaultMessage: NUDGE_PRESETS.free[0],
+    actionLabel: "나도 맞찌르기! 👉💥",
   },
 };
 
@@ -82,20 +95,6 @@ let diaryNudgeBtn = null;
 let diaryNudgeBadge = null;
 let diaryNudgePartnerName = null;
 
-// 발송 모달
-let selectModalEl = null;
-let selectModalCloseBtn = null;
-let modalIconEl = null;
-let modalTitleEl = null;
-let quotaCountTextEl = null;
-let quotaBarEl = null;
-let cooldownTextEl = null;
-let randomBtn = null;
-let presetListEl = null;
-let customInputEl = null;
-let sendSubmitBtn = null;
-let submitBtnTextEl = null;
-
 // 수신 팝업 모달
 let rxModalEl = null;
 let rxSenderNameEl = null;
@@ -104,12 +103,11 @@ let rxMessageTextEl = null;
 let rxActionBtn = null;
 let rxDismissBtn = null;
 
-// 모달 내부 상태
-let currentNudgeType = "free";
-let selectedMessage = "";
+// 내부 상태
 let timerInterval = null;
 let unsubscribeNudges = null;
 let cachedEntries = [];
+let lastSentQuotes = { question: "", diary: "", free: "" };
 
 /**
  * 현재 사용자의 쿼터 및 쿨타임 상태 계산
@@ -140,7 +138,7 @@ export function getQuotaState() {
 
   const now = Date.now();
 
-  // 1. 쿨타임 종료 여부 검사
+  // 1. 쿨타임 만료 시 리셋
   if (state.cooldownUntil && now >= state.cooldownUntil) {
     state.count = 0;
     state.cooldownUntil = null;
@@ -149,7 +147,7 @@ export function getQuotaState() {
     } catch (e) {}
   }
 
-  // 2. 쿨타임 중일 때
+  // 2. 쿨타임 중
   if (state.cooldownUntil && now < state.cooldownUntil) {
     const msLeft = state.cooldownUntil - now;
     const cooldownMinutes = Math.max(1, Math.ceil(msLeft / 60000));
@@ -161,7 +159,7 @@ export function getQuotaState() {
     };
   }
 
-  // 3. 정상 상태 (0 ~ 5회 잔여)
+  // 3. 정상 상태
   const count = Math.min(MAX_NUDGES, Math.max(0, state.count || 0));
   const remaining = Math.max(0, MAX_NUDGES - count);
 
@@ -174,7 +172,7 @@ export function getQuotaState() {
 }
 
 /**
- * 콕 찌르기 1회 차감 및 쿨타임 전환 처리
+ * 콕 찌르기 1회 차감 및 쿨타임 전환
  */
 function consumePoke() {
   const user = getCurrentUser();
@@ -195,23 +193,20 @@ function consumePoke() {
 
   const now = Date.now();
 
-  // 쿨타임 만료 시 리셋
   if (state.cooldownUntil && now >= state.cooldownUntil) {
     state.count = 0;
     state.cooldownUntil = null;
   }
 
-  // 쿨타임 중 발송 시도 차단
   if (state.cooldownUntil && now < state.cooldownUntil) {
     const mins = Math.max(1, Math.ceil((state.cooldownUntil - now) / 60000));
     throw new Error(`연속 찌르기 5회를 모두 사용했어요! ${mins}분 뒤에 충전됩니다 ⏳`);
   }
 
-  // 카운트 증가
   state.count = (state.count || 0) + 1;
   state.lastPokeTime = now;
 
-  // 5회 소진 시 즉시 1시간 쿨타임 돌입
+  // 5회 소진 시 1시간 쿨타임 시작
   if (state.count >= MAX_NUDGES) {
     state.cooldownUntil = now + COOLDOWN_MS;
   }
@@ -226,11 +221,12 @@ function consumePoke() {
     usedCount: state.count,
     remaining: Math.max(0, MAX_NUDGES - state.count),
     isCoolingDown: Boolean(state.cooldownUntil && state.cooldownUntil > now),
+    cooldownMinutes: state.cooldownUntil ? Math.max(1, Math.ceil((state.cooldownUntil - now) / 60000)) : 0,
   };
 }
 
 /**
- * 화면의 모든 찌르기 버튼 배지 및 모달 쿼터 바 갱신
+ * 화면의 모든 콕 찌르기 버튼 배지 갱신
  */
 export function updateAllNudgeBadges() {
   const quota = getQuotaState();
@@ -253,131 +249,36 @@ export function updateAllNudgeBadges() {
   if (diaryNudgeBtn) {
     diaryNudgeBtn.classList.toggle("cooling-down", quota.isCoolingDown);
   }
-
-  // 4. 모달 내부 쿼터 게이지 & 타이머
-  if (quotaCountTextEl) {
-    quotaCountTextEl.textContent = quota.isCoolingDown
-      ? `0 / ${MAX_NUDGES}회 (쿨타임)`
-      : `${quota.remaining} / ${MAX_NUDGES}회`;
-  }
-
-  if (quotaBarEl) {
-    const percent = quota.isCoolingDown ? 0 : (quota.remaining / MAX_NUDGES) * 100;
-    quotaBarEl.style.width = `${percent}%`;
-    quotaBarEl.style.backgroundColor = quota.isCoolingDown ? "#f59e0b" : "#e66d7b";
-  }
-
-  if (cooldownTextEl) {
-    if (quota.isCoolingDown) {
-      cooldownTextEl.hidden = false;
-      cooldownTextEl.textContent = `⏳ 1시간 쿨타임 중 (${quota.cooldownMinutes}분 뒤 충전)`;
-    } else {
-      cooldownTextEl.hidden = true;
-    }
-  }
-
-  if (sendSubmitBtn) {
-    sendSubmitBtn.disabled = quota.isCoolingDown;
-    if (submitBtnTextEl) {
-      const partner = getPartnerInfo();
-      submitBtnTextEl.textContent = quota.isCoolingDown
-        ? `1시간 대기 중입니다 ⏳`
-        : `${partner.name} 콕! 찌르기 (${quota.remaining}/${MAX_NUDGES})`;
-    }
-  }
 }
 
 /**
- * 콕 찌르기 발송 모달 열기
+ * 상황별 랜덤 멘트 추출 (연속 중복 방지)
+ */
+function getRandomQuote(type) {
+  const list = NUDGE_PRESETS[type] || NUDGE_PRESETS.free;
+  if (!list || list.length === 0) return "콕!";
+
+  const last = lastSentQuotes[type] || "";
+  let available = list.filter((q) => q !== last);
+  if (available.length === 0) available = list;
+
+  const picked = available[Math.floor(Math.random() * available.length)];
+  lastSentQuotes[type] = picked;
+  return picked;
+}
+
+/**
+ * 원클릭 즉시 콕 찌르기 발송!
+ * (모달 없이 클릭 순간 랜덤 멘트가 콕! 날아감)
  * @param {"question" | "diary" | "free"} type
+ * @param {HTMLElement} triggerBtn
  */
-export function openNudgeModal(type = "free") {
-  currentNudgeType = type;
-  const meta = SITUATION_META[type] || SITUATION_META.free;
-  const partner = getPartnerInfo();
-
-  if (modalIconEl) modalIconEl.textContent = meta.icon;
-  if (modalTitleEl) modalTitleEl.textContent = meta.title;
-
-  if (customInputEl) customInputEl.value = "";
-
-  // 프리셋 목록 렌더링
-  renderPresetList(type);
-
-  updateAllNudgeBadges();
-
-  if (selectModalEl) {
-    selectModalEl.hidden = false;
-    document.body.classList.add("modal-open");
-  }
-}
-
-/**
- * 프리셋 멘트 목록 렌더링
- */
-function renderPresetList(type) {
-  if (!presetListEl) return;
-  presetListEl.innerHTML = "";
-
-  const presets = NUDGE_PRESETS[type] || NUDGE_PRESETS.free;
-  selectedMessage = presets[0] || "";
-
-  presets.forEach((msg, idx) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = `nudge-preset-item ${idx === 0 ? "active" : ""}`;
-    btn.textContent = msg;
-
-    btn.addEventListener("click", () => {
-      selectedMessage = msg;
-      if (customInputEl) customInputEl.value = "";
-      presetListEl.querySelectorAll(".nudge-preset-item").forEach((el) => el.classList.remove("active"));
-      btn.classList.add("active");
-    });
-
-    presetListEl.appendChild(btn);
-  });
-}
-
-/**
- * 멘트 랜덤 선택
- */
-function pickRandomMessage() {
-  const presets = NUDGE_PRESETS[currentNudgeType] || NUDGE_PRESETS.free;
-  if (!presets || presets.length === 0) return;
-
-  const currentIdx = presets.indexOf(selectedMessage);
-  let nextIdx = Math.floor(Math.random() * presets.length);
-  if (presets.length > 1 && nextIdx === currentIdx) {
-    nextIdx = (nextIdx + 1) % presets.length;
-  }
-
-  selectedMessage = presets[nextIdx];
-  if (customInputEl) customInputEl.value = "";
-
-  if (presetListEl) {
-    const items = presetListEl.querySelectorAll(".nudge-preset-item");
-    items.forEach((item, idx) => {
-      item.classList.toggle("active", idx === nextIdx);
-      if (idx === nextIdx) {
-        item.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
-    });
-  }
-}
-
-/**
- * 콕 찌르기 발송 실행 (버튼 애니메이션, 쿼터 차감, 푸시 및 Firestore 기록)
- */
-async function handleSendNudge() {
+export async function triggerQuickNudge(type = "free", triggerBtn = null) {
   const partner = getPartnerInfo();
   if (!partner.uid) {
     showError("상대방 프로필이 아직 등록되지 않았습니다.");
     return;
   }
-
-  const customText = customInputEl?.value?.trim();
-  const finalMessage = customText || selectedMessage || SITUATION_META[currentNudgeType].defaultMessage;
 
   let pokeResult = null;
   try {
@@ -387,58 +288,55 @@ async function handleSendNudge() {
     return;
   }
 
-  // 발송 버튼 탄성 바운스 애니메이션
-  const fingerEl = sendSubmitBtn?.querySelector(".nudge-submit-finger");
+  // 1. 손가락 튀어오름 바운스 애니메이션
+  const fingerEl = triggerBtn?.querySelector(".nudge-btn-finger");
   if (fingerEl) {
     fingerEl.classList.remove("bounce");
     void fingerEl.offsetWidth; // reflow
     fingerEl.classList.add("bounce");
   }
 
-  if (sendSubmitBtn) {
-    sendSubmitBtn.disabled = true;
-  }
+  // 2. 듀오링고식 찰진 랜덤 멘트 즉석 추출
+  const message = getRandomQuote(type);
 
   try {
     const user = getCurrentUser();
     const profiles = getCurrentProfiles() || {};
     const myName = (user && profiles[user.uid]) ? profiles[user.uid] : (user?.displayName || "당신의 반쪽");
 
-    // 1. FCM 웹 푸시 발송
+    // 3. FCM 백그라운드 웹 푸시 발송
     const pushTitle = `👉 ${myName}님이 콕! 찔렀어요! (${pokeResult.usedCount}/${MAX_NUDGES})`;
     sendPushToPartner({
       title: pushTitle,
-      message: finalMessage,
+      message: message,
     }).catch((err) => {
       console.warn("[nudge] 백그라운드 푸시 전송 경고:", err);
     });
 
-    // 2. Firestore 최신 찌르기 문서 업데이트 (인앱 실시간 감시용)
+    // 4. Firestore 최신 찌르기 업데이트 (실시간 인앱 감지)
     const nudgeDocRef = doc(db, "daily_questions", "_latest_nudge");
     await setDoc(nudgeDocRef, {
       id: Date.now().toString(),
       senderUid: user.uid,
       senderName: myName,
       receiverUid: partner.uid,
-      type: currentNudgeType,
-      message: finalMessage,
+      type: type,
+      message: message,
       pokeIndex: pokeResult.usedCount,
       timestamp: Date.now(),
     }, { merge: true });
 
-    // 3. 발신자 완료 피드백 토스트
+    // 5. 발신자 토스트 피드백 (내가 방금 보낸 멘트 노출)
+    const countInfo = pokeResult.isCoolingDown
+      ? `(5회 소진! 1시간 뒤 충전 ⏳)`
+      : `(남은 횟수: ${pokeResult.remaining}회)`;
+
     showToastNotification(
-      `${partner.name}님을 콕! 찔렀어요 👉 (남은 찌르기: ${pokeResult.remaining}회)`,
+      `👉 "${message}" ${countInfo}`,
       "👉"
     );
-
-    // 모달 닫기
-    if (selectModalEl) {
-      selectModalEl.hidden = true;
-      document.body.classList.remove("modal-open");
-    }
   } catch (err) {
-    console.error("[nudge] 찌르기 저장 오류:", err);
+    console.error("[nudge] 찌르기 전송 오류:", err);
     showError("콕 찌르기를 보내지 못했습니다: " + err.message);
   } finally {
     updateAllNudgeBadges();
@@ -446,7 +344,7 @@ async function handleSendNudge() {
 }
 
 /**
- * 인앱 수신 감시: 상대방이 찌른 순간 실시간 듀오 화면 지진 효과 & 팝업 띄우기
+ * 인앱 수신 감시: 상대방이 찌른 순간 실시간 듀오 화면 지진 효과 & 팝업 모달
  */
 function listenIncomingNudges() {
   if (unsubscribeNudges) {
@@ -461,17 +359,14 @@ function listenIncomingNudges() {
     const currentUser = getCurrentUser();
     if (!currentUser || !data) return;
 
-    // 내가 받은 찌르기인지 확인
     if (data.receiverUid !== currentUser.uid) return;
 
-    // 중복 팝업 방지 (마지막으로 본 타임스탬프와 비교)
     let lastSeen = 0;
     try {
       lastSeen = Number(localStorage.getItem(STORAGE_KEY_LAST_SEEN)) || 0;
     } catch (e) {}
 
     const nudgeTime = Number(data.timestamp) || 0;
-    // 앱 접속 직후 과거 찌르기(1분 초과)에 무한 팝업 방지
     const now = Date.now();
     if (nudgeTime <= lastSeen || now - nudgeTime > 60 * 1000) {
       return;
@@ -481,7 +376,7 @@ function listenIncomingNudges() {
       localStorage.setItem(STORAGE_KEY_LAST_SEEN, String(nudgeTime));
     } catch (e) {}
 
-    // 1. 듀오링고 감성 화면 지진(Shake) 효과!
+    // 1. 화면 지진(Shake) 효과!
     document.body.classList.remove("duo-shake");
     void document.body.offsetWidth; // reflow
     document.body.classList.add("duo-shake");
@@ -497,7 +392,7 @@ function listenIncomingNudges() {
 }
 
 /**
- * 콕 찔림 수신 모달 띄우기
+ * 콕 찔림 수신 팝업 띄우기
  */
 function showReceivedNudgeModal(data) {
   if (!rxModalEl) return;
@@ -529,8 +424,8 @@ function showReceivedNudgeModal(data) {
           document.getElementById("title-input")?.focus();
         }, 300);
       } else {
-        // 맞찌르기!
-        openNudgeModal("free");
+        // 즉시 맞찌르기! (원클릭)
+        triggerQuickNudge("free", freeNudgeBtn);
       }
     };
   }
@@ -557,16 +452,13 @@ export function updateDiaryNudgeStatus(entries = cachedEntries) {
     diaryNudgePartnerName.textContent = partner.name;
   }
 
-  // 오늘 00:00:00 타임스탬프
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
-  // 상대방이 오늘 쓴 일기가 있는지 검사
   const partnerWroteToday = (entries || []).some(
     (e) => (e.uid === partner.uid || e.authorUid === partner.uid) && Number(e.createdAt) >= todayStart
   );
 
-  // 오늘 상대방 일기가 없으면 배너 노출, 있으면 숨김
   diaryNudgeBanner.hidden = partnerWroteToday;
   updateAllNudgeBadges();
 }
@@ -575,7 +467,6 @@ export function updateDiaryNudgeStatus(entries = cachedEntries) {
  * 콕 찌르기 모듈 전체 초기화 및 이벤트 바인딩
  */
 export function initNudge() {
-  // DOM 요소 매핑
   freeNudgeBtn = document.getElementById("free-nudge-btn");
   freeNudgeBadge = document.getElementById("free-nudge-quota-badge");
   dqNudgeBtn = document.getElementById("dq-nudge-btn");
@@ -585,21 +476,6 @@ export function initNudge() {
   diaryNudgeBadge = document.getElementById("diary-nudge-quota-badge");
   diaryNudgePartnerName = document.getElementById("diary-nudge-partner-name");
 
-  // 발송 모달
-  selectModalEl = document.getElementById("nudge-select-modal");
-  selectModalCloseBtn = document.getElementById("nudge-modal-close-btn");
-  modalIconEl = document.getElementById("nudge-modal-icon");
-  modalTitleEl = document.getElementById("nudge-modal-title");
-  quotaCountTextEl = document.getElementById("nudge-quota-count-text");
-  quotaBarEl = document.getElementById("nudge-quota-bar");
-  cooldownTextEl = document.getElementById("nudge-cooldown-text");
-  randomBtn = document.getElementById("nudge-random-btn");
-  presetListEl = document.getElementById("nudge-preset-list");
-  customInputEl = document.getElementById("nudge-custom-input");
-  sendSubmitBtn = document.getElementById("nudge-send-submit-btn");
-  submitBtnTextEl = document.getElementById("nudge-submit-btn-text");
-
-  // 수신 모달
   rxModalEl = document.getElementById("nudge-received-modal");
   rxSenderNameEl = document.getElementById("nudge-rx-sender-name");
   rxPokeIndexEl = document.getElementById("nudge-rx-poke-index");
@@ -607,52 +483,19 @@ export function initNudge() {
   rxActionBtn = document.getElementById("nudge-rx-action-btn");
   rxDismissBtn = document.getElementById("nudge-rx-dismiss-btn");
 
-  // 이벤트 배선 1: 자유 콕 찌르기 버튼
+  // 원클릭 이벤트 배선 1: 자유 콕 찌르기
   if (freeNudgeBtn) {
-    freeNudgeBtn.addEventListener("click", () => openNudgeModal("free"));
+    freeNudgeBtn.addEventListener("click", () => triggerQuickNudge("free", freeNudgeBtn));
   }
 
-  // 이벤트 배선 2: 질문 재촉 버튼
+  // 원클릭 이벤트 배선 2: 오늘의 질문 재촉
   if (dqNudgeBtn) {
-    dqNudgeBtn.addEventListener("click", () => openNudgeModal("question"));
+    dqNudgeBtn.addEventListener("click", () => triggerQuickNudge("question", dqNudgeBtn));
   }
 
-  // 이벤트 배선 3: 일기 재촉 버튼
+  // 원클릭 이벤트 배선 3: 오늘 일기 재촉
   if (diaryNudgeBtn) {
-    diaryNudgeBtn.addEventListener("click", () => openNudgeModal("diary"));
-  }
-
-  // 발송 모달 닫기
-  if (selectModalCloseBtn && selectModalEl) {
-    selectModalCloseBtn.addEventListener("click", () => {
-      selectModalEl.hidden = true;
-      document.body.classList.remove("modal-open");
-    });
-    selectModalEl.addEventListener("click", (e) => {
-      if (e.target === selectModalEl) {
-        selectModalEl.hidden = true;
-        document.body.classList.remove("modal-open");
-      }
-    });
-  }
-
-  // 랜덤 멘트 버튼
-  if (randomBtn) {
-    randomBtn.addEventListener("click", pickRandomMessage);
-  }
-
-  // 직접 입력창 활성화 시 프리셋 선택 해제
-  if (customInputEl) {
-    customInputEl.addEventListener("input", () => {
-      if (customInputEl.value.trim() && presetListEl) {
-        presetListEl.querySelectorAll(".nudge-preset-item").forEach((el) => el.classList.remove("active"));
-      }
-    });
-  }
-
-  // 발송 버튼 클릭
-  if (sendSubmitBtn) {
-    sendSubmitBtn.addEventListener("click", handleSendNudge);
+    diaryNudgeBtn.addEventListener("click", () => triggerQuickNudge("diary", diaryNudgeBtn));
   }
 
   // 수신 모달 닫기

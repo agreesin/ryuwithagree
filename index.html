@@ -701,51 +701,6 @@
       </div>
     </div>
 
-    <!-- 콕 찌르기 멘트 선택 및 발송 모달 -->
-    <div id="nudge-select-modal" class="modal-overlay" hidden>
-      <div class="modal-content nudge-select-card">
-        <div class="nudge-modal-header">
-          <div class="modal-title-wrap">
-            <span id="nudge-modal-icon" class="modal-icon">👉</span>
-            <h2 id="nudge-modal-title" class="modal-title">콕 찌르기</h2>
-          </div>
-          <button id="nudge-modal-close-btn" class="nudge-close-btn" type="button" title="닫기">✕</button>
-        </div>
-
-        <!-- 남은 찌르기 게이지 바 -->
-        <div class="nudge-quota-box">
-          <div class="nudge-quota-info">
-            <span class="nudge-quota-label">남은 찌르기</span>
-            <strong id="nudge-quota-count-text" class="nudge-quota-count-text">5 / 5회</strong>
-          </div>
-          <div class="nudge-quota-track">
-            <div id="nudge-quota-bar" class="nudge-quota-bar" style="width: 100%;"></div>
-          </div>
-          <p id="nudge-cooldown-text" class="nudge-cooldown-text" hidden>⏳ 1시간 쿨타임 중 (59분 뒤 충전)</p>
-        </div>
-
-        <!-- 멘트 선택 가이드 & 랜덤 버튼 -->
-        <div class="nudge-preset-header">
-          <span class="nudge-preset-subtitle">재치 있는 멘트 골라보세요 ✨</span>
-          <button type="button" id="nudge-random-btn" class="nudge-random-btn" title="랜덤 멘트 선택">🎲 랜덤</button>
-        </div>
-
-        <!-- 멘트 목록 -->
-        <div id="nudge-preset-list" class="nudge-preset-list"></div>
-
-        <!-- 직접 입력 옵션 -->
-        <div class="nudge-custom-wrap">
-          <input type="text" id="nudge-custom-input" class="nudge-custom-input" placeholder="또는 직접 멘트 입력 (최대 40자)" maxlength="40" />
-        </div>
-
-        <!-- 발송 버튼 -->
-        <button type="button" id="nudge-send-submit-btn" class="modal-btn submit nudge-send-submit-btn">
-          <span class="nudge-submit-finger">👉</span>
-          <span id="nudge-submit-btn-text">상대방 콕! 찌르기 (5/5)</span>
-        </button>
-      </div>
-    </div>
-
     <!-- 콕 찔림 수신 팝업 모달 (듀오링고 감성) -->
     <div id="nudge-received-modal" class="modal-overlay nudge-rx-overlay" hidden>
       <div class="modal-content nudge-rx-card">
