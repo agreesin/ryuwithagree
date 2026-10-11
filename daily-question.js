@@ -16,7 +16,7 @@ import {
   advanceToNextQuestion,
   loadCompletedQuestions,
 } from "./store.js";
-import { getCurrentUser, getCurrentProfiles, getProfilePhoto, getUserInitial } from "./state.js";
+import { getCurrentUser, getCurrentProfiles, getProfilePhoto, getUserInitial, getPartnerInfo } from "./state.js";
 import { getCoupleDays, checkSpecialDayQuestion, getQuestionByOrder } from "./questions.js";
 import { getCurrentDdayItems, onDdayChange } from "./dday.js";
 import { sendPushToPartner, showToastNotification } from "./notify.js";
@@ -28,6 +28,7 @@ let badgeEl = null;
 let questionTextEl = null;
 let historyBtn = null;
 let historyCountEl = null;
+let partnerNudgeWrapEl = null;
 
 let myAvatarEl = null;
 let myNameEl = null;
@@ -88,20 +89,6 @@ function renderAvatar(container, uid, name) {
   } else {
     container.textContent = getUserInitial(name);
   }
-}
-
-/**
- * 상대방의 UID와 닉네임을 구합니다.
- */
-function getPartnerInfo() {
-  const user = getCurrentUser();
-  const profiles = getCurrentProfiles();
-  if (!user || !profiles) return { uid: null, name: "상대방" };
-
-  const partnerUid = Object.keys(profiles).find((uid) => uid !== user.uid);
-  const partnerName = partnerUid ? profiles[partnerUid] || "상대방" : "상대방";
-
-  return { uid: partnerUid || null, name: partnerName };
 }
 
 /**
@@ -262,7 +249,13 @@ export function renderCurrentQuestionView() {
       nextQuestionWrapEl.hidden = !isBothAnswered || isViewingHistory;
     }
 
-    // 5. 실시간 댓글 영역 렌더링
+    // 5. 상대방 미답변 시 콕 찌르기 버튼 노출 (내가 답변을 썼고 과거 조회가 아닐 때)
+    if (partnerNudgeWrapEl) {
+      const showNudge = Boolean(myAnswer && myAnswer.text && !isPartnerAnswered && !isViewingHistory);
+      partnerNudgeWrapEl.hidden = !showNudge;
+    }
+
+    // 6. 실시간 댓글 영역 렌더링
     renderComments(myAnswer, partnerAnswer);
   } catch (err) {
     console.error("[daily-question] 문답 렌더링 오류:", err);
@@ -477,6 +470,7 @@ export function initDailyQuestion() {
   partnerWaitingEl = document.getElementById("dq-partner-waiting");
   partnerDisplayEl = document.getElementById("dq-partner-display");
   partnerTextEl = document.getElementById("dq-partner-text");
+  partnerNudgeWrapEl = document.getElementById("dq-partner-nudge-wrap");
 
   nextQuestionWrapEl = document.getElementById("dq-next-question-wrap");
   advanceBtn = document.getElementById("dq-advance-btn");

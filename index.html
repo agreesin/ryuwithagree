@@ -215,6 +215,11 @@
               <span class="who-edit-badge" title="프로필 설정">✏️</span>
             </span>
           </button>
+          <button id="free-nudge-btn" class="free-nudge-btn" type="button" title="상대방 콕 찌르기">
+            <span class="nudge-btn-finger">👉</span>
+            <span class="free-nudge-text">콕 찌르기</span>
+            <span id="free-nudge-quota-badge" class="nudge-quota-badge">5/5</span>
+          </button>
           <button id="logout-button" class="logout-button" type="button">
             로그아웃
           </button>
@@ -229,6 +234,21 @@
 
         <!-- 1. 피드 뷰 모드 섹션 (글 작성 + 검색/필터 + 타임라인 피드) -->
         <div id="feed-view-section">
+          <!-- 오늘 일기 재촉 콕 찌르기 배너 -->
+          <div id="diary-nudge-banner" class="diary-nudge-banner" hidden>
+            <div class="diary-nudge-content">
+              <span class="diary-nudge-icon">📖</span>
+              <div class="diary-nudge-text-wrap">
+                <span class="diary-nudge-desc"><strong id="diary-nudge-partner-name" class="diary-nudge-title">상대방</strong>님이 오늘 아직 일기를 작성하지 않았어요!</span>
+              </div>
+            </div>
+            <button type="button" id="diary-nudge-btn" class="diary-nudge-btn" title="일기 쓰라고 콕 찌르기">
+              <span class="nudge-btn-finger">👉</span>
+              <span class="diary-nudge-btn-text">일기 콕 찌르기</span>
+              <span id="diary-nudge-quota-badge" class="nudge-quota-badge">5/5</span>
+            </button>
+          </div>
+
           <!-- 글 쓰는 곳 -->
           <section class="editor">
           <!-- 오늘의 기분 선택 바 -->
@@ -455,6 +475,13 @@
                     <div id="dq-lock-icon" class="dq-lock-icon">🔒</div>
                     <strong id="dq-lock-title" class="dq-lock-title">상대방이 아직 작성하지 않았어요</strong>
                     <p id="dq-lock-desc" class="dq-lock-desc">내 답변을 먼저 남겨보세요!</p>
+                    <div id="dq-partner-nudge-wrap" class="dq-partner-nudge-wrap" hidden>
+                      <button type="button" id="dq-nudge-btn" class="dq-nudge-btn" title="상대방 콕 찔러서 재촉하기">
+                        <span class="nudge-btn-finger">👉</span>
+                        <span class="nudge-btn-text">콕 찔러서 재촉하기</span>
+                        <span id="dq-nudge-quota-badge" class="nudge-quota-badge">5/5</span>
+                      </button>
+                    </div>
                   </div>
                   <!-- 2. 내가 썼는데 상대방은 아직 안 썼을 때: 대기 상태 -->
                   <div id="dq-partner-waiting" class="dq-waiting-card" hidden>
@@ -671,6 +698,81 @@
           아직 완료된 지난 문답이 없습니다. 첫 번째 질문을 완성해보세요! 💌
         </div>
         <ul id="dq-history-list" class="dq-history-list"></ul>
+      </div>
+    </div>
+
+    <!-- 콕 찌르기 멘트 선택 및 발송 모달 -->
+    <div id="nudge-select-modal" class="modal-overlay" hidden>
+      <div class="modal-content nudge-select-card">
+        <div class="nudge-modal-header">
+          <div class="modal-title-wrap">
+            <span id="nudge-modal-icon" class="modal-icon">👉</span>
+            <h2 id="nudge-modal-title" class="modal-title">콕 찌르기</h2>
+          </div>
+          <button id="nudge-modal-close-btn" class="nudge-close-btn" type="button" title="닫기">✕</button>
+        </div>
+
+        <!-- 남은 찌르기 게이지 바 -->
+        <div class="nudge-quota-box">
+          <div class="nudge-quota-info">
+            <span class="nudge-quota-label">남은 찌르기</span>
+            <strong id="nudge-quota-count-text" class="nudge-quota-count-text">5 / 5회</strong>
+          </div>
+          <div class="nudge-quota-track">
+            <div id="nudge-quota-bar" class="nudge-quota-bar" style="width: 100%;"></div>
+          </div>
+          <p id="nudge-cooldown-text" class="nudge-cooldown-text" hidden>⏳ 1시간 쿨타임 중 (59분 뒤 충전)</p>
+        </div>
+
+        <!-- 멘트 선택 가이드 & 랜덤 버튼 -->
+        <div class="nudge-preset-header">
+          <span class="nudge-preset-subtitle">재치 있는 멘트 골라보세요 ✨</span>
+          <button type="button" id="nudge-random-btn" class="nudge-random-btn" title="랜덤 멘트 선택">🎲 랜덤</button>
+        </div>
+
+        <!-- 멘트 목록 -->
+        <div id="nudge-preset-list" class="nudge-preset-list"></div>
+
+        <!-- 직접 입력 옵션 -->
+        <div class="nudge-custom-wrap">
+          <input type="text" id="nudge-custom-input" class="nudge-custom-input" placeholder="또는 직접 멘트 입력 (최대 40자)" maxlength="40" />
+        </div>
+
+        <!-- 발송 버튼 -->
+        <button type="button" id="nudge-send-submit-btn" class="modal-btn submit nudge-send-submit-btn">
+          <span class="nudge-submit-finger">👉</span>
+          <span id="nudge-submit-btn-text">상대방 콕! 찌르기 (5/5)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 콕 찔림 수신 팝업 모달 (듀오링고 감성) -->
+    <div id="nudge-received-modal" class="modal-overlay nudge-rx-overlay" hidden>
+      <div class="modal-content nudge-rx-card">
+        <div class="nudge-rx-top-anim">
+          <span class="nudge-rx-finger-anim">👉</span>
+          <span class="nudge-rx-sparkle">💥</span>
+          <span class="nudge-rx-heart">💖</span>
+        </div>
+        <h2 class="nudge-rx-title">
+          <span id="nudge-rx-sender-name">상대방</span>님이 나를 콕! 찔렀어요!
+        </h2>
+        <span id="nudge-rx-poke-index" class="nudge-rx-poke-index">오늘 1번째 콕! ⚡</span>
+
+        <!-- 말풍선 -->
+        <div class="nudge-rx-bubble">
+          <p id="nudge-rx-message-text">"나 답변 썼는데 너는 언제 써줄 거야? 궁금해 죽겠어! 🥺"</p>
+        </div>
+
+        <!-- 액션 버튼들 -->
+        <div class="nudge-rx-actions">
+          <button type="button" id="nudge-rx-action-btn" class="modal-btn submit nudge-rx-action-btn">
+            답변 작성하러 가기 💌
+          </button>
+          <button type="button" id="nudge-rx-dismiss-btn" class="modal-btn cancel nudge-rx-dismiss-btn">
+            알겠어 ㅎㅎ 💕
+          </button>
+        </div>
       </div>
     </div>
 

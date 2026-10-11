@@ -5053,6 +5053,608 @@ body.modal-open {
   background: var(--primary-hover);
 }
 
+/* =========================================================
+   듀오링고 감성 콕 찌르기 (Nudge) 스타일
+   ========================================================= */
+
+/* 1. 듀오링고 화면 지진 (Screen Shake) 애니메이션 */
+@keyframes duo-screen-shake {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  15% {
+    transform: translate(-7px, -4px) rotate(-1.2deg);
+  }
+  30% {
+    transform: translate(6px, 4px) rotate(1.2deg);
+  }
+  45% {
+    transform: translate(-5px, 2px) rotate(-0.8deg);
+  }
+  60% {
+    transform: translate(4px, -2px) rotate(0.8deg);
+  }
+  75% {
+    transform: translate(-3px, 1px) rotate(-0.4deg);
+  }
+  90% {
+    transform: translate(2px, -1px) rotate(0.2deg);
+  }
+}
+
+body.duo-shake {
+  animation: duo-screen-shake 0.65s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* 2. 손가락 튀어오름 바운스 애니메이션 */
+@keyframes poke-finger-bounce {
+  0% {
+    transform: scale(1) translateX(0);
+  }
+  25% {
+    transform: scale(0.85) translateX(-5px);
+  }
+  60% {
+    transform: scale(1.4) translateX(10px);
+  }
+  100% {
+    transform: scale(1) translateX(0);
+  }
+}
+
+.nudge-btn-finger.bounce,
+.nudge-submit-finger.bounce {
+  display: inline-block;
+  animation: poke-finger-bounce 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 공통 쿼터 배지 */
+.nudge-quota-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 7px;
+  background: #ffe3e8;
+  color: #e66d7b;
+  font-size: 0.75rem;
+  font-weight: 800;
+  border-radius: 999px;
+  border: 1px solid #ffccd5;
+  letter-spacing: -0.3px;
+  min-width: 28px;
+  line-height: 1.2;
+}
+
+/* 쿨타임 중일 때 배지 */
+.cooling-down .nudge-quota-badge,
+.nudge-quota-badge.cooldown {
+  background: #fef3c7;
+  color: #d97706;
+  border-color: #fde68a;
+}
+
+/* 3. 헤더 .who 바 자유 콕 찌르기 버튼 */
+.free-nudge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff0f3;
+  color: #d93856;
+  border: 1.5px solid #ffccd5;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 2px 6px rgba(230, 109, 123, 0.12);
+}
+
+.free-nudge-btn:hover {
+  background: #ffe0e6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(230, 109, 123, 0.2);
+}
+
+.free-nudge-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 3px rgba(230, 109, 123, 0.15);
+}
+
+.free-nudge-btn.cooling-down {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+/* 4. 일기 재촉 콕 찌르기 배너 */
+.diary-nudge-banner {
+  background: linear-gradient(135deg, #fff7ed 0%, #fff1f2 100%);
+  border: 1.5px solid #fed7aa;
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 3px 10px rgba(249, 115, 22, 0.08);
+  animation: fadeInDown 0.3s ease;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.diary-nudge-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.diary-nudge-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.diary-nudge-text-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.diary-nudge-title {
+  color: #ea580c;
+  font-weight: 800;
+}
+
+.diary-nudge-desc {
+  font-size: 0.88rem;
+  color: #7c2d12;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.diary-nudge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ea580c;
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 3px 0 #9a3412;
+  transition: all 0.15s ease;
+}
+
+.diary-nudge-btn:hover {
+  background: #f97316;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #9a3412;
+}
+
+.diary-nudge-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #9a3412;
+}
+
+.diary-nudge-btn .nudge-quota-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* 5. 질문 카드 내 콕 찌르기 버튼 */
+.dq-partner-nudge-wrap {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+}
+
+.dq-nudge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(135deg, #e66d7b 0%, #f43f5e 100%);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 9px 18px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #be123c, 0 6px 14px rgba(225, 29, 72, 0.25);
+  transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dq-nudge-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #be123c, 0 8px 18px rgba(225, 29, 72, 0.35);
+}
+
+.dq-nudge-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #be123c, 0 2px 6px rgba(225, 29, 72, 0.2);
+}
+
+.dq-nudge-btn .nudge-quota-badge {
+  background: rgba(255, 255, 255, 0.28);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+/* 6. 콕 찌르기 발송 모달 */
+.nudge-select-card {
+  max-width: 440px;
+  width: 90%;
+  border-radius: 20px;
+  padding: 24px 20px;
+  background: white;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
+  animation: modalPopIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.nudge-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.nudge-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.nudge-close-btn:hover {
+  color: #334155;
+  background: #f1f5f9;
+}
+
+/* 쿼터 게이지 바 */
+.nudge-quota-box {
+  background: #fff5f7;
+  border: 1px solid #fed7e2;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+}
+
+.nudge-quota-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.nudge-quota-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.nudge-quota-count-text {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #e66d7b;
+}
+
+.nudge-quota-track {
+  width: 100%;
+  height: 8px;
+  background: #fce7f3;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.nudge-quota-bar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.nudge-cooldown-text {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #d97706;
+  text-align: right;
+}
+
+/* 프리셋 선택 헤더 & 랜덤 */
+.nudge-preset-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.nudge-preset-subtitle {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.nudge-random-btn {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.nudge-random-btn:hover {
+  background: #e2e8f0;
+  transform: translateY(-1px);
+}
+
+/* 프리셋 멘트 목록 */
+.nudge-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-bottom: 12px;
+}
+
+.nudge-preset-item {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  line-height: 1.35;
+  transition: all 0.15s ease;
+}
+
+.nudge-preset-item:hover {
+  background: #fef2f2;
+  border-color: #fecdd3;
+  color: #e11d48;
+}
+
+.nudge-preset-item.active {
+  background: #fff1f2;
+  border-color: #e66d7b;
+  color: #be123c;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(230, 109, 123, 0.15);
+}
+
+.nudge-custom-wrap {
+  margin-bottom: 18px;
+}
+
+.nudge-custom-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.nudge-custom-input:focus {
+  border-color: #e66d7b;
+  box-shadow: 0 0 0 3px rgba(230, 109, 123, 0.15);
+}
+
+/* 찌르기 발송 버튼 (듀오링고 3D 깊이 버튼) */
+.nudge-send-submit-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px;
+  font-size: 1rem;
+  font-weight: 800;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #e66d7b 0%, #f43f5e 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 0 #be123c, 0 8px 16px rgba(225, 29, 72, 0.25);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nudge-send-submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #be123c, 0 10px 20px rgba(225, 29, 72, 0.35);
+}
+
+.nudge-send-submit-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #be123c, 0 2px 6px rgba(225, 29, 72, 0.2);
+}
+
+.nudge-send-submit-btn:disabled {
+  background: #cbd5e1;
+  box-shadow: 0 4px 0 #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+/* 7. 콕 찔림 수신 팝업 모달 */
+.nudge-rx-overlay {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+}
+
+.nudge-rx-card {
+  max-width: 400px;
+  width: 88%;
+  background: white;
+  border-radius: 24px;
+  padding: 28px 22px 22px;
+  text-align: center;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.25);
+  animation: rxCardPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes rxCardPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.nudge-rx-top-anim {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 2.8rem;
+  margin-bottom: 10px;
+  animation: rxTopPulse 1.2s infinite ease-in-out;
+}
+
+@keyframes rxTopPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15) rotate(3deg);
+  }
+}
+
+.nudge-rx-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 6px;
+}
+
+.nudge-rx-title span {
+  color: #e66d7b;
+}
+
+.nudge-rx-poke-index {
+  display: inline-block;
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+  border: 1px solid #fde68a;
+}
+
+/* 귀여운 말풍선 */
+.nudge-rx-bubble {
+  position: relative;
+  background: #fff1f2;
+  border: 2px solid #fecdd3;
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 22px;
+  box-shadow: 0 4px 12px rgba(230, 109, 123, 0.1);
+}
+
+.nudge-rx-bubble p {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #9f1239;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+/* 수신 모달 액션 버튼 그룹 */
+.nudge-rx-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nudge-rx-action-btn {
+  width: 100%;
+  padding: 13px;
+  font-size: 0.98rem;
+  font-weight: 800;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #e66d7b 0%, #f43f5e 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 0 #be123c, 0 6px 12px rgba(225, 29, 72, 0.2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nudge-rx-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #be123c, 0 8px 16px rgba(225, 29, 72, 0.3);
+}
+
+.nudge-rx-action-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #be123c;
+}
+
+.nudge-rx-dismiss-btn {
+  background: #f1f5f9;
+  color: #64748b;
+  border: none;
+  border-radius: 12px;
+  padding: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.nudge-rx-dismiss-btn:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
 
 
 

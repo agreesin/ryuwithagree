@@ -7,6 +7,7 @@ import { createEntryCard } from "./entry-card.js";
 import { isMyContent } from "./state.js";
 import { updateCalendarEntries } from "./calendar.js";
 import { updateReportEntries } from "./report.js";
+import { updateDiaryNudgeStatus } from "./nudge.js";
 
 const emptyMessage = document.getElementById("empty-message");
 const timelineList = document.getElementById("timeline-entry-list");
@@ -75,6 +76,8 @@ export function render(entries = cachedRawEntries) {
     updateCalendarEntries(entries);
     // 월간 레포트 모듈에도 최신 일기 데이터 동기화
     updateReportEntries(entries);
+    // 오늘 일기 콕 찌르기 배너 상태 동기화
+    updateDiaryNudgeStatus(entries);
   }
 
   hideError();

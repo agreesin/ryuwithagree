@@ -59,6 +59,18 @@ export function getUserInitial(name) {
 }
 
 /**
+ * 상대방의 UID와 닉네임을 구합니다.
+ */
+export function getPartnerInfo() {
+  if (!currentUser || !currentProfiles) return { uid: null, name: "상대방" };
+
+  const partnerUid = Object.keys(currentProfiles).find((uid) => uid !== currentUser.uid);
+  const partnerName = partnerUid ? currentProfiles[partnerUid] || "상대방" : "상대방";
+
+  return { uid: partnerUid || null, name: partnerName };
+}
+
+/**
  * 텍스트를 SHA-256 16진수 문자열로 변환합니다.
  */
 async function computeSha256(text) {
