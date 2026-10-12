@@ -603,6 +603,32 @@ export function subscribeDailyQuestion(dateStr, onChange) {
 }
 
 /**
+ * 모든 커플 문답 데이터를 실시간 구독합니다 (알림 센터 및 전체 상태 동기화용).
+ * @param {Function} onChange - (items) => void
+ * @returns {Function} 구독 해제 함수
+ */
+export function subscribeAllDailyQuestions(onChange) {
+  const qColl = collection(db, "daily_questions");
+  return onSnapshot(
+    qColl,
+    (snapshot) => {
+      const items = [];
+      snapshot.forEach((d) => {
+        if (d.id === "_question_state" || d.id === "_latest_nudge") return;
+        const data = d.data();
+        if (data && data.question) {
+          items.push({ id: d.id, ...data });
+        }
+      });
+      onChange(items);
+    },
+    (err) => {
+      console.warn("[store] 전체 문답 실시간 구독 오류:", err);
+    }
+  );
+}
+
+/**
  * 커플 질문 진행 상태(_question_state) 실시간 감시
  * @param {Function} onChange - 상태 변경 콜백 ({ currentOrder, completedIds })
  */
@@ -672,12 +698,32 @@ export async function loadCompletedQuestions() {
     }
   });
 
-  // 정렬: order 오름차순 또는 작성시간순
+  // 정렬: 가장 최근에 쓴 질문 우선 내림차순 (최신 작성/수정 시간순, 회차 번호 역순)
   items.sort((a, b) => {
-    const orderA = a.question?.order || 9999;
-    const orderB = b.question?.order || 9999;
-    if (orderA !== orderB) return orderA - orderB;
-    return (b.lastUpdatedAt || 0) - (a.lastUpdatedAt || 0);
+    const getTime = (item) => {
+      let maxTime = item.lastUpdatedAt || item.completedAt || 0;
+      if (item.answers && typeof item.answers === "object") {
+        for (const ans of Object.values(item.answers)) {
+          if (ans?.updatedAt && ans.updatedAt > maxTime) {
+            maxTime = ans.updatedAt;
+          }
+        }
+      }
+      return maxTime;
+    };
+
+    const timeA = getTime(a);
+    const timeB = getTime(b);
+
+    if (timeA && timeB && timeA !== timeB) {
+      return timeB - timeA;
+    }
+    if (timeA && !timeB) return -1;
+    if (!timeA && timeB) return 1;
+
+    const orderA = a.question?.order || 0;
+    const orderB = b.question?.order || 0;
+    return orderB - orderA;
   });
 
   return items;

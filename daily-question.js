@@ -28,6 +28,9 @@ let badgeEl = null;
 let questionTextEl = null;
 let historyBtn = null;
 let historyCountEl = null;
+let dqLatestBtn = null;
+let dqHistoryBannerEl = null;
+let dqHistoryBannerLatestBtn = null;
 let partnerNudgeWrapEl = null;
 
 let myAvatarEl = null;
@@ -137,6 +140,18 @@ function listenToQuestionDoc(docId) {
 }
 
 /**
+ * 최신 진행 중인 질문(현재 회차)으로 즉시 복귀
+ */
+export function resetToLatestQuestion() {
+  isViewingHistory = false;
+  const q = determineCurrentQuestion();
+  activeDocId = q.docId;
+  activeQuestionData = q.data;
+  listenToQuestionDoc(activeDocId);
+  renderCurrentQuestionView();
+}
+
+/**
  * 현재 활성화된 질문 화면 렌더링
  */
 export function renderCurrentQuestionView() {
@@ -145,6 +160,14 @@ export function renderCurrentQuestionView() {
       const initQ = determineCurrentQuestion();
       activeDocId = initQ.docId;
       activeQuestionData = initQ.data;
+    }
+
+    // 0. 과거 문답 열람 중 표시 배너 및 복귀 버튼 토글
+    if (dqLatestBtn) {
+      dqLatestBtn.hidden = !isViewingHistory;
+    }
+    if (dqHistoryBannerEl) {
+      dqHistoryBannerEl.hidden = !isViewingHistory;
     }
 
     // 1. 배지 및 질문 본문 렌더링
@@ -266,7 +289,11 @@ export function renderCurrentQuestionView() {
  * 탭 전환 등에서 호출하는 진입 함수
  */
 export function renderCurrentDateQuestion() {
-  renderCurrentQuestionView();
+  if (isViewingHistory) {
+    resetToLatestQuestion();
+  } else {
+    renderCurrentQuestionView();
+  }
 }
 
 /**
@@ -331,40 +358,62 @@ function renderComments(myAnswer, partnerAnswer) {
   comments.forEach((c) => {
     const isMe = currentUser && c.uid === currentUser.uid;
     const li = document.createElement("li");
-    li.className = `dq-comment-item ${isMe ? "is-me" : "is-partner"}`;
+    li.className = `dq-chat-item ${isMe ? "is-me" : "is-partner"}`;
+    li.id = `dq-comment-item-${c.id}`;
 
     const authorName = (c.uid && profiles[c.uid]) ? profiles[c.uid] : (c.author || "이름 없음");
     const photo = c.uid ? getProfilePhoto(c.uid) : null;
     const avatarHtml = photo
-      ? `<img src="${photo}" alt="${authorName}" class="dq-comment-avatar-img" />`
-      : `<span class="dq-comment-avatar-initial">${getUserInitial(authorName)}</span>`;
+      ? `<img src="${photo}" alt="${authorName}" class="dq-chat-avatar-img" />`
+      : `<span class="dq-chat-avatar-initial">${getUserInitial(authorName)}</span>`;
 
-    li.innerHTML = `
-      <div class="dq-comment-avatar">${avatarHtml}</div>
-      <div class="dq-comment-body">
-        <div class="dq-comment-meta">
-          <strong class="dq-comment-author">${authorName}</strong>
-          <span class="dq-comment-time">${formatCommentTime(c.createdAt)}</span>
-          ${isMe ? `<button type="button" class="dq-comment-del-btn" title="댓글 삭제">✕</button>` : ""}
+    if (isMe) {
+      // 내 메시지: 우측 정렬 말풍선 + 좌측 시간 및 삭제 버튼
+      li.innerHTML = `
+        <div class="dq-chat-row is-me">
+          <div class="dq-chat-side is-me">
+            <button type="button" class="dq-comment-del-btn" title="메시지 삭제">✕</button>
+            <span class="dq-chat-time">${formatCommentTime(c.createdAt)}</span>
+          </div>
+          <div class="dq-chat-bubble is-me">
+            <p class="dq-chat-text"></p>
+          </div>
         </div>
-        <p class="dq-comment-text"></p>
-      </div>
-    `;
+      `;
+    } else {
+      // 상대방 메시지: 좌측 정렬 아바타 + 이름 + 말풍선 + 우측 시간
+      li.innerHTML = `
+        <div class="dq-chat-row is-partner">
+          <div class="dq-chat-avatar">${avatarHtml}</div>
+          <div class="dq-chat-content-wrap">
+            <span class="dq-chat-sender-name">${authorName}</span>
+            <div class="dq-chat-bubble-row">
+              <div class="dq-chat-bubble is-partner">
+                <p class="dq-chat-text"></p>
+              </div>
+              <div class="dq-chat-side is-partner">
+                <span class="dq-chat-time">${formatCommentTime(c.createdAt)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
-    const textP = li.querySelector(".dq-comment-text");
+    const textP = li.querySelector(".dq-chat-text");
     if (textP) textP.textContent = c.text;
 
     if (isMe) {
       const delBtn = li.querySelector(".dq-comment-del-btn");
       if (delBtn) {
         delBtn.addEventListener("click", async () => {
-          if (!confirm("이 댓글을 삭제하시겠습니까?")) return;
+          if (!confirm("이 메시지를 삭제하시겠습니까?")) return;
           try {
             await removeDailyQuestionComment(activeDocId, c.id);
-            showToastNotification("댓글이 삭제되었습니다.", "🗑️");
+            showToastNotification("메시지가 삭제되었습니다.", "🗑️");
           } catch (err) {
             console.error(err);
-            showError("댓글 삭제에 실패했습니다: " + err.message);
+            showError("메시지 삭제에 실패했습니다: " + err.message);
           }
         });
       }
@@ -372,6 +421,13 @@ function renderComments(myAnswer, partnerAnswer) {
 
     commentsListEl.appendChild(li);
   });
+
+  // 카카오톡처럼 항상 최신 메시지가 보이도록 아래로 스크롤
+  setTimeout(() => {
+    if (commentsListEl) {
+      commentsListEl.scrollTop = commentsListEl.scrollHeight;
+    }
+  }, 50);
 }
 
 /**
@@ -398,27 +454,61 @@ async function openHistoryModal() {
 
     if (historyEmptyEl) historyEmptyEl.hidden = true;
 
+    // 가장 최근에 작성된 질문이 먼저 오도록 최신순(내림차순) 정렬 재확인
+    items.sort((a, b) => {
+      const getTime = (item) => {
+        let maxTime = item.lastUpdatedAt || item.completedAt || 0;
+        if (item.answers && typeof item.answers === "object") {
+          for (const ans of Object.values(item.answers)) {
+            if (ans?.updatedAt && ans.updatedAt > maxTime) {
+              maxTime = ans.updatedAt;
+            }
+          }
+        }
+        return maxTime;
+      };
+
+      const timeA = getTime(a);
+      const timeB = getTime(b);
+
+      if (timeA && timeB && timeA !== timeB) {
+        return timeB - timeA;
+      }
+      if (timeA && !timeB) return -1;
+      if (!timeA && timeB) return 1;
+
+      const orderA = a.question?.order || 0;
+      const orderB = b.question?.order || 0;
+      return orderB - orderA;
+    });
+
     items.forEach((item) => {
       const q = item.question || {};
       const li = document.createElement("li");
       li.className = "dq-history-item";
+      li.setAttribute("role", "button");
+      li.setAttribute("tabindex", "0");
 
       const badgeText = q.badge || "💌 완료된 문답";
       const questionText = q.text || "질문 내용";
       const answers = item.answers || {};
       const answerCount = Object.keys(answers).length;
 
+      li.setAttribute("aria-label", `${badgeText} 열람하기`);
+
       li.innerHTML = `
         <div class="dq-hitem-header">
           <span class="dq-hitem-badge ${q.isSpecial ? "special" : ""}">${badgeText}</span>
-          <span class="dq-hitem-status">답변 ${answerCount}개 💖</span>
+          <div class="dq-hitem-meta-right">
+            <span class="dq-hitem-status">답변 ${answerCount}개 💖</span>
+            <span class="dq-hitem-arrow" aria-hidden="true">›</span>
+          </div>
         </div>
         <h4 class="dq-hitem-title">${questionText}</h4>
-        <button type="button" class="dq-hitem-view-btn">열람하기 📖</button>
       `;
 
-      li.querySelector(".dq-hitem-view-btn")?.addEventListener("click", () => {
-        // 과거 문답 열람 화면으로 전환
+      // 전체 박스(카드) 클릭 시 해당 문답 열람 화면으로 전환
+      const selectHistoryItem = () => {
         isViewingHistory = true;
         activeDocId = item.id;
         activeQuestionData = q;
@@ -428,6 +518,14 @@ async function openHistoryModal() {
 
         listenToQuestionDoc(activeDocId);
         showToastNotification(`'${badgeText}' 문답을 불러왔습니다.`, "📖");
+      };
+
+      li.addEventListener("click", selectHistoryItem);
+      li.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          selectHistoryItem();
+        }
       });
 
       historyListEl.appendChild(li);
@@ -451,6 +549,22 @@ export function initDailyQuestion() {
   questionTextEl = document.getElementById("dq-question-text");
   historyBtn = document.getElementById("dq-history-btn");
   historyCountEl = document.getElementById("dq-history-count");
+  dqLatestBtn = document.getElementById("dq-latest-btn");
+  dqHistoryBannerEl = document.getElementById("dq-history-banner");
+  dqHistoryBannerLatestBtn = document.getElementById("dq-history-banner-latest-btn");
+
+  if (dqLatestBtn) {
+    dqLatestBtn.addEventListener("click", () => {
+      resetToLatestQuestion();
+      showToastNotification("최신 질문으로 돌아왔습니다! 💌", "💌");
+    });
+  }
+  if (dqHistoryBannerLatestBtn) {
+    dqHistoryBannerLatestBtn.addEventListener("click", () => {
+      resetToLatestQuestion();
+      showToastNotification("최신 질문으로 돌아왔습니다! 💌", "💌");
+    });
+  }
 
   myAvatarEl = document.getElementById("dq-my-avatar");
   myNameEl = document.getElementById("dq-my-name");

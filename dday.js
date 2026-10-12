@@ -341,13 +341,36 @@ function renderDdayList() {
 /**
  * 기념일 설정 모달 열기
  */
-function openDdayModal() {
+export function openDdayModal() {
   if (!ddayModal) return;
   renderDdayList();
   if (ddayDateInput && !ddayDateInput.value) {
     ddayDateInput.value = formatDateString();
   }
   openModal(ddayModal);
+}
+
+/**
+ * 특정 날짜로 일정/기념일 등록 모달 열기 (캘린더 연동)
+ * @param {string} dateStr - YYYY-MM-DD
+ * @param {string} type - 'event' | 'count_up' | 'birthday'
+ */
+export function openDdayModalWithDate(dateStr, type = "event") {
+  if (!ddayModal) return;
+  renderDdayList();
+  if (ddayDateInput && dateStr) {
+    ddayDateInput.value = dateStr;
+  }
+  if (ddayTypeSelect) {
+    ddayTypeSelect.value = type;
+    setActiveIcon(type === "birthday" ? "🎂" : type === "event" ? "🌟" : "💖");
+  }
+  openModal(ddayModal);
+  setTimeout(() => {
+    if (ddayTitleInput) {
+      ddayTitleInput.focus();
+    }
+  }, 100);
 }
 
 /**

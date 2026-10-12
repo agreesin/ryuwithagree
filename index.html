@@ -415,9 +415,19 @@
 
           <!-- 선택된 날짜의 일기 및 일정 목록 -->
           <div class="cal-selected-section">
-            <h3 id="cal-selected-date-title" class="cal-selected-date-title">📅 선택된 날짜의 기록</h3>
+            <div class="cal-selected-header-wrap">
+              <h3 id="cal-selected-date-title" class="cal-selected-date-title">📅 선택된 날짜의 기록</h3>
+              <button type="button" id="cal-add-event-btn" class="cal-add-event-btn" title="선택한 날짜에 새 일정 추가">
+                <span>➕ 일정 추가</span>
+              </button>
+            </div>
             <div id="cal-selected-events-wrap" class="cal-selected-events-wrap" hidden></div>
-            <p id="cal-selected-empty" class="cal-selected-empty" hidden>이 날짜에 작성된 일기나 일정이 없습니다. 🍃</p>
+            <div id="cal-selected-empty-wrap" class="cal-selected-empty-wrap" hidden>
+              <p id="cal-selected-empty" class="cal-selected-empty">이 날짜에 작성된 일기나 일정이 없습니다. 🍃</p>
+              <button type="button" id="cal-empty-add-event-btn" class="cal-empty-add-event-btn">
+                <span>🌟 이 날짜에 일정 추가하기</span>
+              </button>
+            </div>
             <ul id="cal-selected-entries-list" class="cal-selected-entries-list"></ul>
           </div>
         </section>
@@ -426,10 +436,24 @@
         <section id="question-view-section" class="question-view-section" hidden>
           <div id="daily-question-section" class="daily-question-section">
             <div class="dq-card">
+              <!-- 과거 문답 열람 중 안내 배너 -->
+              <div id="dq-history-banner" class="dq-history-banner" hidden>
+                <div class="dq-hbanner-left">
+                  <span class="dq-hbanner-icon">📖</span>
+                  <span class="dq-hbanner-text">과거에 완료된 문답을 열람 중입니다.</span>
+                </div>
+                <button type="button" id="dq-history-banner-latest-btn" class="dq-hbanner-btn">
+                  <span>최신 질문으로 돌아가기 ↩️</span>
+                </button>
+              </div>
+
               <!-- 질문 상단 헤더: 배지, 지난 문답 목록 버튼 -->
               <div class="dq-header">
                 <span id="dq-badge" class="dq-badge">💌 Q.1</span>
                 <div class="dq-header-actions">
+                  <button type="button" id="dq-latest-btn" class="dq-latest-btn" title="진행 중인 최신 질문으로 돌아가기" hidden>
+                    <span>↩️ 최신 질문</span>
+                  </button>
                   <button type="button" id="dq-history-btn" class="dq-history-btn" title="완료된 문답 보관함">
                     <span>📚 지난 문답</span>
                     <span id="dq-history-count" class="dq-history-count">0</span>
@@ -525,7 +549,7 @@
                 <!-- 댓글 목록 및 작성 폼 (둘 다 작성 완료 시 열림) -->
                 <div id="dq-comments-content" class="dq-comments-content" hidden>
                   <div id="dq-comments-empty" class="dq-comments-empty" hidden>
-                    첫 번째 코멘트를 남겨 대화를 시작해보세요! 💌
+                    두 사람만의 톡을 시작해보세요! 💬✨
                   </div>
                   <ul id="dq-comments-list" class="dq-comments-list"></ul>
 
@@ -534,13 +558,13 @@
                       type="text"
                       id="dq-comment-input"
                       class="dq-comment-input"
-                      placeholder="답변에 대한 생각이나 한마디를 남겨보세요..."
+                      placeholder="메시지를 입력하세요... 💬"
                       maxlength="300"
                       autocomplete="off"
                       required
                     />
                     <button type="submit" id="dq-comment-submit-btn" class="dq-comment-submit-btn">
-                      등록
+                      전송
                     </button>
                   </form>
                 </div>

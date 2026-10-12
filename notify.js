@@ -8,6 +8,7 @@ import { getCurrentUser, getCurrentProfiles, isMyContent } from "./state.js";
 import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js";
 import { getMilestonesForDate, onDdayChange, getDdayItems } from "./dday.js";
 import { formatDateString, formatRelativeTime } from "./ui.js";
+import { switchViewTab } from "./calendar.js";
 
 const FIREBASE_MESSAGING_URL = "https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging.js";
 const FCM_VAPID_KEY = "BMwoxyNkaOfECoLOtTqhnVp76x2U3_7FgE4b08fKPSKxDxQ-EKCJb2z7cMaPjWNtjIPHXBaYbUhHLL1p0Gc1KNo";
@@ -31,10 +32,14 @@ const appStartTime = Date.now();
 let isInitialEntriesLoad = true;
 let knownEntryIds = new Set();
 let knownCommentIds = new Set();
+let isInitialQuestionsLoad = true;
+let knownQuestionAnsKeys = new Set();
+let knownQuestionCommentKeys = new Set();
 let originalDocumentTitle = document.title || "류이어리";
 let unreadCount = 0;
 let titleInterval = null;
 let cachedEntries = [];
+let cachedQuestionDocs = [];
 let lastFirestoreNotifTime = 0;
 
 // FCM 동적 인스턴스 및 서비스워커 등록 객체
@@ -502,6 +507,52 @@ function getNotificationItems(entries = cachedEntries) {
     });
   });
 
+  // 3. 커플 문답 알림 (상대방 답변 작성 및 우리들의 한마디)
+  if (Array.isArray(cachedQuestionDocs)) {
+    cachedQuestionDocs.forEach((qDoc) => {
+      if (!qDoc || !qDoc.question) return;
+      const q = qDoc.question;
+      const badgeText = q.badge || (q.order ? `Q.${q.order}` : "오늘의 질문");
+
+      // 1) 상대방 답변 등록 알림
+      const answers = qDoc.answers || {};
+      for (const [ansUid, ansData] of Object.entries(answers)) {
+        if (currentUser && ansUid !== currentUser.uid && ansData && ansData.text) {
+          const authorName = (ansUid && currentProfiles[ansUid]) ? currentProfiles[ansUid] : (ansData.author || "상대방");
+          items.push({
+            id: `dq-ans-${qDoc.id}-${ansUid}`,
+            type: "question-answer",
+            docId: qDoc.id,
+            targetId: "dq-answers-wrap",
+            author: authorName,
+            text: `💌 <b>${authorName}</b>님이 '${badgeText}' 문답에 답변을 등록했습니다.`,
+            createdAt: ansData.updatedAt || qDoc.lastUpdatedAt || 0,
+            icon: "💌",
+          });
+        }
+      }
+
+      // 2) 문답 댓글(우리들의 한마디) 알림
+      const comments = qDoc.comments || [];
+      comments.forEach((comment) => {
+        if (currentUser && comment.uid !== currentUser.uid && comment.text) {
+          const authorName = (comment.uid && currentProfiles[comment.uid]) ? currentProfiles[comment.uid] : (comment.author || "상대방");
+          const preview = comment.text.substring(0, 20);
+          items.push({
+            id: `dq-comment-${qDoc.id}-${comment.id}`,
+            type: "question-comment",
+            docId: qDoc.id,
+            targetId: `dq-comment-item-${comment.id}`,
+            author: authorName,
+            text: `💬 <b>${authorName}</b>님이 '${badgeText}' 문답에 한마디를 남겼습니다: "${preview}${comment.text.length > 20 ? "..." : ""}"`,
+            createdAt: comment.createdAt || 0,
+            icon: "💬",
+          });
+        }
+      });
+    });
+  }
+
   // 최신순 정렬
   items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   return items;
@@ -596,6 +647,27 @@ function renderNotificationDropdown() {
  * 알림 대상 요소로 스크롤 이동 및 반짝임 하이라이트 효과 부여
  */
 function scrollToNotificationTarget(item) {
+  // 1. 커플 문답 관련 알림 (답변 및 한마디 댓글)
+  if (item.type === "question-answer" || item.type === "question-comment") {
+    switchViewTab("question");
+    setTimeout(() => {
+      let targetEl = null;
+      if (item.type === "question-comment" && item.targetId) {
+        targetEl = document.getElementById(item.targetId) || document.getElementById("dq-comments-container");
+      } else {
+        targetEl = document.getElementById("dq-answers-wrap") || document.getElementById("daily-question-section");
+      }
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        targetEl.classList.remove("highlight-flash");
+        void targetEl.offsetWidth;
+        targetEl.classList.add("highlight-flash");
+        setTimeout(() => targetEl.classList.remove("highlight-flash"), 1800);
+      }
+    }, 350);
+    return;
+  }
+
   let targetEl = null;
 
   if (item.targetId) {
@@ -698,6 +770,75 @@ export function checkNewUpdates(entries) {
   });
 
   // 뱃지 및 드롭다운 목록 갱신
+  updateNotificationBadge();
+  if (notifDropdown && !notifDropdown.hidden) {
+    renderNotificationDropdown();
+  }
+}
+
+/**
+ * Firestore 커플 문답 목록이 갱신될 때 답변 및 한마디(댓글) 알림을 감지하고 알림 센터를 갱신합니다.
+ * @param {Array<Object>} qDocs - 질문 문서 목록
+ */
+export function updateQuestionNotifications(qDocs) {
+  if (!Array.isArray(qDocs)) return;
+  cachedQuestionDocs = qDocs;
+  const currentUser = getCurrentUser();
+
+  // 1. 첫 로딩 시 기존 질문 답변/댓글 키 기록
+  if (isInitialQuestionsLoad) {
+    isInitialQuestionsLoad = false;
+    qDocs.forEach((qd) => {
+      const answers = qd.answers || {};
+      Object.keys(answers).forEach((uid) => knownQuestionAnsKeys.add(`${qd.id}-${uid}`));
+      (qd.comments || []).forEach((c) => knownQuestionCommentKeys.add(`${qd.id}-${c.id}`));
+    });
+    updateNotificationBadge();
+    return;
+  }
+
+  // 2. 실시간 새 답변 및 댓글 감지
+  qDocs.forEach((qd) => {
+    const q = qd.question || {};
+    const badgeText = q.badge || (q.order ? `Q.${q.order}` : "오늘의 질문");
+    const answers = qd.answers || {};
+
+    // 새 답변 감지
+    for (const [ansUid, ansData] of Object.entries(answers)) {
+      const key = `${qd.id}-${ansUid}`;
+      if (!knownQuestionAnsKeys.has(key)) {
+        knownQuestionAnsKeys.add(key);
+        if (currentUser && ansUid !== currentUser.uid && (ansData.updatedAt || 0) > appStartTime - 5000) {
+          const authorName = (ansUid && getCurrentProfiles()[ansUid]) ? getCurrentProfiles()[ansUid] : (ansData.author || "상대방");
+          const title = "💌 오늘의 질문 답변 도착!";
+          const body = `${authorName}님이 '${badgeText}' 문답에 답변을 등록했습니다.`;
+          lastFirestoreNotifTime = Date.now();
+          showToastNotification(body, "💌");
+          showSystemNotification(title, body);
+          startTitleBlink("새 문답 답변이 도착했습니다!");
+        }
+      }
+    }
+
+    // 새 한마디(댓글) 감지
+    (qd.comments || []).forEach((comment) => {
+      const key = `${qd.id}-${comment.id}`;
+      if (!knownQuestionCommentKeys.has(key)) {
+        knownQuestionCommentKeys.add(key);
+        if (currentUser && comment.uid !== currentUser.uid && (comment.createdAt || 0) > appStartTime - 5000) {
+          const authorName = (comment.uid && getCurrentProfiles()[comment.uid]) ? getCurrentProfiles()[comment.uid] : (comment.author || "상대방");
+          const title = "💬 오늘의 질문 한마디 도착!";
+          const preview = comment.text.substring(0, 30);
+          const body = `${authorName}: "${preview}${comment.text.length > 30 ? "..." : ""}"`;
+          lastFirestoreNotifTime = Date.now();
+          showToastNotification(body, "💬");
+          showSystemNotification(title, body);
+          startTitleBlink("새 한마디가 도착했습니다!");
+        }
+      }
+    });
+  });
+
   updateNotificationBadge();
   if (notifDropdown && !notifDropdown.hidden) {
     renderNotificationDropdown();

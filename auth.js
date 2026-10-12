@@ -9,6 +9,7 @@ import {
   watchLogin,
   subscribeProfiles,
   subscribeEntries,
+  subscribeAllDailyQuestions,
   consumeRedirectResult,
 } from "./store.js";
 import {
@@ -25,6 +26,7 @@ import { render } from "./render.js";
 import { updateNoticeAuth } from "./notice.js";
 import {
   checkNewUpdates,
+  updateQuestionNotifications,
   syncUserFcm,
 } from "./notify.js";
 import { startDdaySubscription, stopDdaySubscription } from "./dday.js";
@@ -75,6 +77,7 @@ async function verifyPasscode(input) {
 // 모듈 스코프 변수 (실시간 구독 해제 손잡이)
 let stopWatchingEntries = null;
 let stopWatchingProfiles = null;
+let stopWatchingQuestions = null;
 
 /**
  * 암호 검증 완료 후 다이어리 진입 및 실시간 데이터 구독을 시작합니다.
@@ -148,6 +151,16 @@ async function grantAccess(user) {
     }
   } catch (e) {
     console.warn("[auth] 일기 구독 경고:", e);
+  }
+
+  try {
+    if (!stopWatchingQuestions) {
+      stopWatchingQuestions = subscribeAllDailyQuestions((qDocs) => {
+        updateQuestionNotifications(qDocs);
+      });
+    }
+  } catch (e) {
+    console.warn("[auth] 문답 알림 구독 경고:", e);
   }
 }
 
@@ -236,6 +249,10 @@ export function initAuth() {
         if (stopWatchingProfiles) {
           stopWatchingProfiles();
           stopWatchingProfiles = null;
+        }
+        if (stopWatchingQuestions) {
+          stopWatchingQuestions();
+          stopWatchingQuestions = null;
         }
         if (appArea) appArea.hidden = true;
         if (loginArea) loginArea.hidden = false;

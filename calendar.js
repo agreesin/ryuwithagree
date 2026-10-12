@@ -3,7 +3,7 @@
 // =========================================================
 
 import { createEntryCard } from "./entry-card.js";
-import { getDdayItems, calculateDdayInfo, onDdayChange, getMilestonesForDate } from "./dday.js";
+import { getDdayItems, calculateDdayInfo, onDdayChange, getMilestonesForDate, openDdayModalWithDate } from "./dday.js";
 import { getCurrentProfiles } from "./state.js";
 import { formatDateString } from "./ui.js";
 import { renderCurrentDateQuestion } from "./daily-question.js";
@@ -22,9 +22,12 @@ const calNextBtn = document.getElementById("cal-next-btn");
 const calTodayBtn = document.getElementById("cal-today-btn");
 const calDaysGrid = document.getElementById("cal-days-grid");
 const calSelectedDateTitle = document.getElementById("cal-selected-date-title");
+const calAddEventBtn = document.getElementById("cal-add-event-btn");
 const calSelectedEventsWrap = document.getElementById("cal-selected-events-wrap");
 const calSelectedEntriesList = document.getElementById("cal-selected-entries-list");
 const calSelectedEmpty = document.getElementById("cal-selected-empty");
+const calSelectedEmptyWrap = document.getElementById("cal-selected-empty-wrap");
+const calEmptyAddEventBtn = document.getElementById("cal-empty-add-event-btn");
 
 // 내부 상태
 let currentYear = new Date().getFullYear();
@@ -187,10 +190,15 @@ export function renderCalendar() {
       cell.appendChild(itemsWrap);
     }
 
-    // 날짜 클릭 이벤트
+    // 날짜 클릭 이벤트 (1회 클릭 시 해당 날짜 선택 & 기록 조회, 더블 클릭 시 즉시 일정 추가)
+    cell.title = `${dateKey} (더블클릭 시 일정 추가 ➕)`;
     cell.addEventListener("click", () => {
       selectedDateStr = dateKey;
       renderCalendar();
+    });
+    cell.addEventListener("dblclick", () => {
+      selectedDateStr = dateKey;
+      openDdayModalWithDate(dateKey);
     });
 
     calDaysGrid.appendChild(cell);
@@ -280,12 +288,17 @@ function renderSelectedDateEntries(dateKey, entries, events = []) {
   // 2. 일기 제목 목록 렌더링
   calSelectedEntriesList.innerHTML = "";
 
-  if (entries.length === 0 && events.length === 0) {
-    calSelectedEmpty.hidden = false;
-    return;
+  const hasContent = entries.length > 0 || events.length > 0;
+  if (calSelectedEmptyWrap) {
+    calSelectedEmptyWrap.hidden = hasContent;
+  }
+  if (calSelectedEmpty) {
+    calSelectedEmpty.hidden = hasContent;
   }
 
-  calSelectedEmpty.hidden = entries.length > 0;
+  if (!hasContent) {
+    return;
+  }
 
   for (const entry of entries) {
     const li = document.createElement("li");
@@ -430,6 +443,18 @@ export function initCalendar() {
       renderCalendar();
     }
   });
+
+  // 4. 날짜별 일정 추가 버튼 이벤트
+  if (calAddEventBtn) {
+    calAddEventBtn.addEventListener("click", () => {
+      openDdayModalWithDate(selectedDateStr || toDateString(Date.now()));
+    });
+  }
+  if (calEmptyAddEventBtn) {
+    calEmptyAddEventBtn.addEventListener("click", () => {
+      openDdayModalWithDate(selectedDateStr || toDateString(Date.now()));
+    });
+  }
 }
 
 
