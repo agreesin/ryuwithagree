@@ -940,6 +940,11 @@ export function checkTodayMilestoneNotifications() {
 
   // 2. 생일 및 특정 일정 당일 알림
   const ddayItems = getDdayItems();
+  const now = new Date();
+  const curY = now.getFullYear();
+  const curM = now.getMonth() + 1;
+  const curD = now.getDate();
+
   ddayItems.forEach((item) => {
     if (!item.date) return;
     const [itemY, itemM, itemD] = item.date.split("-").map(Number);
@@ -948,10 +953,10 @@ export function checkTodayMilestoneNotifications() {
     let isTodayEvent = false;
     let eventTitle = "";
 
-    if (type === "birthday" && now.getMonth() + 1 === itemM && now.getDate() === itemD) {
+    if (type === "birthday" && curM === itemM && curD === itemD) {
       isTodayEvent = true;
       eventTitle = `🎂 오늘은 [${item.title}] 생일입니다! 🎉`;
-    } else if (type === "event" && y === itemY && now.getMonth() + 1 === itemM && now.getDate() === itemD) {
+    } else if (type === "event" && curY === itemY && curM === itemM && curD === itemD) {
       isTodayEvent = true;
       eventTitle = `🌟 오늘은 [${item.title}] 일정/데이트 당일입니다!`;
     }

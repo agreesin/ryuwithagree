@@ -16,11 +16,11 @@ import {
   advanceToNextQuestion,
   loadCompletedQuestions,
 } from "./store.js";
-import { getCurrentUser, getCurrentProfiles, getProfilePhoto, getUserInitial, getPartnerInfo } from "./state.js";
-import { getCoupleDays, checkSpecialDayQuestion, getQuestionByOrder } from "./questions.js";
+import { getCurrentUser, getCurrentProfiles, renderAvatar, getAvatarHtml, getPartnerInfo } from "./state.js";
+import { getCoupleDays, checkSpecialDayQuestion, getQuestionByOrder, sortCompletedQuestionsDescending } from "./questions.js";
 import { getCurrentDdayItems, onDdayChange } from "./dday.js";
 import { sendPushToPartner, showToastNotification } from "./notify.js";
-import { showError } from "./ui.js";
+import { showError, formatChatTime } from "./ui.js";
 
 // DOM 요소
 let sectionEl = null;
@@ -80,19 +80,6 @@ let currentQuestionDoc = null; // Firestore에서 받아온 현재 질문 데이
 let unsubscribeQuestion = null;
 let unsubscribeState = null;
 let isViewingHistory = false; // 과거 문답 열람 중인지 여부
-
-/**
- * 프로필 아바타 렌더링 헬퍼
- */
-function renderAvatar(container, uid, name) {
-  if (!container) return;
-  const photo = uid ? getProfilePhoto(uid) : null;
-  if (photo) {
-    container.innerHTML = `<img src="${photo}" alt="${name} 프로필" />`;
-  } else {
-    container.textContent = getUserInitial(name);
-  }
-}
 
 /**
  * 현재 활성화할 질문 결정:
@@ -297,29 +284,6 @@ export function renderCurrentDateQuestion() {
 }
 
 /**
- * 댓글 작성 시간 포맷 (방금 전, n분 전, HH:mm, M/D HH:mm)
- */
-function formatCommentTime(ts) {
-  if (!ts) return "";
-  const d = new Date(ts);
-  const now = new Date();
-  const diffSec = Math.floor((now - d) / 1000);
-  if (diffSec < 60) return "방금 전";
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전`;
-
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-
-  const isSameDay = d.toDateString() === now.toDateString();
-  if (isSameDay) {
-    return `${hours}:${minutes}`;
-  }
-  return `${m}/${day} ${hours}:${minutes}`;
-}
-
-/**
  * 문답 댓글 목록 렌더링
  */
 function renderComments(myAnswer, partnerAnswer) {
@@ -362,10 +326,7 @@ function renderComments(myAnswer, partnerAnswer) {
     li.id = `dq-comment-item-${c.id}`;
 
     const authorName = (c.uid && profiles[c.uid]) ? profiles[c.uid] : (c.author || "이름 없음");
-    const photo = c.uid ? getProfilePhoto(c.uid) : null;
-    const avatarHtml = photo
-      ? `<img src="${photo}" alt="${authorName}" class="dq-chat-avatar-img" />`
-      : `<span class="dq-chat-avatar-initial">${getUserInitial(authorName)}</span>`;
+    const avatarHtml = getAvatarHtml(c.uid, authorName);
 
     if (isMe) {
       // 내 메시지: 우측 정렬 말풍선 + 좌측 시간 및 삭제 버튼
@@ -373,7 +334,7 @@ function renderComments(myAnswer, partnerAnswer) {
         <div class="dq-chat-row is-me">
           <div class="dq-chat-side is-me">
             <button type="button" class="dq-comment-del-btn" title="메시지 삭제">✕</button>
-            <span class="dq-chat-time">${formatCommentTime(c.createdAt)}</span>
+            <span class="dq-chat-time">${formatChatTime(c.createdAt)}</span>
           </div>
           <div class="dq-chat-bubble is-me">
             <p class="dq-chat-text"></p>
@@ -392,7 +353,7 @@ function renderComments(myAnswer, partnerAnswer) {
                 <p class="dq-chat-text"></p>
               </div>
               <div class="dq-chat-side is-partner">
-                <span class="dq-chat-time">${formatCommentTime(c.createdAt)}</span>
+                <span class="dq-chat-time">${formatChatTime(c.createdAt)}</span>
               </div>
             </div>
           </div>
@@ -454,33 +415,8 @@ async function openHistoryModal() {
 
     if (historyEmptyEl) historyEmptyEl.hidden = true;
 
-    // 가장 최근에 작성된 질문이 먼저 오도록 최신순(내림차순) 정렬 재확인
-    items.sort((a, b) => {
-      const getTime = (item) => {
-        let maxTime = item.lastUpdatedAt || item.completedAt || 0;
-        if (item.answers && typeof item.answers === "object") {
-          for (const ans of Object.values(item.answers)) {
-            if (ans?.updatedAt && ans.updatedAt > maxTime) {
-              maxTime = ans.updatedAt;
-            }
-          }
-        }
-        return maxTime;
-      };
-
-      const timeA = getTime(a);
-      const timeB = getTime(b);
-
-      if (timeA && timeB && timeA !== timeB) {
-        return timeB - timeA;
-      }
-      if (timeA && !timeB) return -1;
-      if (!timeA && timeB) return 1;
-
-      const orderA = a.question?.order || 0;
-      const orderB = b.question?.order || 0;
-      return orderB - orderA;
-    });
+    // 가장 최근에 작성된 질문이 먼저 오도록 최신순(내림차순) 정렬 (공통 헬퍼 활용)
+    sortCompletedQuestionsDescending(items);
 
     items.forEach((item) => {
       const q = item.question || {};

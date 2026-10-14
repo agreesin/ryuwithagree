@@ -8,6 +8,14 @@ import { openModal, closeModal } from "./ui.js";
 // 업데이트 히스토리 데이터 (최신순)
 export const CHANGELOG_DATA = [
   {
+    version: "v3.7.1",
+    date: "2026.10.14",
+    type: "patch",
+    tag: "리팩토링 & 안정화",
+    title: "전역 공통 유틸 통합 & 코드 중복 제거 & 기념일 당일 알림 버그 픽스",
+    desc: "1) 아바타 렌더링(renderAvatar, createAvatarElement) 및 메시지 시간 포맷(formatChatTime) 공통 모듈화로 컴포넌트 간 중복 코드 제거. 2) 지난 문답 최신순 정렬 로직 단일화(sortCompletedQuestionsDescending). 3) 기념일 및 생일 당일 알림(checkTodayMilestoneNotifications) 변수 참조 버그 수정 및 안정화.",
+  },
+  {
     version: "v3.7.0",
     date: "2026.10.13",
     type: "major",

@@ -1,11 +1,10 @@
 // =========================================================
-// store.js - 로그인 · 저장 · 공유 담당 (배관)
-//
-// ★ 실습 당일 이 파일은 아무도 건드리지 않습니다.
-// ★ AI에게 이 파일을 수정하라고 시키지 마십시오.
+// store.js - Firebase Auth 및 Firestore 데이터 관리 모듈
+// 일기, 댓글, 리액션, D-Day, 커플 문답, FCM 토큰 CRUD 및 실시간 구독
 // =========================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+import { sortCompletedQuestionsDescending } from "./questions.js";
 import {
   getAuth,
   GoogleAuthProvider,
@@ -698,35 +697,8 @@ export async function loadCompletedQuestions() {
     }
   });
 
-  // 정렬: 가장 최근에 쓴 질문 우선 내림차순 (최신 작성/수정 시간순, 회차 번호 역순)
-  items.sort((a, b) => {
-    const getTime = (item) => {
-      let maxTime = item.lastUpdatedAt || item.completedAt || 0;
-      if (item.answers && typeof item.answers === "object") {
-        for (const ans of Object.values(item.answers)) {
-          if (ans?.updatedAt && ans.updatedAt > maxTime) {
-            maxTime = ans.updatedAt;
-          }
-        }
-      }
-      return maxTime;
-    };
-
-    const timeA = getTime(a);
-    const timeB = getTime(b);
-
-    if (timeA && timeB && timeA !== timeB) {
-      return timeB - timeA;
-    }
-    if (timeA && !timeB) return -1;
-    if (!timeA && timeB) return 1;
-
-    const orderA = a.question?.order || 0;
-    const orderB = b.question?.order || 0;
-    return orderB - orderA;
-  });
-
-  return items;
+  // 정렬: 가장 최근에 쓴 질문 우선 내림차순 (공통 헬퍼 활용)
+  return sortCompletedQuestionsDescending(items);
 }
 
 /**

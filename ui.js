@@ -150,3 +150,32 @@ export function formatRelativeTime(timestamp) {
   const dd = String(d.getDate()).padStart(2, "0");
   return `${m}.${dd}`;
 }
+
+/**
+ * 채팅/한마디 메시지 작성 시간을 친근한 형식(방금 전, n분 전, HH:mm, M/D HH:mm)으로 반환합니다.
+ * @param {Date|number|string} dateOrTimestamp
+ * @returns {string}
+ */
+export function formatChatTime(dateOrTimestamp) {
+  if (!dateOrTimestamp) return "";
+  const d = dateOrTimestamp instanceof Date ? dateOrTimestamp : new Date(dateOrTimestamp);
+  if (isNaN(d.getTime())) return "";
+  const now = new Date();
+  const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
+  if (diffSec < 60) return "방금 전";
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전`;
+
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+
+  const isSameDay = d.toDateString() === now.toDateString();
+  if (isSameDay) {
+    return `${hours}:${minutes}`;
+  }
+  return `${m}/${day} ${hours}:${minutes}`;
+}
+
+export const formatCommentTime = formatChatTime;
+

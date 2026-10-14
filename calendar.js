@@ -35,9 +35,6 @@ let currentMonth = new Date().getMonth(); // 0-11
 let selectedDateStr = null; // "YYYY-MM-DD"
 let cachedEntries = [];
 
-// 공통 날짜 유틸리티 formatDateString 사용
-const toDateString = formatDateString;
-
 /**
  * 외부에서 최신 일기 데이터를 전달받아 갱신합니다.
  */
@@ -102,13 +99,13 @@ export function renderCalendar() {
   const entriesByDate = {};
   for (const entry of cachedEntries) {
     if (entry.createdAt) {
-      const dateKey = toDateString(entry.createdAt);
+      const dateKey = formatDateString(entry.createdAt);
       if (!entriesByDate[dateKey]) entriesByDate[dateKey] = [];
       entriesByDate[dateKey].push(entry);
     }
   }
 
-  const todayStr = toDateString(Date.now());
+  const todayStr = formatDateString(Date.now());
 
   // 이번 달 1일의 요일 (0: 일요일 ~ 6: 토요일)
   const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
@@ -432,7 +429,7 @@ export function initCalendar() {
       const now = new Date();
       currentYear = now.getFullYear();
       currentMonth = now.getMonth();
-      selectedDateStr = toDateString(now.getTime());
+      selectedDateStr = formatDateString(now.getTime());
       renderCalendar();
     });
   }
@@ -447,12 +444,12 @@ export function initCalendar() {
   // 4. 날짜별 일정 추가 버튼 이벤트
   if (calAddEventBtn) {
     calAddEventBtn.addEventListener("click", () => {
-      openDdayModalWithDate(selectedDateStr || toDateString(Date.now()));
+      openDdayModalWithDate(selectedDateStr || formatDateString(Date.now()));
     });
   }
   if (calEmptyAddEventBtn) {
     calEmptyAddEventBtn.addEventListener("click", () => {
-      openDdayModalWithDate(selectedDateStr || toDateString(Date.now()));
+      openDdayModalWithDate(selectedDateStr || formatDateString(Date.now()));
     });
   }
 }

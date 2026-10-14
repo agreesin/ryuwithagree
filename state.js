@@ -59,6 +59,44 @@ export function getUserInitial(name) {
 }
 
 /**
+ * 프로필 아바타의 내부 HTML 문자열을 반환합니다.
+ * @param {string|null} uid
+ * @param {string} [name="?"]
+ * @returns {string}
+ */
+export function getAvatarHtml(uid, name = "?") {
+  const photo = getProfilePhoto(uid);
+  return photo
+    ? `<img src="${photo}" alt="${name} 프로필" />`
+    : `<span>${getUserInitial(name)}</span>`;
+}
+
+/**
+ * 프로필 아바타를 대상 컨테이너 요소 내부에 렌더링합니다.
+ * @param {HTMLElement} container
+ * @param {string|null} uid
+ * @param {string} [name="?"]
+ */
+export function renderAvatar(container, uid, name = "?") {
+  if (!container) return;
+  container.innerHTML = getAvatarHtml(uid, name);
+}
+
+/**
+ * 프로필 아바타 span 엘리먼트를 생성하여 반환합니다.
+ * @param {string|null} uid
+ * @param {string} [name="?"]
+ * @param {string} [className=""]
+ * @returns {HTMLSpanElement}
+ */
+export function createAvatarElement(uid, name = "?", className = "") {
+  const span = document.createElement("span");
+  if (className) span.className = className;
+  renderAvatar(span, uid, name);
+  return span;
+}
+
+/**
  * 상대방의 UID와 닉네임을 구합니다.
  */
 export function getPartnerInfo() {

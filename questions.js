@@ -471,3 +471,40 @@ export function getQuestionByOrder(order = 1, coupleDays = 30) {
     coupleDays,
   };
 }
+
+/**
+ * 지난 문답 목록을 가장 최근에 쓴 질문 우선으로 내림차순 정렬합니다.
+ * (최신 작성/수정 시간순, 작성 시간 동일하거나 없으면 회차 번호 역순)
+ * @param {Array} items
+ * @returns {Array}
+ */
+export function sortCompletedQuestionsDescending(items) {
+  if (!Array.isArray(items)) return [];
+  const getTime = (item) => {
+    let maxTime = item.lastUpdatedAt || item.completedAt || 0;
+    if (item.answers && typeof item.answers === "object") {
+      for (const ans of Object.values(item.answers)) {
+        if (ans?.updatedAt && ans.updatedAt > maxTime) {
+          maxTime = ans.updatedAt;
+        }
+      }
+    }
+    return maxTime;
+  };
+
+  return items.sort((a, b) => {
+    const timeA = getTime(a);
+    const timeB = getTime(b);
+
+    if (timeA && timeB && timeA !== timeB) {
+      return timeB - timeA;
+    }
+    if (timeA && !timeB) return -1;
+    if (!timeA && timeB) return 1;
+
+    const orderA = a.question?.order || 0;
+    const orderB = b.question?.order || 0;
+    return orderB - orderA;
+  });
+}
+
