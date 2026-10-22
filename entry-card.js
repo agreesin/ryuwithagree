@@ -7,9 +7,9 @@
 import { removeEntry, toggleReaction } from "./store.js";
 import {
   getCurrentUser,
-  getCurrentProfiles,
   isMyContent,
   createAvatarElement,
+  getUserDisplayName,
 } from "./state.js";
 import { showError, formatDateTime } from "./ui.js";
 import { createCommentsSection } from "./comments.js";
@@ -130,7 +130,7 @@ export function createEntryCard(entry, idPrefix = "entry-") {
   const authorWrapper = document.createElement("span");
   authorWrapper.className = "entry-author-wrapper";
 
-  const authorDisplayName = (entry.uid && currentProfiles[entry.uid]) ? currentProfiles[entry.uid] : (entry.author || "이름 없음");
+  const authorDisplayName = getUserDisplayName(entry.uid, entry.author || "이름 없음");
   const authorAvatar = createAvatarElement(entry.uid, authorDisplayName, "entry-author-avatar");
   authorWrapper.appendChild(authorAvatar);
 

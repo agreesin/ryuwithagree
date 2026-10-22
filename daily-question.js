@@ -16,7 +16,7 @@ import {
   advanceToNextQuestion,
   loadCompletedQuestions,
 } from "./store.js";
-import { getCurrentUser, getCurrentProfiles, renderAvatar, getAvatarHtml, getPartnerInfo } from "./state.js";
+import { getCurrentUser, renderAvatar, getAvatarHtml, getPartnerInfo, getUserDisplayName } from "./state.js";
 import { getCoupleDays, checkSpecialDayQuestion, getQuestionByOrder, sortCompletedQuestionsDescending } from "./questions.js";
 import { getCurrentDdayItems, onDdayChange } from "./dday.js";
 import { sendPushToPartner, showToastNotification } from "./notify.js";
@@ -176,8 +176,7 @@ export function renderCurrentQuestionView() {
 
     // 2. 프로필 및 아바타
     const user = getCurrentUser();
-    const profiles = getCurrentProfiles() || {};
-    const myName = (user && profiles[user.uid]) ? profiles[user.uid] : (user?.displayName || "나");
+    const myName = getUserDisplayName(user?.uid, user?.displayName || "나");
     const partnerInfo = getPartnerInfo();
 
     if (myNameEl) myNameEl.textContent = myName;
@@ -317,7 +316,6 @@ function renderComments(myAnswer, partnerAnswer) {
   if (commentsEmptyEl) commentsEmptyEl.hidden = true;
 
   const currentUser = getCurrentUser();
-  const profiles = getCurrentProfiles() || {};
 
   comments.forEach((c) => {
     const isMe = currentUser && c.uid === currentUser.uid;
@@ -325,7 +323,7 @@ function renderComments(myAnswer, partnerAnswer) {
     li.className = `dq-chat-item ${isMe ? "is-me" : "is-partner"}`;
     li.id = `dq-comment-item-${c.id}`;
 
-    const authorName = (c.uid && profiles[c.uid]) ? profiles[c.uid] : (c.author || "이름 없음");
+    const authorName = getUserDisplayName(c.uid, c.author || "이름 없음");
     const avatarHtml = getAvatarHtml(c.uid, authorName);
 
     if (isMe) {
@@ -662,10 +660,8 @@ export function initDailyQuestion() {
         }
         showToastNotification("댓글이 등록되었습니다! 💬", "💌");
 
-        // 상대방에게 푸시 알림 발송
         const user = getCurrentUser();
-        const profiles = getCurrentProfiles() || {};
-        const myName = (user && profiles[user.uid]) ? profiles[user.uid] : (user?.displayName || "당신의 반쪽");
+        const myName = getUserDisplayName(user?.uid, user?.displayName || "당신의 반쪽");
         const preview = text.length > 20 ? text.substring(0, 20) + "..." : text;
 
         sendPushToPartner({

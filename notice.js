@@ -9,7 +9,7 @@ import {
   updateNotice,
   removeNotice,
 } from "./store.js";
-import { getCurrentUser, getCurrentProfiles } from "./state.js";
+import { getCurrentUser, getUserDisplayName } from "./state.js";
 import { showError } from "./ui.js";
 import { sendPushToPartner } from "./notify.js";
 
@@ -83,7 +83,8 @@ function renderNotices(notices) {
 
     const authorSpan = document.createElement("span");
     authorSpan.className = "notice-item-author";
-    authorSpan.textContent = `작성: ${notice.author || "다이어리"}`;
+    const authorName = getUserDisplayName(notice.uid, notice.author || "다이어리");
+    authorSpan.textContent = `작성: ${authorName}`;
 
     const dateSpan = document.createElement("span");
     dateSpan.className = "notice-item-date";

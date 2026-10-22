@@ -2,7 +2,7 @@
 // 한 달간의 일기, 감정, 댓글, 그림/사진, 기념일을 집계하여 감성 카드 뉴스로 제공
 // =========================================================
 
-import { getCurrentUser, getCurrentProfiles } from "./state.js";
+import { getCurrentUser, getCurrentProfiles, getUserDisplayName } from "./state.js";
 import { getMilestonesForDate, getDdayItems } from "./dday.js";
 import { showToastNotification, showSystemNotification, startTitleBlink } from "./notify.js";
 import { openModal, closeModal } from "./ui.js";
@@ -54,8 +54,8 @@ export function generateReportData(year, month) {
   const mediaEntries = [];
 
   monthEntries.forEach((entry) => {
-    // 작성자
-    const authorName = entry.author || (entry.uid && profiles[entry.uid]) || "익명";
+    // 작성자 (최신 프로필 닉네임 우선)
+    const authorName = getUserDisplayName(entry.uid, entry.author || "익명");
     authorCounts[authorName] = (authorCounts[authorName] || 0) + 1;
 
     // 작성 일자 (활동 일수)

@@ -265,11 +265,10 @@ function updateHeaderBadge() {
   const { ddayText } = calculateDdayInfo(mainItem);
   const icon = mainItem.icon || (mainItem.type === "birthday" ? "🎂" : mainItem.type === "event" ? "🌟" : "💖");
 
-  // 함께한 날(count_up) 또는 사귄 날 관련 항목일 경우 '사귄 D+몇일' 형식으로 명확하게 표시
-  if (mainItem.type === "count_up" || (mainItem.title && (mainItem.title.includes("현피") || mainItem.title.includes("사귄") || mainItem.title.includes("함께")))) {
-    const formattedDday = ddayText.startsWith("D+") ? `${ddayText}일` : ddayText;
-    ddayBadgeText.textContent = `${icon} 사귄 ${formattedDday}`;
-    ddayBadgeBtn.title = `${mainItem.title || "사귄 날"} (${mainItem.date}) ${formattedDday} - 클릭하여 전체 목록 보기`;
+  // 함께한 날(count_up)인 경우 홈화면 뱃지에는 제목 없이 '💖 D+숫자' 형식으로 심플하게 표시
+  if (mainItem.type === "count_up") {
+    ddayBadgeText.textContent = `${icon} ${ddayText}`;
+    ddayBadgeBtn.title = `${mainItem.title} (${mainItem.date}) ${ddayText} - 클릭하여 전체 목록 보기`;
   } else {
     ddayBadgeText.textContent = `${icon} ${mainItem.title} ${ddayText}`;
     ddayBadgeBtn.title = `${mainItem.title} (${mainItem.date}) ${ddayText} - 클릭하여 전체 목록 보기`;
@@ -550,18 +549,18 @@ export function startDdaySubscription() {
         currentDdayConfig = { mainId: null, items: [] };
       }
 
-      // "현피" 또는 "현피뜨는날" 등 이전 임시 타이틀이 남아있는 경우 "사귄 날"로 자동 마이그레이션
-      let hasHyunpi = false;
+      // 이전에 '사귄 날'로 일괄 변경되었던 항목이 있다면 원래의 '현피뜨는날'로 복원
+      let needsRestore = false;
       if (currentDdayConfig.items) {
         currentDdayConfig.items.forEach((it) => {
-          if (it.title && it.title.includes("현피")) {
-            it.title = "사귄 날";
-            hasHyunpi = true;
+          if (it.title === "사귄 날") {
+            it.title = "현피뜨는날";
+            needsRestore = true;
           }
         });
       }
-      if (hasHyunpi) {
-        saveDdayConfig(currentDdayConfig).catch((e) => console.warn("[dday] 자동 타이틀 정리 실패:", e));
+      if (needsRestore) {
+        saveDdayConfig(currentDdayConfig).catch((e) => console.warn("[dday] 원래 타이틀 복원 처리:", e));
       }
 
       updateHeaderBadge();

@@ -9,6 +9,7 @@ import {
   getCurrentProfiles,
   isMyContent,
   createAvatarElement,
+  getUserDisplayName,
 } from "./state.js";
 import { showError, formatDateTime } from "./ui.js";
 import { sendPushToPartner } from "./notify.js";
@@ -36,7 +37,7 @@ function createCommentItem(comment, entry, { isReply = false, idPrefix = "", onR
     authorWrapper.appendChild(replyPrefix);
   }
 
-  const authorDisplayName = (comment.uid && currentProfiles[comment.uid]) ? currentProfiles[comment.uid] : (comment.author || "이름 없음");
+  const authorDisplayName = getUserDisplayName(comment.uid, comment.author || "이름 없음");
   const commentAvatar = createAvatarElement(comment.uid, authorDisplayName, "comment-author-avatar");
   authorWrapper.appendChild(commentAvatar);
 
@@ -164,7 +165,7 @@ export function createCommentsSection(entry, idPrefix = "") {
     commentsList.className = "comments-list";
 
     for (const comment of rootComments) {
-      const commentAuthorDisplayName = (comment.uid && currentProfiles[comment.uid]) ? currentProfiles[comment.uid] : comment.author;
+      const commentAuthorDisplayName = getUserDisplayName(comment.uid, comment.author || "상대방");
 
       // 인라인 답글 작성 폼
       const replyForm = document.createElement("form");

@@ -4,7 +4,7 @@
 // 상단 종 아이콘 클릭 시 알림 내역 목록 확인 및 클릭 시 해당 글/댓글로 스크롤 이동을 담당합니다.
 // =========================================================
 
-import { getCurrentUser, getCurrentProfiles, isMyContent } from "./state.js";
+import { getCurrentUser, getCurrentProfiles, isMyContent, getUserDisplayName } from "./state.js";
 import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js";
 import { getMilestonesForDate, onDdayChange, getDdayItems } from "./dday.js";
 import { formatDateString, formatRelativeTime } from "./ui.js";
@@ -462,7 +462,7 @@ function getNotificationItems(entries = cachedEntries) {
 
     // 1. 상대방이 작성한 새 일기 알림 (내 글은 제외)
     if (currentUser && !isMyEntry) {
-      const authorName = (entryUid && currentProfiles[entryUid]) ? currentProfiles[entryUid] : (entry.author || "상대방");
+      const authorName = getUserDisplayName(entryUid, entry.author || "상대방");
       items.push({
         id: `entry-${entry.id}`,
         type: "entry",
@@ -482,7 +482,7 @@ function getNotificationItems(entries = cachedEntries) {
 
       // 내가 쓴 댓글은 알림에서 제외
       if (currentUser && !isMyComment) {
-        const commentAuthor = (commentUid && currentProfiles[commentUid]) ? currentProfiles[commentUid] : (comment.author || "상대방");
+        const commentAuthor = getUserDisplayName(commentUid, comment.author || "상대방");
 
         let text = "";
         if (comment.parentCommentId || comment.parentId) {
@@ -518,7 +518,7 @@ function getNotificationItems(entries = cachedEntries) {
       const answers = qDoc.answers || {};
       for (const [ansUid, ansData] of Object.entries(answers)) {
         if (currentUser && ansUid !== currentUser.uid && ansData && ansData.text) {
-          const authorName = (ansUid && currentProfiles[ansUid]) ? currentProfiles[ansUid] : (ansData.author || "상대방");
+          const authorName = getUserDisplayName(ansUid, ansData.author || "상대방");
           items.push({
             id: `dq-ans-${qDoc.id}-${ansUid}`,
             type: "question-answer",
@@ -536,7 +536,7 @@ function getNotificationItems(entries = cachedEntries) {
       const comments = qDoc.comments || [];
       comments.forEach((comment) => {
         if (currentUser && comment.uid !== currentUser.uid && comment.text) {
-          const authorName = (comment.uid && currentProfiles[comment.uid]) ? currentProfiles[comment.uid] : (comment.author || "상대방");
+          const authorName = getUserDisplayName(comment.uid, comment.author || "상대방");
           const preview = comment.text.substring(0, 20);
           items.push({
             id: `dq-comment-${qDoc.id}-${comment.id}`,
@@ -736,7 +736,7 @@ export function checkNewUpdates(entries) {
 
       // 내가 쓴 글이 아니고, 앱 켜진 이후에 작성된 글인 경우에만 알림
       if (currentUser && !isMyEntry && entry.createdAt > appStartTime - 5000) {
-        const authorName = (entryUid && getCurrentProfiles()[entryUid]) ? getCurrentProfiles()[entryUid] : (entry.author || "상대방");
+        const authorName = getUserDisplayName(entryUid, entry.author || "상대방");
         const title = "📖 새로운 일기 등록!";
         const body = `${authorName}님이 새 일기를 남겼습니다.`;
 
@@ -756,7 +756,7 @@ export function checkNewUpdates(entries) {
         const isMyComment = isMyContent(comment);
 
         if (currentUser && !isMyComment && comment.createdAt > appStartTime - 5000) {
-          const commentAuthor = (commentUid && getCurrentProfiles()[commentUid]) ? getCurrentProfiles()[commentUid] : (comment.author || "상대방");
+          const commentAuthor = getUserDisplayName(commentUid, comment.author || "상대방");
           const title = "💬 새로운 댓글 도착!";
           const body = `${commentAuthor}: ${comment.text.substring(0, 30)}${comment.text.length > 30 ? "..." : ""}`;
 
@@ -809,7 +809,7 @@ export function updateQuestionNotifications(qDocs) {
       if (!knownQuestionAnsKeys.has(key)) {
         knownQuestionAnsKeys.add(key);
         if (currentUser && ansUid !== currentUser.uid && (ansData.updatedAt || 0) > appStartTime - 5000) {
-          const authorName = (ansUid && getCurrentProfiles()[ansUid]) ? getCurrentProfiles()[ansUid] : (ansData.author || "상대방");
+          const authorName = getUserDisplayName(ansUid, ansData.author || "상대방");
           const title = "💌 오늘의 질문 답변 도착!";
           const body = `${authorName}님이 '${badgeText}' 문답에 답변을 등록했습니다.`;
           lastFirestoreNotifTime = Date.now();
@@ -826,7 +826,7 @@ export function updateQuestionNotifications(qDocs) {
       if (!knownQuestionCommentKeys.has(key)) {
         knownQuestionCommentKeys.add(key);
         if (currentUser && comment.uid !== currentUser.uid && (comment.createdAt || 0) > appStartTime - 5000) {
-          const authorName = (comment.uid && getCurrentProfiles()[comment.uid]) ? getCurrentProfiles()[comment.uid] : (comment.author || "상대방");
+          const authorName = getUserDisplayName(comment.uid, comment.author || "상대방");
           const title = "💬 오늘의 질문 한마디 도착!";
           const preview = comment.text.substring(0, 30);
           const body = `${authorName}: "${preview}${comment.text.length > 30 ? "..." : ""}"`;

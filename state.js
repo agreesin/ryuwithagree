@@ -97,13 +97,26 @@ export function createAvatarElement(uid, name = "?", className = "") {
 }
 
 /**
+ * UID를 기반으로 캐시된 최신 닉네임을 반환합니다.
+ * @param {string|null} uid
+ * @param {string} [fallback="이름 없음"]
+ * @returns {string}
+ */
+export function getUserDisplayName(uid, fallback = "이름 없음") {
+  if (uid && currentProfiles && currentProfiles[uid]) {
+    return currentProfiles[uid];
+  }
+  return fallback;
+}
+
+/**
  * 상대방의 UID와 닉네임을 구합니다.
  */
 export function getPartnerInfo() {
   if (!currentUser || !currentProfiles) return { uid: null, name: "상대방" };
 
   const partnerUid = Object.keys(currentProfiles).find((uid) => uid !== currentUser.uid);
-  const partnerName = partnerUid ? currentProfiles[partnerUid] || "상대방" : "상대방";
+  const partnerName = getUserDisplayName(partnerUid, "상대방");
 
   return { uid: partnerUid || null, name: partnerName };
 }
