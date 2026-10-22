@@ -55,6 +55,7 @@ const ddayIconBtns = document.querySelectorAll(".dday-icon-btn");
 // 내부 상태: { mainId: string, items: Array<DdayItem> }
 let currentDdayConfig = { mainId: null, items: [] };
 let selectedIcon = "💖";
+let editingDdayId = null;
 
 /**
  * 현재 메모리에 로드된 전체 기념일 항목 목록을 반환합니다.
@@ -263,8 +264,16 @@ function updateHeaderBadge() {
 
   const { ddayText } = calculateDdayInfo(mainItem);
   const icon = mainItem.icon || (mainItem.type === "birthday" ? "🎂" : mainItem.type === "event" ? "🌟" : "💖");
-  ddayBadgeText.textContent = `${icon} ${mainItem.title} ${ddayText}`;
-  ddayBadgeBtn.title = `${mainItem.title} (${mainItem.date}) ${ddayText} - 클릭하여 전체 목록 보기`;
+
+  // 함께한 날(count_up) 또는 사귄 날 관련 항목일 경우 '사귄 D+몇일' 형식으로 명확하게 표시
+  if (mainItem.type === "count_up" || (mainItem.title && (mainItem.title.includes("현피") || mainItem.title.includes("사귄") || mainItem.title.includes("함께")))) {
+    const formattedDday = ddayText.startsWith("D+") ? `${ddayText}일` : ddayText;
+    ddayBadgeText.textContent = `${icon} 사귄 ${formattedDday}`;
+    ddayBadgeBtn.title = `${mainItem.title || "사귄 날"} (${mainItem.date}) ${formattedDday} - 클릭하여 전체 목록 보기`;
+  } else {
+    ddayBadgeText.textContent = `${icon} ${mainItem.title} ${ddayText}`;
+    ddayBadgeBtn.title = `${mainItem.title} (${mainItem.date}) ${ddayText} - 클릭하여 전체 목록 보기`;
+  }
 }
 
 /**
@@ -302,6 +311,7 @@ function renderDdayList() {
         <span class="dday-card-calc ${tagClass}">${ddayText}</span>
         <div class="dday-card-actions">
           ${!isMain ? `<button type="button" class="dday-action-btn set-main-btn" data-id="${item.id}" title="상단 대표 뱃지로 지정">대표설정</button>` : ""}
+          <button type="button" class="dday-action-btn edit-dday-btn" data-id="${item.id}" title="기념일 수정">수정</button>
           <button type="button" class="dday-action-btn delete-dday-btn" data-id="${item.id}" title="기념일 삭제">삭제</button>
         </div>
       </div>
@@ -315,6 +325,29 @@ function renderDdayList() {
         await saveDdayConfig(currentDdayConfig);
         renderDdayList();
         updateHeaderBadge();
+      });
+    }
+
+    // 수정 버튼
+    const editBtn = card.querySelector(".edit-dday-btn");
+    if (editBtn) {
+      editBtn.addEventListener("click", () => {
+        editingDdayId = item.id;
+        if (ddayTitleInput) ddayTitleInput.value = item.title || "";
+        if (ddayDateInput) ddayDateInput.value = item.date || "";
+        if (ddayTypeSelect) {
+          ddayTypeSelect.value = item.type || "count_up";
+        }
+        setActiveIcon(item.icon || (item.type === "birthday" ? "🎂" : item.type === "event" ? "🌟" : "💖"));
+        if (ddaySubmitBtn) {
+          ddaySubmitBtn.textContent = "기념일 수정 완료";
+        }
+        const formTitle = document.querySelector(".dday-form-title");
+        if (formTitle) formTitle.textContent = "✏️ 기념일 / 일정 수정";
+        if (ddayTitleInput) {
+          ddayTitleInput.focus();
+          ddayTitleInput.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
       });
     }
 
@@ -377,6 +410,11 @@ export function openDdayModalWithDate(dateStr, type = "event") {
  * 기념일 모달 닫기
  */
 function closeDdayModal() {
+  editingDdayId = null;
+  if (ddaySubmitBtn) ddaySubmitBtn.textContent = "일정 등록하기";
+  const formTitle = document.querySelector(".dday-form-title");
+  if (formTitle) formTitle.textContent = "+ 새 기념일 / 일정 추가";
+  if (ddayTitleInput) ddayTitleInput.value = "";
   closeModal(ddayModal);
 }
 
@@ -432,20 +470,34 @@ export function initDday() {
       if (ddaySubmitBtn) ddaySubmitBtn.disabled = true;
 
       try {
-        const newItem = {
-          id: "dday_" + Date.now(),
-          title,
-          date,
-          type,
-          icon,
-        };
+        if (editingDdayId) {
+          const targetItem = (currentDdayConfig.items || []).find((it) => it.id === editingDdayId);
+          if (targetItem) {
+            targetItem.title = title;
+            targetItem.date = date;
+            targetItem.type = type;
+            targetItem.icon = icon;
+          }
+          editingDdayId = null;
+          if (ddaySubmitBtn) ddaySubmitBtn.textContent = "일정 등록하기";
+          const formTitle = document.querySelector(".dday-form-title");
+          if (formTitle) formTitle.textContent = "+ 새 기념일 / 일정 추가";
+        } else {
+          const newItem = {
+            id: "dday_" + Date.now(),
+            title,
+            date,
+            type,
+            icon,
+          };
 
-        if (!currentDdayConfig.items) currentDdayConfig.items = [];
-        currentDdayConfig.items.push(newItem);
+          if (!currentDdayConfig.items) currentDdayConfig.items = [];
+          currentDdayConfig.items.push(newItem);
 
-        // 첫 번째 항목이면 자동으로 대표 설정
-        if (!currentDdayConfig.mainId) {
-          currentDdayConfig.mainId = newItem.id;
+          // 첫 번째 항목이면 자동으로 대표 설정
+          if (!currentDdayConfig.mainId) {
+            currentDdayConfig.mainId = newItem.id;
+          }
         }
 
         await saveDdayConfig(currentDdayConfig);
@@ -481,7 +533,7 @@ export function startDdaySubscription() {
             items: [
               {
                 id: "dday_legacy",
-                title: config.title || "함께한 지",
+                title: config.title || "사귄 날",
                 date: config.startDate,
                 type: "count_up",
                 icon: "💖",
@@ -496,6 +548,20 @@ export function startDdaySubscription() {
         }
       } else {
         currentDdayConfig = { mainId: null, items: [] };
+      }
+
+      // "현피" 또는 "현피뜨는날" 등 이전 임시 타이틀이 남아있는 경우 "사귄 날"로 자동 마이그레이션
+      let hasHyunpi = false;
+      if (currentDdayConfig.items) {
+        currentDdayConfig.items.forEach((it) => {
+          if (it.title && it.title.includes("현피")) {
+            it.title = "사귄 날";
+            hasHyunpi = true;
+          }
+        });
+      }
+      if (hasHyunpi) {
+        saveDdayConfig(currentDdayConfig).catch((e) => console.warn("[dday] 자동 타이틀 정리 실패:", e));
       }
 
       updateHeaderBadge();

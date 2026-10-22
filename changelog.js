@@ -8,6 +8,14 @@ import { openModal, closeModal } from "./ui.js";
 // 업데이트 히스토리 데이터 (최신순)
 export const CHANGELOG_DATA = [
   {
+    version: "v3.7.2",
+    date: "2026.10.22",
+    type: "patch",
+    tag: "D-Day 뱃지 & 수정",
+    title: "헤더 D-Day 뱃지 '사귄 D+몇일' 표시 개선 & 기념일 수정 기능 탑재",
+    desc: "1) 상단 우측 D-Day 버튼을 '사귄 D+몇일' 형식으로 직관적이고 로맨틱하게 표시하도록 개선했습니다. 2) 기존 '현피뜨는날' 등 임시 타이틀을 '사귄 날'로 자동 정돈했습니다. 3) 기념일 모달에서 등록된 일정을 언제든 손쉽게 변경할 수 있는 [수정] 기능을 추가했습니다.",
+  },
+  {
     version: "v3.7.1",
     date: "2026.10.14",
     type: "patch",

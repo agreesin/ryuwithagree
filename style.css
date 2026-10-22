@@ -2833,6 +2833,12 @@ body.modal-open {
   border-color: #fca5a5;
 }
 
+.dday-action-btn.edit-dday-btn:hover {
+  background: #e0f2fe;
+  color: #0284c7;
+  border-color: #7dd3fc;
+}
+
 .dday-action-btn.set-main-btn {
   color: #d45665;
   border-color: #f8c9d2;
