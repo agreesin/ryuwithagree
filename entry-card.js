@@ -160,13 +160,112 @@ export function createEntryCard(entry, idPrefix = "entry-") {
     item.appendChild(entryBody);
   }
 
-  // 그림/사진 렌더링 (하위 호환: image 필드가 존재할 때만 렌더링)
-  if (entry.image) {
+/**
+ * 다중 사진 첨부 시 가로 스와이프/슬라이드 캐러셀 DOM을 생성합니다.
+ */
+function createPhotoCarousel(images, title = "") {
+  const container = document.createElement("div");
+  container.className = "entry-carousel";
+
+  const track = document.createElement("div");
+  track.className = "entry-carousel-track";
+
+  images.forEach((src, idx) => {
+    const slide = document.createElement("div");
+    slide.className = "entry-carousel-slide";
+
+    const img = document.createElement("img");
+    img.className = "entry-carousel-img";
+    img.src = src;
+    img.loading = "lazy";
+    img.alt = title ? `${title} 사진 ${idx + 1}` : `일기 사진 ${idx + 1}`;
+
+    slide.appendChild(img);
+    track.appendChild(slide);
+  });
+
+  // 우측 상단 카운터 배지: "1 / 4"
+  const badge = document.createElement("span");
+  badge.className = "entry-carousel-badge";
+  badge.textContent = `1 / ${images.length}`;
+
+  // 하단 인디케이터 도트 컨테이너
+  const dotsWrap = document.createElement("div");
+  dotsWrap.className = "entry-carousel-dots";
+
+  const dots = images.map((_, idx) => {
+    const dot = document.createElement("button");
+    dot.type = "button";
+    dot.className = `entry-carousel-dot ${idx === 0 ? "active" : ""}`;
+    dot.title = `${idx + 1}번째 사진 보기`;
+    dot.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const slideWidth = track.clientWidth;
+      track.scrollTo({ left: slideWidth * idx, behavior: "smooth" });
+    });
+    dotsWrap.appendChild(dot);
+    return dot;
+  });
+
+  // 좌/우 이동 내비게이션 화살표 버튼
+  const prevBtn = document.createElement("button");
+  prevBtn.type = "button";
+  prevBtn.className = "entry-carousel-btn prev";
+  prevBtn.setAttribute("aria-label", "이전 사진");
+  prevBtn.innerHTML = "‹";
+
+  const nextBtn = document.createElement("button");
+  nextBtn.type = "button";
+  nextBtn.className = "entry-carousel-btn next";
+  nextBtn.setAttribute("aria-label", "다음 사진");
+  nextBtn.innerHTML = "›";
+
+  // 스크롤 시 활성 도트 및 배지 실시간 동기화
+  track.addEventListener("scroll", () => {
+    const slideWidth = track.clientWidth || 1;
+    const currentIdx = Math.round(track.scrollLeft / slideWidth);
+    badge.textContent = `${currentIdx + 1} / ${images.length}`;
+    dots.forEach((d, i) => {
+      if (i === currentIdx) d.classList.add("active");
+      else d.classList.remove("active");
+    });
+  }, { passive: true });
+
+  prevBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const slideWidth = track.clientWidth;
+    track.scrollBy({ left: -slideWidth, behavior: "smooth" });
+  });
+
+  nextBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const slideWidth = track.clientWidth;
+    track.scrollBy({ left: slideWidth, behavior: "smooth" });
+  });
+
+  container.appendChild(track);
+  container.appendChild(badge);
+  container.appendChild(prevBtn);
+  container.appendChild(nextBtn);
+  container.appendChild(dotsWrap);
+
+  return container;
+}
+
+  // 그림/사진 렌더링 (다중 사진 캐러셀 및 단일 사진/손그림 하위 호환)
+  const images = (entry.images && Array.isArray(entry.images) && entry.images.length > 0)
+    ? entry.images
+    : (entry.image ? [entry.image] : []);
+
+  if (images.length > 1) {
+    const carousel = createPhotoCarousel(images, entry.title);
+    item.appendChild(carousel);
+  } else if (images.length === 1) {
     const hasTimelapse = entry.drawingData && Array.isArray(entry.drawingData) && entry.drawingData.length > 0;
 
     const entryImg = document.createElement("img");
     entryImg.className = "entry-image";
-    entryImg.src = entry.image;
+    entryImg.src = images[0];
     entryImg.alt = entry.title ? `${entry.title} 이미지` : "일기 이미지";
 
     if (hasTimelapse) {

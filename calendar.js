@@ -361,10 +361,23 @@ function renderSelectedDateEntries(dateKey, entries, events = []) {
   }
 }
 
+// 현재 활성화된 뷰 모드 탭 ('feed' | 'cal' | 'question')
+let currentViewTab = "feed";
+
+/**
+ * 현재 활성화된 뷰 탭 키를 반환합니다.
+ * @returns {'feed' | 'cal' | 'question'}
+ */
+export function getCurrentViewTab() {
+  return currentViewTab;
+}
+
 /**
  * 뷰 모드 탭 전환 ('feed' | 'cal' | 'question')
  */
 export function switchViewTab(mode = "feed") {
+  currentViewTab = mode;
+
   const tabs = [
     { key: "feed", btn: viewTabFeed, section: feedViewSection },
     { key: "cal", btn: viewTabCal, section: calViewSection, onActive: renderCalendar },
@@ -379,6 +392,12 @@ export function switchViewTab(mode = "feed") {
     }
     if (t.section) {
       t.section.hidden = !isActive;
+      if (isActive) {
+        // 부드러운 탭 전환 애니메이션 적용
+        t.section.classList.remove("tab-slide-enter");
+        void t.section.offsetWidth; // trigger reflow
+        t.section.classList.add("tab-slide-enter");
+      }
     }
     if (isActive && typeof t.onActive === "function") {
       t.onActive();

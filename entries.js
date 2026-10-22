@@ -30,8 +30,10 @@ const moodBtns = document.querySelectorAll(".mood-btn");
 const photoToggleBtn = document.getElementById("photo-toggle-btn");
 const photoFileInput = document.getElementById("photo-file-input");
 const photoPreviewWrap = document.getElementById("photo-preview-wrap");
-const photoPreviewImg = document.getElementById("photo-preview-img");
-const photoRemoveBtn = document.getElementById("photo-remove-btn");
+const photoPreviewList = document.getElementById("photo-preview-list");
+const photoCountBadge = document.getElementById("photo-count-badge");
+const photoAddMoreBtn = document.getElementById("photo-add-more-btn");
+const photoClearAllBtn = document.getElementById("photo-clear-all-btn");
 
 // 그림판 화면 요소
 const drawToggleBtn = document.getElementById("draw-toggle-btn");
@@ -49,7 +51,7 @@ const toolClearBtn = document.getElementById("tool-clear");
 
 // 내부 상태
 let selectedMood = null;
-let attachedPhotoData = null; // 압축된 사진 Data URL
+let attachedPhotos = []; // 최대 5장의 압축된 사진 Data URL 배열
 
 /**
  * 이미지 파일을 브라우저 캔버스를 이용해 고압축(WebP/JPEG 0.75, 최대 960px)으로 변환합니다.
@@ -104,16 +106,78 @@ function compressImageFile(file) {
 }
 
 /**
+ * 첨부된 사진들의 미리보기 목록을 화면에 렌더링합니다.
+ */
+function renderPhotoPreviews() {
+  if (!photoPreviewWrap || !photoPreviewList) return;
+  if (attachedPhotos.length === 0) {
+    photoPreviewWrap.hidden = true;
+    photoPreviewList.innerHTML = "";
+    if (photoFileInput) photoFileInput.value = "";
+    return;
+  }
+
+  photoPreviewWrap.hidden = false;
+  if (photoCountBadge) {
+    photoCountBadge.textContent = `📷 사진 (${attachedPhotos.length}/5)`;
+  }
+  if (photoAddMoreBtn) {
+    const isFull = attachedPhotos.length >= 5;
+    photoAddMoreBtn.disabled = isFull;
+    photoAddMoreBtn.style.opacity = isFull ? "0.4" : "1";
+    photoAddMoreBtn.style.pointerEvents = isFull ? "none" : "auto";
+  }
+
+  photoPreviewList.innerHTML = "";
+  attachedPhotos.forEach((dataUrl, idx) => {
+    const item = document.createElement("div");
+    item.className = "photo-preview-item";
+
+    const img = document.createElement("img");
+    img.className = "photo-preview-thumb";
+    img.src = dataUrl;
+    img.alt = `첨부 사진 ${idx + 1}`;
+
+    const orderBadge = document.createElement("span");
+    orderBadge.className = "photo-item-badge";
+    orderBadge.textContent = `${idx + 1}`;
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "photo-item-remove-btn";
+    removeBtn.textContent = "✕";
+    removeBtn.title = `사진 ${idx + 1} 삭제`;
+    removeBtn.addEventListener("click", () => {
+      attachedPhotos.splice(idx, 1);
+      renderPhotoPreviews();
+    });
+
+    item.appendChild(img);
+    item.appendChild(orderBadge);
+    item.appendChild(removeBtn);
+    photoPreviewList.appendChild(item);
+  });
+}
+
+/**
+ * 첨부된 모든 사진 초기화
+ */
+function clearAttachedPhotos() {
+  attachedPhotos = [];
+  renderPhotoPreviews();
+}
+
+/**
  * 일기 저장 핸들러
  */
 async function onSave() {
   let title = titleInput.value.trim();
   const body = bodyInput.value.trim();
   const isDrawn = hasDrawing();
-  const hasPhoto = Boolean(attachedPhotoData);
+  const hasPhotos = attachedPhotos.length > 0;
 
   // 제목, 본문, 그림, 사진이 전부 비어 있을 때만 저장을 차단
-  if (title === "" && body === "" && !isDrawn && !hasPhoto) {
+  if (title === "" && body === "" && !isDrawn && !hasPhotos) {
     alert("본문, 사진 또는 그림을 입력하세요.");
     bodyInput.focus();
     return;
@@ -129,15 +193,19 @@ async function onSave() {
 
   try {
     let image = null;
+    let images = null;
     let drawingData = null;
+
     if (isDrawn) {
       image = exportImage();
+      images = [image];
       drawingData = exportDrawingData();
-    } else if (hasPhoto) {
-      image = attachedPhotoData;
+    } else if (hasPhotos) {
+      images = [...attachedPhotos];
+      image = attachedPhotos[0];
     }
 
-    await addEntry({ title, body, image, mood: selectedMood, drawingData });
+    await addEntry({ title, body, image, images, mood: selectedMood, drawingData });
 
     // 상대방에게 백그라운드 웹 푸시 발송 시도
     sendPushToPartner({
@@ -152,7 +220,7 @@ async function onSave() {
     moodBtns.forEach((btn) => btn.classList.remove("active"));
     
     // 사진 초기화
-    clearAttachedPhoto();
+    clearAttachedPhotos();
 
     // 그림판 초기화
     resetCanvas();
@@ -171,16 +239,6 @@ async function onSave() {
   } finally {
     saveButton.disabled = false;
   }
-}
-
-/**
- * 첨부된 사진 제거
- */
-function clearAttachedPhoto() {
-  attachedPhotoData = null;
-  if (photoFileInput) photoFileInput.value = "";
-  if (photoPreviewWrap) photoPreviewWrap.hidden = true;
-  if (photoPreviewImg) photoPreviewImg.src = "";
 }
 
 /**
@@ -205,21 +263,36 @@ export function initEditor() {
   // 사진 첨부 버튼 클릭 시 파일 선택창 열기
   if (photoToggleBtn && photoFileInput) {
     photoToggleBtn.addEventListener("click", () => {
+      if (attachedPhotos.length >= 5) {
+        alert("사진은 한 일기당 최대 5장까지 첨부할 수 있습니다.");
+        return;
+      }
       photoFileInput.click();
     });
 
     photoFileInput.addEventListener("change", async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
+      const rawFiles = Array.from(e.target.files || []);
+      if (rawFiles.length === 0) return;
+
+      const remainingSlots = 5 - attachedPhotos.length;
+      if (remainingSlots <= 0) {
+        alert("사진은 한 일기당 최대 5장까지 첨부할 수 있습니다.");
+        photoFileInput.value = "";
+        return;
+      }
+
+      let filesToProcess = rawFiles;
+      if (rawFiles.length > remainingSlots) {
+        alert(`사진은 최대 5장까지 첨부할 수 있어 앞선 ${remainingSlots}장만 추가됩니다.`);
+        filesToProcess = rawFiles.slice(0, remainingSlots);
+      }
 
       try {
-        const compressed = await compressImageFile(file);
-        attachedPhotoData = compressed;
-
-        if (photoPreviewImg && photoPreviewWrap) {
-          photoPreviewImg.src = compressed;
-          photoPreviewWrap.hidden = false;
-        }
+        const compressedList = await Promise.all(
+          filesToProcess.map((f) => compressImageFile(f))
+        );
+        attachedPhotos.push(...compressedList);
+        renderPhotoPreviews();
 
         // 사진을 올리면 그림판은 닫음
         if (drawingContainer && !drawingContainer.hidden) {
@@ -230,14 +303,29 @@ export function initEditor() {
       } catch (err) {
         console.error("사진 압축 오류:", err);
         alert("사진을 불러오지 못했습니다.");
+      } finally {
+        photoFileInput.value = "";
       }
     });
   }
 
-  // 첨부 사진 삭제 버튼
-  if (photoRemoveBtn) {
-    photoRemoveBtn.addEventListener("click", () => {
-      clearAttachedPhoto();
+  // 사진 추가 버튼
+  if (photoAddMoreBtn && photoFileInput) {
+    photoAddMoreBtn.addEventListener("click", () => {
+      if (attachedPhotos.length >= 5) {
+        alert("사진은 한 일기당 최대 5장까지 첨부할 수 있습니다.");
+        return;
+      }
+      photoFileInput.click();
+    });
+  }
+
+  // 사진 전체 삭제 버튼
+  if (photoClearAllBtn) {
+    photoClearAllBtn.addEventListener("click", () => {
+      if (confirm("첨부된 사진을 모두 삭제하시겠습니까?")) {
+        clearAttachedPhotos();
+      }
     });
   }
 

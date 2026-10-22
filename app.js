@@ -18,6 +18,7 @@ import { initReport } from "./report.js";
 import { initModalAccessibility } from "./ui.js";
 import { initDailyQuestion } from "./daily-question.js";
 import { initNudge } from "./nudge.js";
+import { initGestures } from "./gestures.js";
 
 /** 개별 격리 실행: 하나의 모듈에서 오류가 나도 다른 모듈은 정상 실행 */
 function safe(name, fn) {
@@ -86,6 +87,7 @@ function boot() {
   safe("initChangelog", initChangelog);
   safe("initReport", initReport);
   safe("initModalAccessibility", initModalAccessibility);
+  safe("initGestures", initGestures);
 }
 
 if (document.readyState === "loading") {
