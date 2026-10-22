@@ -62,8 +62,8 @@ function compressImageFile(file) {
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        const MAX_WIDTH = 960;
-        const MAX_HEIGHT = 960;
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
         let width = img.width;
         let height = img.height;
 
@@ -85,14 +85,14 @@ function compressImageFile(file) {
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, width, height);
 
-        // WebP 우선 지원, 미지원 시 JPEG 0.75 압축
-        let dataUrl = canvas.toDataURL("image/webp", 0.75);
+        // WebP 우선 지원, 미지원 시 JPEG 0.70 압축
+        let dataUrl = canvas.toDataURL("image/webp", 0.70);
         if (!dataUrl.startsWith("data:image/webp")) {
-          dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+          dataUrl = canvas.toDataURL("image/jpeg", 0.70);
         }
 
         const origSizeKb = Math.round(file.size / 1024);
-        const compSizeKb = Math.round(dataUrl.length * 0.75 / 1024);
+        const compSizeKb = Math.round((dataUrl.length * 0.75) / 1024);
         console.log(`[Photo] 스마트 압축 완료: ${origSizeKb}KB ➔ ${compSizeKb}KB (${width}x${height})`);
 
         resolve(dataUrl);

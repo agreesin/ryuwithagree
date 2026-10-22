@@ -91,8 +91,12 @@ export function render(entries = cachedRawEntries) {
     const displayedEntries = filtered.slice(0, visibleCount);
 
     for (const entry of displayedEntries) {
-      const card = createEntryCard(entry);
-      timelineList.appendChild(card);
+      try {
+        const card = createEntryCard(entry);
+        timelineList.appendChild(card);
+      } catch (err) {
+        console.error("[render] 일기 카드 렌더링 중 오류 건너뜀:", entry.id, err);
+      }
     }
   }
 

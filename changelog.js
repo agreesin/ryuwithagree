@@ -8,6 +8,14 @@ import { openModal, closeModal } from "./ui.js";
 // 업데이트 히스토리 데이터 (최신순)
 export const CHANGELOG_DATA = [
   {
+    version: "v3.8.1",
+    date: "2026.10.22",
+    type: "patch",
+    tag: "긴급 핫픽스 & 안정화",
+    title: "일기 카드 렌더링 참조 오류 수정 & 렌더링 예외 방어 격리 & 고화질 사진 압축 최적화",
+    desc: "1) 일기 카드(entry-card.js) 모듈 내 미참조 변수 호출 오류를 수정하여 기존 일기 및 신규 일기가 정상적으로 즉시 렌더링되도록 복구했습니다. 2) 일기 렌더링 루프(render.js)에 예외 방어 격리(Try-Catch Boundary)를 구축하여 특정 카드의 오류가 전체 피드를 중단시키지 않도록 안정성을 강화했습니다. 3) 최대 5장 다중 사진 첨부 시 문서 용량 초과를 방지하기 위해 스마트 압축 해상도와 품질을 모바일 화면에 최적화했습니다.",
+  },
+  {
     version: "v3.8.0",
     date: "2026.10.22",
     type: "major",

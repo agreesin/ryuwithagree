@@ -7,6 +7,7 @@
 import { removeEntry, toggleReaction } from "./store.js";
 import {
   getCurrentUser,
+  getCurrentProfiles,
   isMyContent,
   createAvatarElement,
   getUserDisplayName,
@@ -61,104 +62,6 @@ function createReactionBar(entry) {
 
   return reactionWrap;
 }
-
-/**
- * 일기 1건에 대한 카드 DOM 요소를 생성하여 반환합니다.
- * @param {Object} entry - 일기 문서 객체
- * @param {string} [idPrefix="entry-"] - 카드 DOM ID 접두어
- * @returns {HTMLLIElement} 일기 카드 li 요소
- */
-export function createEntryCard(entry, idPrefix = "entry-") {
-  const currentProfiles = getCurrentProfiles();
-
-  const item = document.createElement("li");
-  const isMyEntry = isMyContent(entry);
-
-  item.className = `entry ${isMyEntry ? "my-card" : "other-card"}`;
-  item.id = `${idPrefix}${entry.id}`;
-
-  const headerDiv = document.createElement("div");
-  headerDiv.className = "entry-header";
-
-  const titleWrapper = document.createElement("div");
-  titleWrapper.className = "entry-title-wrapper";
-
-  // 작성자 구분 미니 뱃지 (내 글 / 상대방 글)
-  const authorTag = document.createElement("span");
-  authorTag.className = `entry-author-tag ${isMyEntry ? "my-tag" : "other-tag"}`;
-  authorTag.textContent = isMyEntry ? "내 일기 📝" : "상대방 일기 💖";
-  titleWrapper.appendChild(authorTag);
-
-  const entryTitle = document.createElement("h2");
-  entryTitle.className = "entry-title";
-  entryTitle.textContent = entry.title || "(제목 없음)";
-  titleWrapper.appendChild(entryTitle);
-
-  // 오늘의 기분 이모지가 있을 때 뱃지로 렌더링
-  if (entry.mood) {
-    const moodBadge = document.createElement("span");
-    moodBadge.className = "entry-mood-badge";
-    const cardMood = entry.mood === "🫪" ? "🤯" : entry.mood;
-    moodBadge.textContent = cardMood;
-    moodBadge.title = `오늘의 기분: ${cardMood}`;
-    titleWrapper.appendChild(moodBadge);
-  }
-
-  headerDiv.appendChild(titleWrapper);
-
-  if (isMyEntry) {
-    const deleteButton = document.createElement("button");
-    deleteButton.className = "delete-button";
-    deleteButton.type = "button";
-    deleteButton.textContent = "삭제";
-    deleteButton.addEventListener("click", async () => {
-      if (confirm("정말 이 일기를 삭제하시겠습니까?")) {
-        try {
-          await removeEntry(entry.id);
-        } catch (error) {
-          console.error(error);
-          showError("삭제하지 못했습니다. 인터넷 연결과 권한을 확인하세요.");
-        }
-      }
-    });
-    headerDiv.appendChild(deleteButton);
-  }
-
-  const metaDiv = document.createElement("div");
-  metaDiv.className = "entry-meta";
-
-  const authorWrapper = document.createElement("span");
-  authorWrapper.className = "entry-author-wrapper";
-
-  const authorDisplayName = getUserDisplayName(entry.uid, entry.author || "이름 없음");
-  const authorAvatar = createAvatarElement(entry.uid, authorDisplayName, "entry-author-avatar");
-  authorWrapper.appendChild(authorAvatar);
-
-  const entryAuthor = document.createElement("span");
-  entryAuthor.className = "entry-author";
-  entryAuthor.textContent = `작성자: ${authorDisplayName}`;
-  authorWrapper.appendChild(entryAuthor);
-
-  // 작성 날짜 보여주기
-  const entryDate = document.createElement("span");
-  entryDate.className = "entry-date";
-  if (entry.createdAt) {
-    entryDate.textContent = formatDateTime(entry.createdAt);
-  }
-
-  metaDiv.appendChild(authorWrapper);
-  metaDiv.appendChild(entryDate);
-
-  item.appendChild(headerDiv);
-  item.appendChild(metaDiv);
-
-  // 본문 표시 (본문이 있을 때만 추가)
-  if (entry.body && entry.body.trim() !== "") {
-    const entryBody = document.createElement("p");
-    entryBody.className = "entry-body";
-    entryBody.textContent = entry.body;
-    item.appendChild(entryBody);
-  }
 
 /**
  * 다중 사진 첨부 시 가로 스와이프/슬라이드 캐러셀 DOM을 생성합니다.
@@ -251,6 +154,102 @@ function createPhotoCarousel(images, title = "") {
 
   return container;
 }
+
+/**
+ * 일기 1건에 대한 카드 DOM 요소를 생성하여 반환합니다.
+ * @param {Object} entry - 일기 문서 객체
+ * @param {string} [idPrefix="entry-"] - 카드 DOM ID 접두어
+ * @returns {HTMLLIElement} 일기 카드 li 요소
+ */
+export function createEntryCard(entry, idPrefix = "entry-") {
+  const item = document.createElement("li");
+  const isMyEntry = isMyContent(entry);
+
+  item.className = `entry ${isMyEntry ? "my-card" : "other-card"}`;
+  item.id = `${idPrefix}${entry.id}`;
+
+  const headerDiv = document.createElement("div");
+  headerDiv.className = "entry-header";
+
+  const titleWrapper = document.createElement("div");
+  titleWrapper.className = "entry-title-wrapper";
+
+  // 작성자 구분 미니 뱃지 (내 글 / 상대방 글)
+  const authorTag = document.createElement("span");
+  authorTag.className = `entry-author-tag ${isMyEntry ? "my-tag" : "other-tag"}`;
+  authorTag.textContent = isMyEntry ? "내 일기 📝" : "상대방 일기 💖";
+  titleWrapper.appendChild(authorTag);
+
+  const entryTitle = document.createElement("h2");
+  entryTitle.className = "entry-title";
+  entryTitle.textContent = entry.title || "(제목 없음)";
+  titleWrapper.appendChild(entryTitle);
+
+  // 오늘의 기분 이모지가 있을 때 뱃지로 렌더링
+  if (entry.mood) {
+    const moodBadge = document.createElement("span");
+    moodBadge.className = "entry-mood-badge";
+    const cardMood = entry.mood === "🫪" ? "🤯" : entry.mood;
+    moodBadge.textContent = cardMood;
+    moodBadge.title = `오늘의 기분: ${cardMood}`;
+    titleWrapper.appendChild(moodBadge);
+  }
+
+  headerDiv.appendChild(titleWrapper);
+
+  if (isMyEntry) {
+    const deleteButton = document.createElement("button");
+    deleteButton.className = "delete-button";
+    deleteButton.type = "button";
+    deleteButton.textContent = "삭제";
+    deleteButton.addEventListener("click", async () => {
+      if (confirm("정말 이 일기를 삭제하시겠습니까?")) {
+        try {
+          await removeEntry(entry.id);
+        } catch (error) {
+          console.error(error);
+          showError("삭제하지 못했습니다. 인터넷 연결과 권한을 확인하세요.");
+        }
+      }
+    });
+    headerDiv.appendChild(deleteButton);
+  }
+
+  const metaDiv = document.createElement("div");
+  metaDiv.className = "entry-meta";
+
+  const authorWrapper = document.createElement("span");
+  authorWrapper.className = "entry-author-wrapper";
+
+  const authorDisplayName = getUserDisplayName(entry.uid, entry.author || "이름 없음");
+  const authorAvatar = createAvatarElement(entry.uid, authorDisplayName, "entry-author-avatar");
+  authorWrapper.appendChild(authorAvatar);
+
+  const entryAuthor = document.createElement("span");
+  entryAuthor.className = "entry-author";
+  entryAuthor.textContent = `작성자: ${authorDisplayName}`;
+  authorWrapper.appendChild(entryAuthor);
+
+  // 작성 날짜 보여주기
+  const entryDate = document.createElement("span");
+  entryDate.className = "entry-date";
+  if (entry.createdAt) {
+    entryDate.textContent = formatDateTime(entry.createdAt);
+  }
+
+  metaDiv.appendChild(authorWrapper);
+  metaDiv.appendChild(entryDate);
+
+  item.appendChild(headerDiv);
+  item.appendChild(metaDiv);
+
+  // 본문 표시 (본문이 있을 때만 추가)
+  if (entry.body && entry.body.trim() !== "") {
+    const entryBody = document.createElement("p");
+    entryBody.className = "entry-body";
+    entryBody.textContent = entry.body;
+    item.appendChild(entryBody);
+  }
 
   // 그림/사진 렌더링 (다중 사진 캐러셀 및 단일 사진/손그림 하위 호환)
   const images = (entry.images && Array.isArray(entry.images) && entry.images.length > 0)
