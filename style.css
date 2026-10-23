@@ -3162,7 +3162,6 @@ body.modal-open {
 /* 3. 오늘의 질문 전용 탭 화면 섹션 */
 .question-view-section {
   width: 100%;
-  animation: fadeIn 0.25s ease-out;
 }
 
 /* 검색 & 필터 영역 */
@@ -3272,7 +3271,7 @@ body.modal-open {
    ========================================================= */
 
 .calendar-view-section {
-  animation: notifDropIn 0.25s ease-out;
+  width: 100%;
 }
 
 .calendar-card {
@@ -5642,21 +5641,54 @@ body.duo-shake {
 }
 
 /* =========================================================
-   3단 탭 슬라이드 전환 애니메이션 (Swipe & Tab Transition)
+   3단 탭 스와이프 & 전환 슬라이드 애니메이션 (Swipe Transition)
    ========================================================= */
-@keyframes tabSlideFadeIn {
-  from {
-    opacity: 0.6;
-    transform: translateY(8px);
+@keyframes slideInFromRight {
+  0% {
+    opacity: 0.35;
+    transform: translate3d(50px, 0, 0);
   }
-  to {
+  100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
+@keyframes slideInFromLeft {
+  0% {
+    opacity: 0.35;
+    transform: translate3d(-50px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes tabSlideFadeIn {
+  from {
+    opacity: 0.4;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.tab-slide-left {
+  animation: slideInFromRight 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.tab-slide-right {
+  animation: slideInFromLeft 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
 .tab-slide-enter {
-  animation: tabSlideFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: tabSlideFadeIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
 }
 
 /* =========================================================
@@ -6014,3 +6046,10 @@ body.duo-shake {
 
 
 
+
+
+#app-area {
+  overflow-x: hidden;
+  position: relative;
+  width: 100%;
+}

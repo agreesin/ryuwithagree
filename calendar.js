@@ -363,6 +363,7 @@ function renderSelectedDateEntries(dateKey, entries, events = []) {
 
 // 현재 활성화된 뷰 모드 탭 ('feed' | 'cal' | 'question')
 let currentViewTab = "feed";
+const TAB_KEYS_ORDER = ["feed", "cal", "question"];
 
 /**
  * 현재 활성화된 뷰 탭 키를 반환합니다.
@@ -373,10 +374,20 @@ export function getCurrentViewTab() {
 }
 
 /**
- * 뷰 모드 탭 전환 ('feed' | 'cal' | 'question')
+ * 뷰 모드 탭 전환 ('feed' | 'cal' | 'question', direction?: 'left' | 'right' | 'auto')
  */
-export function switchViewTab(mode = "feed") {
+export function switchViewTab(mode = "feed", direction = "auto") {
+  const prevTab = currentViewTab;
   currentViewTab = mode;
+
+  let slideDir = direction;
+  if (slideDir === "auto") {
+    const prevIdx = TAB_KEYS_ORDER.indexOf(prevTab);
+    const newIdx = TAB_KEYS_ORDER.indexOf(mode);
+    if (newIdx > prevIdx) slideDir = "left"; // 다음 탭: 오른쪽에서 왼쪽으로 슬라이드 인
+    else if (newIdx < prevIdx) slideDir = "right"; // 이전 탭: 왼쪽에서 오른쪽으로 슬라이드 인
+    else slideDir = "none";
+  }
 
   const tabs = [
     { key: "feed", btn: viewTabFeed, section: feedViewSection },
@@ -393,10 +404,26 @@ export function switchViewTab(mode = "feed") {
     if (t.section) {
       t.section.hidden = !isActive;
       if (isActive) {
-        // 부드러운 탭 전환 애니메이션 적용
-        t.section.classList.remove("tab-slide-enter");
+        // 인라인 변형 스타일 초기화
+        t.section.style.transform = "";
+        t.section.style.transition = "";
+        t.section.style.opacity = "";
+
+        // 방향에 따른 정교한 슬라이드 애니메이션 적용
+        t.section.classList.remove("tab-slide-enter", "tab-slide-left", "tab-slide-right");
         void t.section.offsetWidth; // trigger reflow
-        t.section.classList.add("tab-slide-enter");
+        if (slideDir === "left") {
+          t.section.classList.add("tab-slide-left");
+        } else if (slideDir === "right") {
+          t.section.classList.add("tab-slide-right");
+        } else {
+          t.section.classList.add("tab-slide-enter");
+        }
+      } else {
+        t.section.classList.remove("tab-slide-enter", "tab-slide-left", "tab-slide-right");
+        t.section.style.transform = "";
+        t.section.style.transition = "";
+        t.section.style.opacity = "";
       }
     }
     if (isActive && typeof t.onActive === "function") {

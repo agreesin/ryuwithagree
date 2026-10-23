@@ -8,6 +8,14 @@ import { openModal, closeModal } from "./ui.js";
 // 업데이트 히스토리 데이터 (최신순)
 export const CHANGELOG_DATA = [
   {
+    version: "v3.8.2",
+    date: "2026.10.23",
+    type: "feature",
+    tag: "모바일 탭 애니메이션 & UX",
+    title: "모바일 3단 탭 실시간 손가락 드래그 추종 & 방향 반응형 부드러운 슬라이드 애니메이션",
+    desc: "1) 3단 탭(피드 ↔ 달력 ↔ 오늘의 질문) 간 모바일 터치 제스처 시 손가락 움직임을 실시간으로 부드럽게 추종(Translate3D)하며 경계부 댐핑(Rubber-band) 효과를 제공합니다. 2) 스와이프 및 상단 탭 버튼 클릭 시 이동 방향에 맞춰 화면이 유려하게 미끄러져 들어오는 GPU 가속 큐빅 베지어 슬라이드 애니메이션(.tab-slide-left, .tab-slide-right)을 적용했습니다. 3) 햅틱 진동 피드백(12ms)과 함께 네이티브 앱 이상의 쾌적한 화면 전환을 완성했습니다.",
+  },
+  {
     version: "v3.8.1",
     date: "2026.10.22",
     type: "patch",

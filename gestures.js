@@ -1,7 +1,7 @@
 // =========================================================
 // gestures.js - 모바일 터치 제스처 & Pull-to-refresh & 오프라인 상태 관리 모듈
 //
-// 1. 피드 / 달력 / 오늘의 질문 3단 탭 간 좌우 스와이프 제스처 전환
+// 1. 피드 / 달력 / 오늘의 질문 3단 탭 간 실시간 터치 드래그 & 좌우 스와이프 전환 애니메이션
 // 2. iOS PWA / 모바일 최상단 당겨서 새로고침 (Pull-to-refresh)
 // 3. 오프라인 네트워크 감지 및 낙관적 UI 안내 배너
 // =========================================================
@@ -14,7 +14,27 @@ import { renderCurrentDateQuestion } from "./daily-question.js";
 const TAB_KEYS = ["feed", "cal", "question"];
 
 /**
- * 3단 탭 간 모바일 좌우 스와이프 제스처를 초기화합니다.
+ * 현재 활성화된 섹션 DOM 요소를 반환합니다.
+ */
+function getActiveSection(tabKey = getCurrentViewTab()) {
+  if (tabKey === "feed") return document.getElementById("feed-view-section");
+  if (tabKey === "cal") return document.getElementById("calendar-view-section");
+  if (tabKey === "question") return document.getElementById("question-view-section");
+  return null;
+}
+
+/**
+ * 섹션 요소의 인라인 변형 스타일을 안전하게 초기화합니다.
+ */
+function resetSectionStyle(sec) {
+  if (!sec) return;
+  sec.style.transform = "";
+  sec.style.transition = "";
+  sec.style.opacity = "";
+}
+
+/**
+ * 3단 탭 간 모바일 실시간 터치 드래그 및 좌우 스와이프 전환 애니메이션을 초기화합니다.
  */
 function initSwipeTabs() {
   const appArea = document.getElementById("app-area");
@@ -24,12 +44,15 @@ function initSwipeTabs() {
   let startY = 0;
   let startTime = 0;
   let isSwipeCandidate = false;
+  let isDragging = false;
+  let activeSection = null;
 
   appArea.addEventListener(
     "touchstart",
     (e) => {
       if (e.touches.length !== 1) {
         isSwipeCandidate = false;
+        isDragging = false;
         return;
       }
 
@@ -39,6 +62,7 @@ function initSwipeTabs() {
         target.closest("#drawing-canvas") ||
         target.closest("#drawing-container") ||
         target.closest(".canvas-wrapper") ||
+        target.closest(".entry-carousel") ||
         target.closest(".entry-carousel-track") ||
         target.closest(".mood-options") ||
         target.closest(".filter-chips") ||
@@ -51,6 +75,7 @@ function initSwipeTabs() {
         target.closest("select")
       ) {
         isSwipeCandidate = false;
+        isDragging = false;
         return;
       }
 
@@ -59,6 +84,52 @@ function initSwipeTabs() {
       startY = touch.clientY;
       startTime = Date.now();
       isSwipeCandidate = true;
+      isDragging = false;
+      activeSection = getActiveSection();
+      if (activeSection) {
+        activeSection.style.transition = "none";
+      }
+    },
+    { passive: true }
+  );
+
+  appArea.addEventListener(
+    "touchmove",
+    (e) => {
+      if (!isSwipeCandidate || !activeSection) return;
+      if (e.touches.length !== 1) return;
+
+      const touch = e.touches[0];
+      const diffX = touch.clientX - startX;
+      const diffY = touch.clientY - startY;
+
+      // 사용자가 수직으로 스크롤 중이면 스와이프 후보에서 즉시 제외 (자연스러운 본문 스크롤 보장)
+      if (!isDragging && Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 8) {
+        isSwipeCandidate = false;
+        resetSectionStyle(activeSection);
+        return;
+      }
+
+      // 수평 스와이프 의도가 명확해지면 실시간 반응형 드래그 애니메이션 시작
+      if (Math.abs(diffX) > 10 && Math.abs(diffX) > Math.abs(diffY) * 1.2) {
+        isDragging = true;
+        const currentTab = getCurrentViewTab();
+        const currentIndex = TAB_KEYS.indexOf(currentTab);
+
+        // 첫 번째 탭에서 오른쪽으로 당기거나, 마지막 탭에서 왼쪽으로 당길 때는 쫀득한 고무줄 저항감 부여
+        let moveX;
+        if ((currentIndex === 0 && diffX > 0) || (currentIndex === TAB_KEYS.length - 1 && diffX < 0)) {
+          moveX = diffX * 0.25;
+        } else {
+          moveX = diffX * 0.72;
+        }
+
+        // 최대 드래그 이동폭 제한 (-90px ~ 90px)
+        moveX = Math.max(-90, Math.min(90, moveX));
+
+        activeSection.style.transform = `translate3d(${moveX}px, 0, 0)`;
+        activeSection.style.opacity = String(1 - Math.min(Math.abs(moveX) / 320, 0.35));
+      }
     },
     { passive: true }
   );
@@ -66,41 +137,78 @@ function initSwipeTabs() {
   appArea.addEventListener(
     "touchend",
     (e) => {
-      if (!isSwipeCandidate) return;
+      if (!isSwipeCandidate || !activeSection) return;
       isSwipeCandidate = false;
 
-      if (!e.changedTouches || e.changedTouches.length === 0) return;
+      const currentTab = getCurrentViewTab();
+      const currentIndex = TAB_KEYS.indexOf(currentTab);
+
+      if (!e.changedTouches || e.changedTouches.length === 0) {
+        resetSectionStyle(activeSection);
+        return;
+      }
+
       const touch = e.changedTouches[0];
       const diffX = touch.clientX - startX;
       const diffY = touch.clientY - startY;
       const elapsed = Date.now() - startTime;
 
-      // 600ms 이내의 제스처이면서 가로 이동 거리가 세로의 1.6배 이상 우세할 때만 처리
-      const minDistance = 65;
-      if (
-        elapsed < 600 &&
-        Math.abs(diffX) >= minDistance &&
-        Math.abs(diffX) > Math.abs(diffY) * 1.6
-      ) {
-        const currentTab = getCurrentViewTab();
-        const currentIndex = TAB_KEYS.indexOf(currentTab);
-        if (currentIndex === -1) return;
+      // 빠른 플릭(속도) 또는 충분한 드래그 거리(50px) 판정
+      const isQuickFlick = elapsed < 320 && Math.abs(diffX) > 38 && Math.abs(diffX) > Math.abs(diffY) * 1.5;
+      const isLongSwipe = Math.abs(diffX) >= 55 && Math.abs(diffX) > Math.abs(diffY) * 1.35;
 
-        if (diffX < 0) {
-          // 왼쪽으로 스와이프 (손가락 오른쪽 ➔ 왼쪽) ➔ 다음 탭 이동
-          if (currentIndex < TAB_KEYS.length - 1) {
-            const nextTab = TAB_KEYS[currentIndex + 1];
-            switchViewTab(nextTab);
+      if ((isQuickFlick || isLongSwipe) && currentIndex !== -1) {
+        if (diffX < 0 && currentIndex < TAB_KEYS.length - 1) {
+          // 왼쪽으로 스와이프 (손가락: 오른쪽 ➔ 왼쪽) ➔ 다음 탭 이동
+          const nextTab = TAB_KEYS[currentIndex + 1];
+          activeSection.style.transition = "transform 0.16s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.16s ease";
+          activeSection.style.transform = "translate3d(-60px, 0, 0)";
+          activeSection.style.opacity = "0.2";
+
+          setTimeout(() => {
+            resetSectionStyle(activeSection);
+            switchViewTab(nextTab, "left");
             if (navigator.vibrate) navigator.vibrate(12);
-          }
-        } else {
-          // 오른쪽으로 스와이프 (손가락 왼쪽 ➔ 오른쪽) ➔ 이전 탭 이동
-          if (currentIndex > 0) {
-            const prevTab = TAB_KEYS[currentIndex - 1];
-            switchViewTab(prevTab);
+          }, 90);
+          return;
+        } else if (diffX > 0 && currentIndex > 0) {
+          // 오른쪽으로 스와이프 (손가락: 왼쪽 ➔ 오른쪽) ➔ 이전 탭 이동
+          const prevTab = TAB_KEYS[currentIndex - 1];
+          activeSection.style.transition = "transform 0.16s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.16s ease";
+          activeSection.style.transform = "translate3d(60px, 0, 0)";
+          activeSection.style.opacity = "0.2";
+
+          setTimeout(() => {
+            resetSectionStyle(activeSection);
+            switchViewTab(prevTab, "right");
             if (navigator.vibrate) navigator.vibrate(12);
-          }
+          }, 90);
+          return;
         }
+      }
+
+      // 전환 임계치에 도달하지 못한 경우 부드러운 스프링 원위치 복귀
+      if (isDragging) {
+        activeSection.style.transition = "transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s ease";
+        activeSection.style.transform = "translate3d(0, 0, 0)";
+        activeSection.style.opacity = "1";
+        setTimeout(() => {
+          resetSectionStyle(activeSection);
+        }, 260);
+      } else {
+        resetSectionStyle(activeSection);
+      }
+    },
+    { passive: true }
+  );
+
+  appArea.addEventListener(
+    "touchcancel",
+    () => {
+      isSwipeCandidate = false;
+      isDragging = false;
+      if (activeSection) {
+        resetSectionStyle(activeSection);
       }
     },
     { passive: true }
