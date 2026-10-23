@@ -80,13 +80,22 @@ function setActiveIcon(icon) {
 }
 
 /**
- * 기념일 항목에 대한 D-Day 계산
+ * 기념일 항목에 대한 D-Day 계산 및 오늘 시점 기준 정렬 스코어 산출
  * @param {Object} item - { id, title, date, type, icon }
- * @returns {Object} - { ddayText, tagLabel, tagClass, tagIcon, sortDiff }
+ * @returns {Object} - { ddayText, tagLabel, tagClass, tagIcon, sortScore, milestoneHint, isToday, diffDays }
  */
 export function calculateDdayInfo(item) {
   if (!item || !item.date) {
-    return { ddayText: "", tagLabel: "기념일", tagClass: "count_up", tagIcon: "💖", sortDiff: 99999 };
+    return {
+      ddayText: "",
+      tagLabel: "기념일",
+      tagClass: "count_up",
+      tagIcon: "💖",
+      sortScore: 99999,
+      milestoneHint: "",
+      isToday: false,
+      diffDays: 99999,
+    };
   }
 
   const now = new Date();
@@ -102,12 +111,60 @@ export function calculateDdayInfo(item) {
     const targetDate = new Date(y, m - 1, d).getTime();
     const diffDays = Math.floor((today - targetDate) / oneDayMs);
     const count = diffDays >= 0 ? diffDays + 1 : diffDays;
+
+    // 다음 주요 마일스톤(첫해 50일 단위, 이후 100일 단위) 및 N주년 계산
+    const isFirstYear = count <= 365;
+    let nextMilestoneCount;
+    if (count <= 0) {
+      nextMilestoneCount = 1;
+    } else if (isFirstYear) {
+      nextMilestoneCount = Math.ceil(count / 50) * 50;
+      if (nextMilestoneCount === count) nextMilestoneCount = count;
+      else if (nextMilestoneCount < count) nextMilestoneCount += 50;
+    } else {
+      nextMilestoneCount = Math.ceil(count / 100) * 100;
+      if (nextMilestoneCount === count) nextMilestoneCount = count;
+      else if (nextMilestoneCount < count) nextMilestoneCount += 100;
+    }
+    const daysToDayCount = count > 0 ? nextMilestoneCount - count : Math.abs(count);
+
+    let nextAnniv = new Date(now.getFullYear(), m - 1, d).getTime();
+    let annivYears = now.getFullYear() - y;
+    if (nextAnniv < today) {
+      nextAnniv = new Date(now.getFullYear() + 1, m - 1, d).getTime();
+      annivYears += 1;
+    }
+    const daysToAnniv = Math.round((nextAnniv - today) / oneDayMs);
+
+    let milestoneHint = "";
+    let sortScore = 0;
+    let isToday = false;
+
+    if (daysToDayCount === 0) {
+      milestoneHint = `${count}일 당일입니다! 💕`;
+      sortScore = 0;
+      isToday = true;
+    } else if (daysToAnniv === 0 && annivYears > 0) {
+      milestoneHint = `${annivYears}주년 당일입니다! 🎉`;
+      sortScore = 0;
+      isToday = true;
+    } else if (daysToDayCount <= daysToAnniv) {
+      milestoneHint = `다음 ${nextMilestoneCount}일까지 D-${daysToDayCount}`;
+      sortScore = daysToDayCount;
+    } else {
+      milestoneHint = `다음 ${annivYears}주년까지 D-${daysToAnniv}`;
+      sortScore = daysToAnniv;
+    }
+
     return {
       ddayText: count >= 0 ? `D+${count}` : `D${count}`,
       tagLabel: `${icon} 함께한 날`,
       tagClass: "count_up",
       tagIcon: icon,
-      sortDiff: count,
+      sortScore,
+      milestoneHint,
+      isToday,
+      diffDays,
     };
   } else if (type === "birthday") {
     // 2. 매년 반복 생일/기념일
@@ -117,11 +174,19 @@ export function calculateDdayInfo(item) {
     }
     const diffDays = Math.round((thisYearBirthday - today) / oneDayMs);
 
+    const isToday = diffDays === 0;
     let ddayText = "";
-    if (diffDays === 0) {
+    let milestoneHint = "";
+
+    if (isToday) {
       ddayText = `${icon} 오늘 생일!`;
+      milestoneHint = "오늘 생일을 진심으로 축하해요! 🎂";
+    } else if (diffDays === 1) {
+      ddayText = "D-1";
+      milestoneHint = "내일이 생일입니다! 🎁";
     } else {
       ddayText = `D-${diffDays}`;
+      milestoneHint = `다음 생일까지 D-${diffDays}`;
     }
 
     return {
@@ -129,7 +194,10 @@ export function calculateDdayInfo(item) {
       tagLabel: `${icon} 매년 생일`,
       tagClass: "birthday",
       tagIcon: icon,
-      sortDiff: diffDays,
+      sortScore: diffDays,
+      milestoneHint,
+      isToday,
+      diffDays,
     };
   } else {
     // 3. 데이트 / 여행 / 예정된 일정 (D-)
@@ -137,12 +205,23 @@ export function calculateDdayInfo(item) {
     const diffDays = Math.round((targetDate - today) / oneDayMs);
 
     let ddayText = "";
-    if (diffDays === 0) {
+    let sortScore = 0;
+    let milestoneHint = "";
+    const isToday = diffDays === 0;
+
+    if (isToday) {
       ddayText = `${icon} 오늘 데이트!`;
+      sortScore = 0;
+      milestoneHint = "오늘 예정된 일정/데이트 당일입니다! ✨";
     } else if (diffDays > 0) {
       ddayText = `D-${diffDays}`;
+      sortScore = diffDays;
+      milestoneHint = diffDays === 1 ? "내일 예정된 일정입니다!" : `${diffDays}일 남았습니다.`;
     } else {
-      ddayText = `D+${Math.abs(diffDays)} 지남`;
+      const pastDays = Math.abs(diffDays);
+      ddayText = `D+${pastDays} 지남`;
+      sortScore = 100000 + pastDays;
+      milestoneHint = `${pastDays}일 전에 종료된 일정입니다.`;
     }
 
     return {
@@ -150,9 +229,41 @@ export function calculateDdayInfo(item) {
       tagLabel: `${icon} 일정/데이트`,
       tagClass: "event",
       tagIcon: icon,
-      sortDiff: diffDays,
+      sortScore,
+      milestoneHint,
+      isToday,
+      diffDays,
     };
   }
+}
+
+/**
+ * 디데이 일정 목록을 정렬합니다.
+ * - 대표 기념일(★)은 최상단에 고정
+ * - 그 외 일정들은 오늘 시점과 가장 가까운 순(오늘 D-Day ➔ 다가오는 일정 ➔ 지난 일정)으로 정렬
+ * @param {Array<Object>} items
+ * @param {string|null} mainId
+ * @returns {Array<Object>}
+ */
+export function sortDdayItems(items, mainId) {
+  if (!Array.isArray(items) || items.length === 0) return [];
+
+  // 대표 항목 식별 (설정된 mainId 우선, 없으면 첫 count_up 또는 첫 항목)
+  const effectiveMainId =
+    mainId ||
+    (items.length === 1 ? items[0].id : (items.find((it) => (it.type || "count_up") === "count_up") || items[0]).id);
+
+  const mainItem = items.find((it) => it.id === effectiveMainId);
+  const otherItems = items.filter((it) => it.id !== effectiveMainId);
+
+  // 대표 이외의 일정들을 오늘 시점 기준 가장 가까운 순서로 정렬
+  otherItems.sort((a, b) => {
+    const infoA = calculateDdayInfo(a);
+    const infoB = calculateDdayInfo(b);
+    return infoA.sortScore - infoB.sortScore;
+  });
+
+  return mainItem ? [mainItem, ...otherItems] : otherItems;
 }
 
 /**
@@ -290,24 +401,29 @@ function renderDdayList() {
 
   if (ddayEmptyText) ddayEmptyText.hidden = true;
 
-  items.forEach((item) => {
+  // 대표 기념일 최상단 고정 & 오늘 시점과 가장 가까운 일정 우선 정렬
+  const sortedItems = sortDdayItems(items, currentDdayConfig.mainId);
+
+  sortedItems.forEach((item) => {
     const isMain = item.id === currentDdayConfig.mainId || (items.length === 1 && !currentDdayConfig.mainId);
-    const { ddayText, tagLabel, tagClass } = calculateDdayInfo(item);
+    const { ddayText, tagLabel, tagClass, milestoneHint, isToday } = calculateDdayInfo(item);
 
     const card = document.createElement("div");
-    card.className = `dday-card-item ${isMain ? "main-item" : ""}`;
+    card.className = `dday-card-item ${isMain ? "main-item" : ""} ${isToday ? "today-item" : ""}`;
 
     card.innerHTML = `
       <div class="dday-card-left">
         <div class="dday-card-header">
           <span class="dday-type-tag ${tagClass}">${tagLabel}</span>
           ${isMain ? '<span class="dday-main-badge">★ 대표</span>' : ""}
+          ${isToday && !isMain ? '<span class="dday-today-badge">🔥 오늘</span>' : ""}
           <span class="dday-card-date">${item.date}</span>
         </div>
         <h4 class="dday-card-title">${item.title}</h4>
+        ${milestoneHint ? `<span class="dday-card-hint">${milestoneHint}</span>` : ""}
       </div>
       <div class="dday-card-right">
-        <span class="dday-card-calc ${tagClass}">${ddayText}</span>
+        <span class="dday-card-calc ${tagClass} ${isToday ? "today-calc" : ""}">${ddayText}</span>
         <div class="dday-card-actions">
           ${!isMain ? `<button type="button" class="dday-action-btn set-main-btn" data-id="${item.id}" title="상단 대표 뱃지로 지정">대표설정</button>` : ""}
           <button type="button" class="dday-action-btn edit-dday-btn" data-id="${item.id}" title="기념일 수정">수정</button>

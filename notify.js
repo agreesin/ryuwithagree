@@ -6,7 +6,7 @@
 
 import { getCurrentUser, getCurrentProfiles, isMyContent, getUserDisplayName } from "./state.js";
 import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js";
-import { getMilestonesForDate, onDdayChange, getDdayItems } from "./dday.js";
+import { getMilestonesForDate, onDdayChange, getDdayItems, openDdayModal } from "./dday.js";
 import { formatDateString, formatRelativeTime } from "./ui.js";
 import { switchViewTab } from "./calendar.js";
 
@@ -553,6 +553,55 @@ function getNotificationItems(entries = cachedEntries) {
     });
   }
 
+  // 4. 오늘 시점 당일 기념일/생일/일정 알림
+  try {
+    const todayStr = formatDateString();
+    const todayMilestones = getMilestonesForDate(todayStr);
+    todayMilestones.forEach((ms) => {
+      items.push({
+        id: `dday-milestone-${todayStr}-${ms.id}`,
+        type: "dday",
+        author: "류이어리",
+        text: `🎉 오늘은 <b>${ms.title}</b>입니다! 💕`,
+        createdAt: Date.now(),
+        icon: ms.icon || "💖",
+      });
+    });
+
+    const ddayItems = getDdayItems();
+    const now = new Date();
+    const curY = now.getFullYear();
+    const curM = now.getMonth() + 1;
+    const curD = now.getDate();
+
+    ddayItems.forEach((item) => {
+      if (!item.date) return;
+      const [itemY, itemM, itemD] = item.date.split("-").map(Number);
+      const type = item.type || "count_up";
+      if (type === "birthday" && curM === itemM && curD === itemD) {
+        items.push({
+          id: `dday-bday-${todayStr}-${item.id}`,
+          type: "dday",
+          author: "류이어리",
+          text: `🎂 오늘은 <b>${item.title}</b> 생일입니다! 🎉`,
+          createdAt: Date.now(),
+          icon: item.icon || "🎂",
+        });
+      } else if (type === "event" && curY === itemY && curM === itemM && curD === itemD) {
+        items.push({
+          id: `dday-event-${todayStr}-${item.id}`,
+          type: "dday",
+          author: "류이어리",
+          text: `🌟 오늘은 <b>${item.title}</b> 일정 당일입니다!`,
+          createdAt: Date.now(),
+          icon: item.icon || "🌟",
+        });
+      }
+    });
+  } catch (err) {
+    console.warn("[notify] 당일 디데이 알림 집계 오류:", err);
+  }
+
   // 최신순 정렬
   items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   return items;
@@ -647,6 +696,12 @@ function renderNotificationDropdown() {
  * 알림 대상 요소로 스크롤 이동 및 반짝임 하이라이트 효과 부여
  */
 function scrollToNotificationTarget(item) {
+  // 0. 기념일/일정 알림 클릭 시 디데이 관리 모달 열기
+  if (item.type === "dday") {
+    openDdayModal();
+    return;
+  }
+
   // 1. 커플 문답 관련 알림 (답변 및 한마디 댓글)
   if (item.type === "question-answer" || item.type === "question-comment") {
     switchViewTab("question");
