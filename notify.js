@@ -6,7 +6,7 @@
 
 import { getCurrentUser, getCurrentProfiles, isMyContent, getUserDisplayName } from "./state.js";
 import { app, saveUserFcmToken, getPartnerFcmTokens, getAllFcmTokens } from "./store.js";
-import { getMilestonesForDate, onDdayChange, getDdayItems, openDdayModal } from "./dday.js";
+import { getMilestonesForDate, onDdayChange, getDdayItems, openDdayModal, calculateDdayInfo } from "./dday.js";
 import { formatDateString, formatRelativeTime } from "./ui.js";
 import { switchViewTab } from "./calendar.js";
 
@@ -993,38 +993,25 @@ export function checkTodayMilestoneNotifications() {
     }
   });
 
-  // 2. 생일 및 특정 일정 당일 알림
+  // 2. 생일 및 특정 일정 당일 알림 (calculateDdayInfo 재사용)
   const ddayItems = getDdayItems();
-  const now = new Date();
-  const curY = now.getFullYear();
-  const curM = now.getMonth() + 1;
-  const curD = now.getDate();
-
   ddayItems.forEach((item) => {
-    if (!item.date) return;
-    const [itemY, itemM, itemD] = item.date.split("-").map(Number);
+    const info = calculateDdayInfo(item);
+    if (!info || !info.isToday) return;
+
     const type = item.type || "count_up";
+    if (type === "count_up") return; // 마일스톤은 상단에서 처리
 
-    let isTodayEvent = false;
-    let eventTitle = "";
+    const eventTitle = type === "birthday"
+      ? `🎂 오늘은 [${item.title}] 생일입니다! 🎉`
+      : `🌟 오늘은 [${item.title}] 일정/데이트 당일입니다!`;
 
-    if (type === "birthday" && curM === itemM && curD === itemD) {
-      isTodayEvent = true;
-      eventTitle = `🎂 오늘은 [${item.title}] 생일입니다! 🎉`;
-    } else if (type === "event" && curY === itemY && curM === itemM && curD === itemD) {
-      isTodayEvent = true;
-      eventTitle = `🌟 오늘은 [${item.title}] 일정/데이트 당일입니다!`;
-    }
-
-    if (isTodayEvent) {
-      const storageKey = `dday_event_notif_${todayStr}_${item.id}`;
-      if (!localStorage.getItem(storageKey)) {
-        localStorage.setItem(storageKey, "sent");
-
-        showToastNotification(eventTitle, item.icon || "💖");
-        showSystemNotification("🗓️ 일정 알림", eventTitle);
-        startTitleBlink(eventTitle);
-      }
+    const storageKey = `dday_event_notif_${todayStr}_${item.id}`;
+    if (!localStorage.getItem(storageKey)) {
+      localStorage.setItem(storageKey, "sent");
+      showToastNotification(eventTitle, item.icon || "💖");
+      showSystemNotification("🗓️ 일정 알림", eventTitle);
+      startTitleBlink(eventTitle);
     }
   });
 }

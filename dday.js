@@ -3,7 +3,7 @@
 // =========================================================
 
 import { subscribeDday, saveDdayConfig } from "./store.js";
-import { openModal, closeModal, formatDateString } from "./ui.js";
+import { openModal, closeModal, formatDateString, escapeHtml } from "./ui.js";
 
 // 기념일 변경 감시 리스너 목록 (Observer 패턴으로 calendar.js와의 순환 참조 해소)
 const ddayChangeListeners = new Set();
@@ -256,12 +256,13 @@ export function sortDdayItems(items, mainId) {
   const mainItem = items.find((it) => it.id === effectiveMainId);
   const otherItems = items.filter((it) => it.id !== effectiveMainId);
 
-  // 대표 이외의 일정들을 오늘 시점 기준 가장 가까운 순서로 정렬
-  otherItems.sort((a, b) => {
-    const infoA = calculateDdayInfo(a);
-    const infoB = calculateDdayInfo(b);
-    return infoA.sortScore - infoB.sortScore;
-  });
+  // 계산 결과를 Map에 캐시하여 O(N)으로 1회만 계산 후 빠른 정렬 수행
+  const scoreMap = new Map();
+  for (const item of otherItems) {
+    scoreMap.set(item.id, calculateDdayInfo(item).sortScore);
+  }
+
+  otherItems.sort((a, b) => scoreMap.get(a.id) - scoreMap.get(b.id));
 
   return mainItem ? [mainItem, ...otherItems] : otherItems;
 }
@@ -411,15 +412,18 @@ function renderDdayList() {
     const card = document.createElement("div");
     card.className = `dday-card-item ${isMain ? "main-item" : ""} ${isToday ? "today-item" : ""}`;
 
+    const safeTitle = escapeHtml(item.title);
+    const safeDate = escapeHtml(item.date);
+
     card.innerHTML = `
       <div class="dday-card-left">
         <div class="dday-card-header">
           <span class="dday-type-tag ${tagClass}">${tagLabel}</span>
           ${isMain ? '<span class="dday-main-badge">★ 대표</span>' : ""}
           ${isToday && !isMain ? '<span class="dday-today-badge">🔥 오늘</span>' : ""}
-          <span class="dday-card-date">${item.date}</span>
+          <span class="dday-card-date">${safeDate}</span>
         </div>
-        <h4 class="dday-card-title">${item.title}</h4>
+        <h4 class="dday-card-title">${safeTitle}</h4>
         ${milestoneHint ? `<span class="dday-card-hint">${milestoneHint}</span>` : ""}
       </div>
       <div class="dday-card-right">

@@ -114,13 +114,15 @@ export function renderCalendar() {
   // 지난 달 마지막 날짜
   const prevLastDate = new Date(currentYear, currentMonth, 0).getDate();
 
+  const fragment = document.createDocumentFragment();
+
   // 1. 이전 달 날짜들 (흐리게 채우기)
   for (let i = firstDayIndex - 1; i >= 0; i--) {
     const dayNum = prevLastDate - i;
     const cell = document.createElement("div");
     cell.className = "cal-day-cell other-month";
     cell.innerHTML = `<span class="cal-day-num">${dayNum}</span>`;
-    calDaysGrid.appendChild(cell);
+    fragment.appendChild(cell);
   }
 
   // 2. 이번 달 날짜들
@@ -187,18 +189,9 @@ export function renderCalendar() {
       cell.appendChild(itemsWrap);
     }
 
-    // 날짜 클릭 이벤트 (1회 클릭 시 해당 날짜 선택 & 기록 조회, 더블 클릭 시 즉시 일정 추가)
-    cell.title = `${dateKey} (더블클릭 시 일정 추가 ➕)`;
-    cell.addEventListener("click", () => {
-      selectedDateStr = dateKey;
-      renderCalendar();
-    });
-    cell.addEventListener("dblclick", () => {
-      selectedDateStr = dateKey;
-      openDdayModalWithDate(dateKey);
-    });
-
-    calDaysGrid.appendChild(cell);
+    cell.title = `${dateKey} (클릭: 상세 조회 / 더블클릭: 일정 추가 ➕)`;
+    cell.dataset.date = dateKey;
+    fragment.appendChild(cell);
   }
 
   // 3. 다음 달 날짜들로 채우기
@@ -208,8 +201,11 @@ export function renderCalendar() {
     const cell = document.createElement("div");
     cell.className = "cal-day-cell other-month";
     cell.innerHTML = `<span class="cal-day-num">${i}</span>`;
-    calDaysGrid.appendChild(cell);
+    fragment.appendChild(cell);
   }
+
+  // 전체 날짜 셀을 일괄 삽입하여 리플로우 최소화
+  calDaysGrid.appendChild(fragment);
 
   // 선택된 날짜 일기 & 기념일 렌더링
   if (selectedDateStr) {
@@ -477,6 +473,34 @@ export function initCalendar() {
       currentMonth = now.getMonth();
       selectedDateStr = formatDateString(now.getTime());
       renderCalendar();
+    });
+  }
+
+  // 캘린더 날짜 그리드 이벤트 위임 (셀마다 개별 리스너를 붙이지 않고 단일 핸들러로 위임)
+  if (calDaysGrid) {
+    let lastClickTime = 0;
+    let clickTimeout = null;
+
+    calDaysGrid.addEventListener("click", (e) => {
+      const cell = e.target.closest(".cal-day-cell.current-month");
+      if (!cell || !cell.dataset.date) return;
+      const dateKey = cell.dataset.date;
+      const now = Date.now();
+
+      // 더블 클릭 감지 (300ms 이내 재클릭 시 일정 등록 모달 오픈)
+      if (now - lastClickTime < 300) {
+        if (clickTimeout) clearTimeout(clickTimeout);
+        lastClickTime = 0;
+        selectedDateStr = dateKey;
+        openDdayModalWithDate(dateKey);
+        return;
+      }
+
+      lastClickTime = now;
+      clickTimeout = setTimeout(() => {
+        selectedDateStr = dateKey;
+        renderCalendar();
+      }, 200);
     });
   }
 

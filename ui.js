@@ -179,3 +179,23 @@ export function formatChatTime(dateOrTimestamp) {
 
 export const formatCommentTime = formatChatTime;
 
+
+// ---------------------------------------------------------
+// 보안 및 텍스트 이스케이프 유틸리티
+// ---------------------------------------------------------
+
+/**
+ * XSS 공격 방지를 위해 텍스트를 안전한 HTML 엔티티로 변환합니다.
+ * @param {string|null|undefined} text
+ * @returns {string}
+ */
+export function escapeHtml(text) {
+  if (text === null || text === undefined) return "";
+  const str = String(text);
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
