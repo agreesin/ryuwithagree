@@ -7,7 +7,7 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>류이어리</title>
 
     <!-- 탭 파비콘 (Favicon) -->
@@ -26,7 +26,7 @@
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
     <link rel="stylesheet" href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" />
 
-    <link rel="stylesheet" href="style.css?v=20261023_2" />
+    <link rel="stylesheet" href="style.css?v=20261023_3" />
   </head>
 
   <body>
@@ -110,13 +110,13 @@
           <h3 class="dday-form-title">+ 새 기념일 / 일정 추가</h3>
           <div class="form-group">
             <label for="dday-title-input" class="form-label">제목</label>
-            <input type="text" id="dday-title-input" class="form-input" placeholder="예: 함께한 날, 류의 생일, 제주도 여행" required maxlength="20" />
+            <input type="text" id="dday-title-input" class="form-input dday-input" placeholder="예: 함께한 날, 류의 생일, 제주도 여행" required maxlength="20" />
           </div>
 
           <div class="dday-form-row">
             <div class="form-group flex-1">
               <label for="dday-date-input" class="form-label">날짜</label>
-              <input type="date" id="dday-date-input" class="form-input" required />
+              <input type="date" id="dday-date-input" class="form-input dday-input" required />
             </div>
             <div class="form-group flex-1">
               <label for="dday-type-select" class="form-label">유형</label>
@@ -147,7 +147,10 @@
             </div>
           </div>
 
-          <button type="submit" id="dday-submit-btn" class="modal-btn submit dday-submit-btn">기념일 추가하기</button>
+          <div class="dday-form-btn-group">
+            <button type="button" id="dday-cancel-btn" class="modal-btn cancel dday-cancel-btn">닫기</button>
+            <button type="submit" id="dday-submit-btn" class="modal-btn submit dday-submit-btn">기념일 추가하기</button>
+          </div>
         </form>
       </div>
     </div>

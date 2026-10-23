@@ -8,6 +8,14 @@ import { openModal, closeModal } from "./ui.js";
 // 업데이트 히스토리 데이터 (최신순)
 export const CHANGELOG_DATA = [
   {
+    version: "v3.8.4",
+    date: "2026.10.23",
+    type: "patch",
+    tag: "iOS UX 버그 픽스",
+    title: "아이폰(iOS Safari/PWA) 입력창 포커스 시 화면 확대 버그 차단 & 모달 상단 고정 및 닫기 버튼 추가",
+    desc: "1) iOS WebKit에서 16px 미만 입력창 클릭 시 화면이 1.3배 강제 확대되어 축소되지 않던 현상을 뷰포트 meta 태그(maximum-scale=1.0) 및 전역 모바일 폰트 16px 표준화로 원천 차단했습니다. 2) 기념일/일정 관리 모달의 헤더(✕ 닫기 버튼)를 상단에 고정(Sticky)하고 하단 폼에 전용 [닫기] 버튼을 추가하여 모바일 키보드가 올라온 상태에서도 언제든 안전하게 모달을 닫을 수 있도록 개선했습니다. 3) 모달 자체의 터치 스크롤(-webkit-overflow-scrolling)을 지원하여 어떤 해상도에서도 화면이 잘리지 않도록 보강했습니다.",
+  },
+  {
     version: "v3.8.3",
     date: "2026.10.23",
     type: "feature",

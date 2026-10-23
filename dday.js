@@ -460,8 +460,7 @@ function renderDdayList() {
         const formTitle = document.querySelector(".dday-form-title");
         if (formTitle) formTitle.textContent = "✏️ 기념일 / 일정 수정";
         if (ddayTitleInput) {
-          ddayTitleInput.focus();
-          ddayTitleInput.scrollIntoView({ behavior: "smooth", block: "center" });
+          ddayTitleInput.focus({ preventScroll: true });
         }
       });
     }
@@ -542,9 +541,20 @@ export function initDday() {
     ddayBadgeBtn.addEventListener("click", openDdayModal);
   }
 
-  // 2. 모달 닫기 버튼
+  // 2. 모달 닫기 버튼 및 하단 취소 버튼
   if (ddayCloseBtn) {
     ddayCloseBtn.addEventListener("click", closeDdayModal);
+  }
+  const ddayCancelBtn = document.getElementById("dday-cancel-btn");
+  if (ddayCancelBtn) {
+    ddayCancelBtn.addEventListener("click", closeDdayModal);
+  }
+
+  // iOS 가상 키보드 닫힘 시 뷰포트 오프셋 정상 복구
+  if (ddayTitleInput) {
+    ddayTitleInput.addEventListener("blur", () => {
+      window.scrollTo({ top: window.scrollY, left: 0, behavior: "instant" });
+    });
   }
 
   // 3. 아이콘 선택 팔레트 버튼 이벤트

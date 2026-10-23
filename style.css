@@ -2652,17 +2652,26 @@ body.modal-open {
 .dday-modal-card {
   max-width: 480px;
   width: 92%;
-  max-height: 85vh;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
-  padding: 22px 18px;
+  padding: 18px 16px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .dday-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  z-index: 10;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #faedf0;
 }
 
 .dday-close-btn {
@@ -2924,20 +2933,54 @@ body.modal-open {
   margin-bottom: 4px;
 }
 
-.dday-input, .dday-select {
+.form-input,
+.dday-input,
+.dday-select {
   width: 100%;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: 16px !important; /* iOS Safari 자동 확대 방지 필수 (16px 이상) */
   outline: none;
   background: #ffffff;
   box-sizing: border-box;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
 }
 
-.dday-input:focus, .dday-select:focus {
+.form-input:focus,
+.dday-input:focus,
+.dday-select:focus {
   border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(230, 109, 123, 0.15);
+}
+
+.dday-form-btn-group {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.dday-cancel-btn {
+  flex: 1;
+  background: #f1f3f5;
+  color: #495057;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  padding: 10px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dday-cancel-btn:hover {
+  background: #e9ecef;
+}
+
+.dday-submit-btn {
+  flex: 2;
+  margin-top: 0 !important;
 }
 
 /* 감성 아이콘 선택 팔레트 */
@@ -6085,4 +6128,28 @@ body.duo-shake {
   overflow-x: hidden;
   position: relative;
   width: 100%;
+}
+
+/* =========================================================
+   iOS Safari 폼 입력창 자동 확대(Auto-Zoom) 방지
+   iOS WebKit은 폰트 크기가 16px 미만인 입력창 포커스 시
+   화면을 강제로 1.25~1.3배 확대하고 축소되지 않는 버그가 있습니다.
+   모바일 환경에서 모든 입력창의 폰트 크기를 16px 이상으로 강제합니다.
+   ========================================================= */
+@media (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]),
+  textarea,
+  select,
+  .form-input,
+  .dday-input,
+  .dday-select,
+  .notice-input,
+  .comment-input,
+  .reply-input,
+  .dq-textarea,
+  .dq-comment-input,
+  .search-input,
+  .profile-name-input {
+    font-size: 16px !important;
+  }
 }
