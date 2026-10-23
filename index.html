@@ -26,7 +26,7 @@
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
     <link rel="stylesheet" href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" />
 
-    <link rel="stylesheet" href="style.css?v=20261023_3" />
+    <link rel="stylesheet" href="style.css?v=20261023_4" />
   </head>
 
   <body>
@@ -91,13 +91,13 @@
     <div id="dday-modal" class="modal-overlay" hidden>
       <div class="modal-content dday-modal-card">
         <div class="dday-modal-header">
-          <div class="modal-title-wrap">
-            <span class="modal-icon">📅</span>
-            <h2 class="modal-title">기념일 & 일정 관리</h2>
+          <div class="dday-title-wrap">
+            <span class="dday-header-icon">📅</span>
+            <h3 class="dday-modal-title">기념일 & 일정 관리</h3>
           </div>
           <button id="dday-close-btn" class="dday-close-btn" type="button" title="닫기">✕</button>
         </div>
-        <p class="modal-desc">우리의 소중한 기념일, 매년 생일 및 여행 일정을 등록해 보세요.</p>
+        <p class="dday-modal-desc">우리들의 소중한 기념일, 생일 및 일정을 예쁘게 기록해 보세요.</p>
 
         <!-- 등록된 기념일 목록 -->
         <div class="dday-list-container">
@@ -121,9 +121,9 @@
             <div class="form-group flex-1">
               <label for="dday-type-select" class="form-label">유형</label>
               <select id="dday-type-select" class="form-input dday-select">
-                <option value="count_up">💖 함께한 날 (D+ 카운트)</option>
-                <option value="birthday">🎂 매년 생일 (매년 반복 D-)</option>
-                <option value="event">🌟 데이트 / 일정 (D- 카운트다운)</option>
+                <option value="count_up">💖 함께한 날 (D+)</option>
+                <option value="birthday">🎂 매년 생일 (D-)</option>
+                <option value="event">🌟 일정/데이트 (D-)</option>
               </select>
             </div>
           </div>

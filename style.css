@@ -2646,42 +2646,71 @@ body.modal-open {
 }
 
 /* =========================================================
-   다중 기념일 & 일정 관리 모달 스타일
+   다중 기념일 & 일정 관리 모달 감성 리파인 스타일 (iOS 최적화)
    ========================================================= */
 
 .dday-modal-card {
-  max-width: 480px;
+  background: #ffffff !important;
+  border-radius: 20px;
+  max-width: 420px;
   width: 92%;
-  max-height: 90vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
-  padding: 18px 16px;
+  padding: 16px 16px 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2), 0 2px 10px rgba(230, 109, 123, 0.1);
+  border: 1px solid #fce8ec;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  box-sizing: border-box;
 }
 
 .dday-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
-  position: sticky;
-  top: 0;
-  background: #ffffff;
-  z-index: 10;
-  padding-bottom: 6px;
+  padding-bottom: 8px;
   border-bottom: 1px solid #faedf0;
+  margin-bottom: 6px;
+  background: #ffffff;
+}
+
+.dday-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dday-header-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.dday-modal-title {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: #d45665;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.dday-modal-desc {
+  font-size: 0.76rem;
+  color: #8c7e82;
+  margin: 0 0 10px;
+  line-height: 1.35;
+  text-align: left;
 }
 
 .dday-close-btn {
   background: #f8f9fa;
-  border: 1px solid var(--border-color);
+  border: 1px solid #faedf0;
   border-radius: 50%;
   width: 28px;
   height: 28px;
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: #777777;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -2690,42 +2719,42 @@ body.modal-open {
 }
 
 .dday-close-btn:hover {
-  background: #e9ecef;
-  color: var(--text-main);
+  background: #ffe8ec;
+  color: #d45665;
 }
 
 .dday-list-container {
-  max-height: 38vh;
+  max-height: 32vh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  margin: 12px 0 16px;
+  margin: 4px 0 12px;
   padding-right: 2px;
 }
 
 .dday-empty-text {
   text-align: center;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
-  padding: 24px 0;
+  padding: 20px 0;
   margin: 0;
 }
 
 .dday-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .dday-card-item {
   background: #ffffff;
-  border: 1.5px solid #faedf0;
+  border: 1px solid #faedf0;
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   transition: all 0.15s ease;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .dday-card-item:hover {
@@ -2735,28 +2764,38 @@ body.modal-open {
 
 .dday-card-item.main-item {
   background: #fff8f9;
-  border-color: var(--primary-color);
-  box-shadow: 0 2px 8px rgba(230, 109, 123, 0.15);
+  border: 1.5px solid #f8c9d2;
+  box-shadow: 0 2px 8px rgba(230, 109, 123, 0.12);
+}
+
+.dday-card-item.today-item {
+  border-color: #fca5a5;
+  background: #fff8f8;
+  box-shadow: 0 2px 10px rgba(244, 63, 94, 0.12);
 }
 
 .dday-card-left {
+  flex: 1;
+  min-width: 0;
   text-align: left;
+  padding-right: 8px;
 }
 
 .dday-card-header {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   margin-bottom: 2px;
+  flex-wrap: nowrap;
 }
 
 .dday-type-tag {
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: #fdfafb;
-  border: 1px solid #fce3e7;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .dday-type-tag.count_up {
@@ -2767,79 +2806,81 @@ body.modal-open {
 .dday-type-tag.birthday {
   color: #b45309;
   background: #fef3c7;
-  border-color: #fde68a;
 }
 
 .dday-type-tag.event {
   color: #1d4ed8;
   background: #eff6ff;
-  border-color: #dbeafe;
 }
 
 .dday-main-badge {
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-weight: 800;
   color: #ffffff;
-  background: var(--primary-color);
-  padding: 2px 5px;
+  background: #e66d7b;
+  padding: 1px 5px;
   border-radius: 4px;
-}
-
-.dday-card-date {
-  font-size: 0.72rem;
-  color: #a39297;
-}
-
-.dday-card-title {
-  margin: 0;
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: #333333;
-}
-
-.dday-card-hint {
-  display: block;
-  font-size: 0.72rem;
-  color: #8c7e82;
-  margin-top: 3px;
-  line-height: 1.35;
-}
-
-.dday-card-item.main-item .dday-card-hint {
-  color: #d45665;
-  font-weight: 600;
-}
-
-.dday-card-item.today-item {
-  border-color: #fca5a5;
-  background: #fff8f8;
-  box-shadow: 0 2px 10px rgba(244, 63, 94, 0.12);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .dday-today-badge {
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-weight: 800;
   color: #e11d48;
   background: #ffe4e6;
   border: 1px solid #fecdd3;
   padding: 1px 5px;
   border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.dday-card-calc.today-calc {
-  color: #e11d48;
+.dday-card-date {
+  font-size: 0.7rem;
+  color: #a39297;
+  white-space: nowrap;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.dday-card-title {
+  margin: 1px 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #2b2b2b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dday-card-hint {
+  display: block;
+  font-size: 0.68rem;
+  color: #998a8e;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dday-card-item.main-item .dday-card-hint {
+  color: #e66d7b;
+  font-weight: 600;
 }
 
 .dday-card-right {
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
+  gap: 3px;
 }
 
 .dday-card-calc {
   font-size: 0.95rem;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .dday-card-calc.count_up {
@@ -2854,46 +2895,36 @@ body.modal-open {
   color: #2563eb;
 }
 
+.dday-card-calc.today-calc {
+  color: #e11d48;
+}
+
 .dday-card-actions {
   display: flex;
-  gap: 4px;
+  gap: 3px;
 }
 
 .dday-action-btn {
-  background: #f8f9fa;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 2px 6px;
-  font-size: 0.68rem;
-  color: #666;
+  font-size: 0.64rem;
+  font-weight: 600;
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1px solid #faedf0;
+  background: #ffffff;
+  color: #777777;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .dday-action-btn:hover {
-  background: #e9ecef;
-  color: #222;
-}
-
-.dday-action-btn.delete-dday-btn:hover {
-  background: #fee2e2;
-  color: #dc2626;
-  border-color: #fca5a5;
-}
-
-.dday-action-btn.edit-dday-btn:hover {
-  background: #e0f2fe;
-  color: #0284c7;
-  border-color: #7dd3fc;
+  background: #ffe8ec;
+  color: #d45665;
 }
 
 .dday-action-btn.set-main-btn {
   color: #d45665;
-  border-color: #f8c9d2;
-}
-
-.dday-action-btn.set-main-btn:hover {
-  background: #ffe8ec;
+  border-color: #fce3e7;
+  background: #fffafa;
 }
 
 /* 새 기념일 추가 폼 */
@@ -2901,14 +2932,14 @@ body.modal-open {
   background: #fffbfc;
   border: 1px dashed #f8c9d2;
   border-radius: 12px;
-  padding: 14px 12px;
+  padding: 10px 12px 12px;
   text-align: left;
 }
 
 .dday-form-title {
-  margin: 0 0 10px;
-  font-size: 0.85rem;
-  font-weight: 700;
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  font-weight: 800;
   color: #d45665;
 }
 
@@ -2917,89 +2948,83 @@ body.modal-open {
   gap: 8px;
 }
 
-.dday-form-group {
-  margin-bottom: 10px;
+.dday-form-group,
+.dday-add-form .form-group {
+  margin-bottom: 7px;
 }
 
-.dday-form-group.flex-1 {
+.dday-form-group.flex-1,
+.dday-add-form .form-group.flex-1 {
   flex: 1;
+  min-width: 0;
 }
 
+.dday-add-form .form-label,
 .dday-label {
   display: block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-bottom: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #666666;
+  margin-bottom: 3px;
 }
 
 .form-input,
 .dday-input,
 .dday-select {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color);
+  height: 35px;
+  padding: 6px 10px;
+  border: 1px solid #faedf0;
   border-radius: 8px;
-  font-size: 16px !important; /* iOS Safari 자동 확대 방지 필수 (16px 이상) */
+  font-size: 0.84rem;
   outline: none;
   background: #ffffff;
   box-sizing: border-box;
+  color: #333333;
   transition: border-color 0.2s, box-shadow 0.2s;
   -webkit-appearance: none;
+}
+
+.form-input::placeholder,
+.dday-input::placeholder {
+  font-size: 0.78rem;
+  color: #b5a4a8;
 }
 
 .form-input:focus,
 .dday-input:focus,
 .dday-select:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(230, 109, 123, 0.15);
+  border-color: #e66d7b;
+  box-shadow: 0 0 0 2px rgba(230, 109, 123, 0.12);
 }
 
-.dday-form-btn-group {
-  display: flex;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.dday-cancel-btn {
-  flex: 1;
-  background: #f1f3f5;
-  color: #495057;
-  border: 1px solid #ced4da;
-  border-radius: 8px;
-  padding: 10px 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.dday-cancel-btn:hover {
-  background: #e9ecef;
-}
-
-.dday-submit-btn {
-  flex: 2;
-  margin-top: 0 !important;
+.dday-select {
+  padding-right: 22px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23999999' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 8px 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 감성 아이콘 선택 팔레트 */
 .dday-icon-picker {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 6px;
+  gap: 5px;
   background: #ffffff;
-  padding: 8px;
-  border: 1px solid var(--border-color);
+  padding: 6px;
+  border: 1px solid #faedf0;
   border-radius: 8px;
 }
 
 .dday-icon-btn {
   background: #fffbfc;
   border: 1px solid #fce3e7;
-  border-radius: 8px;
-  padding: 6px 0;
-  font-size: 1.15rem;
+  border-radius: 6px;
+  padding: 4px 0;
+  font-size: 1.05rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -3010,33 +3035,62 @@ body.modal-open {
 .dday-icon-btn:hover {
   background: #ffe8ec;
   border-color: #f8c9d2;
-  transform: scale(1.1);
 }
 
 .dday-icon-btn.active {
   background: #ffe8ec;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(230, 109, 123, 0.25);
-  transform: scale(1.12);
+  border-color: #e66d7b;
+  box-shadow: 0 2px 6px rgba(230, 109, 123, 0.2);
+  transform: scale(1.06);
+}
+
+.dday-form-btn-group {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.dday-cancel-btn {
+  flex: 1;
+  height: 36px;
+  background: #f8f9fa;
+  color: #666666;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dday-cancel-btn:hover {
+  background: #e9ecef;
+  color: #333333;
 }
 
 .dday-submit-btn {
-  width: 100%;
-  padding: 9px;
-  background: var(--button-gloss);
+  flex: 2;
+  height: 36px;
+  margin-top: 0 !important;
+  background: #e66d7b;
+  color: #ffffff;
   border: none;
   border-radius: 8px;
-  color: #ffffff;
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: 0.84rem;
+  font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(230, 109, 123, 0.2);
   transition: all 0.15s;
+  box-shadow: 0 2px 6px rgba(230, 109, 123, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .dday-submit-btn:hover {
-  opacity: 0.92;
-  transform: translateY(-1px);
+  background: #d45665;
 }
 
 /* 작성 폼 미디어 버튼 (사진 / 그림) */
@@ -6128,28 +6182,4 @@ body.duo-shake {
   overflow-x: hidden;
   position: relative;
   width: 100%;
-}
-
-/* =========================================================
-   iOS Safari 폼 입력창 자동 확대(Auto-Zoom) 방지
-   iOS WebKit은 폰트 크기가 16px 미만인 입력창 포커스 시
-   화면을 강제로 1.25~1.3배 확대하고 축소되지 않는 버그가 있습니다.
-   모바일 환경에서 모든 입력창의 폰트 크기를 16px 이상으로 강제합니다.
-   ========================================================= */
-@media (max-width: 768px) {
-  input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]),
-  textarea,
-  select,
-  .form-input,
-  .dday-input,
-  .dday-select,
-  .notice-input,
-  .comment-input,
-  .reply-input,
-  .dq-textarea,
-  .dq-comment-input,
-  .search-input,
-  .profile-name-input {
-    font-size: 16px !important;
-  }
 }
