@@ -3,16 +3,17 @@
 // =========================================================
 
 import { subscribeDday, saveDdayConfig } from "./store.js";
-import { openModal, closeModal, formatDateString, escapeHtml } from "./ui.js";
+import {
+  openModal,
+  closeModal,
+  formatDateString,
+  escapeHtml,
+  showError,
+  showConfirmDialog,
+} from "./ui.js";
 
-// 기념일 변경 감시 리스너 목록 (Observer 패턴으로 calendar.js와의 순환 참조 해소)
 const ddayChangeListeners = new Set();
 
-/**
- * 기념일 데이터 변경 이벤트를 구독합니다.
- * @param {Function} listener
- * @returns {Function} 구독 해제 함수
- */
 export function onDdayChange(listener) {
   if (typeof listener === "function") {
     ddayChangeListeners.add(listener);
@@ -21,9 +22,6 @@ export function onDdayChange(listener) {
   return () => {};
 }
 
-/**
- * 등록된 리스너들에게 기념일 변경 사실을 통지합니다.
- */
 function notifyDdayChange() {
   ddayChangeListeners.forEach((fn) => {
     try {
@@ -52,37 +50,31 @@ const ddayTypeSelect = document.getElementById("dday-type-select");
 const ddaySubmitBtn = document.getElementById("dday-submit-btn");
 const ddayIconBtns = document.querySelectorAll(".dday-icon-btn");
 
-// 내부 상태: { mainId: string, items: Array<DdayItem> }
 let currentDdayConfig = { mainId: null, items: [] };
 let selectedIcon = "💖";
 let editingDdayId = null;
 
-/**
- * 현재 메모리에 로드된 전체 기념일 항목 목록을 반환합니다.
- * @returns {Array}
- */
 export function getCurrentDdayItems() {
   return currentDdayConfig.items || [];
 }
 
-/**
- * 아이콘 선택기에서 특정 아이콘을 활성화합니다.
- */
 function setActiveIcon(icon) {
   selectedIcon = icon;
   ddayIconBtns.forEach((btn) => {
-    if (btn.dataset.icon === icon) {
-      btn.classList.add("active");
-    } else {
-      btn.classList.remove("active");
-    }
+    btn.classList.toggle("active", btn.dataset.icon === icon);
   });
 }
 
+function resetDdayFormState() {
+  editingDdayId = null;
+  if (ddaySubmitBtn) ddaySubmitBtn.textContent = "기념일 추가하기";
+  const formTitle = document.querySelector(".dday-form-title");
+  if (formTitle) formTitle.textContent = "+ 새 기념일 / 일정 추가";
+  if (ddayTitleInput) ddayTitleInput.value = "";
+}
+
 /**
- * 기념일 항목에 대한 D-Day 계산 및 오늘 시점 기준 정렬 스코어 산출
- * @param {Object} item - { id, title, date, type, icon }
- * @returns {Object} - { ddayText, tagLabel, tagClass, tagIcon, sortScore, milestoneHint, isToday, diffDays }
+ * 기념일 항목에 대한 D-Day 계산 및 오늘 시점 기준 정렬 스코어 산출 (UTC 기준 DST 오차 방지)
  */
 export function calculateDdayInfo(item) {
   if (!item || !item.date) {
@@ -99,7 +91,7 @@ export function calculateDdayInfo(item) {
   }
 
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   const [y, m, d] = item.date.split("-").map(Number);
   const oneDayMs = 1000 * 60 * 60 * 24;
 
@@ -107,34 +99,30 @@ export function calculateDdayInfo(item) {
   const icon = item.icon || (type === "birthday" ? "🎂" : type === "event" ? "🌟" : "💖");
 
   if (type === "count_up") {
-    // 1. 함께한 날 (D+)
-    const targetDate = new Date(y, m - 1, d).getTime();
-    const diffDays = Math.floor((today - targetDate) / oneDayMs);
+    const targetUtc = Date.UTC(y, m - 1, d);
+    const diffDays = Math.round((todayUtc - targetUtc) / oneDayMs);
     const count = diffDays >= 0 ? diffDays + 1 : diffDays;
 
-    // 다음 주요 마일스톤(첫해 50일 단위, 이후 100일 단위) 및 N주년 계산
     const isFirstYear = count <= 365;
     let nextMilestoneCount;
     if (count <= 0) {
       nextMilestoneCount = 1;
     } else if (isFirstYear) {
       nextMilestoneCount = Math.ceil(count / 50) * 50;
-      if (nextMilestoneCount === count) nextMilestoneCount = count;
-      else if (nextMilestoneCount < count) nextMilestoneCount += 50;
+      if (nextMilestoneCount < count) nextMilestoneCount += 50;
     } else {
       nextMilestoneCount = Math.ceil(count / 100) * 100;
-      if (nextMilestoneCount === count) nextMilestoneCount = count;
-      else if (nextMilestoneCount < count) nextMilestoneCount += 100;
+      if (nextMilestoneCount < count) nextMilestoneCount += 100;
     }
     const daysToDayCount = count > 0 ? nextMilestoneCount - count : Math.abs(count);
 
-    let nextAnniv = new Date(now.getFullYear(), m - 1, d).getTime();
+    let nextAnnivUtc = Date.UTC(now.getFullYear(), m - 1, d);
     let annivYears = now.getFullYear() - y;
-    if (nextAnniv < today) {
-      nextAnniv = new Date(now.getFullYear() + 1, m - 1, d).getTime();
+    if (nextAnnivUtc < todayUtc) {
+      nextAnnivUtc = Date.UTC(now.getFullYear() + 1, m - 1, d);
       annivYears += 1;
     }
-    const daysToAnniv = Math.round((nextAnniv - today) / oneDayMs);
+    const daysToAnniv = Math.round((nextAnnivUtc - todayUtc) / oneDayMs);
 
     let milestoneHint = "";
     let sortScore = 0;
@@ -167,12 +155,11 @@ export function calculateDdayInfo(item) {
       diffDays,
     };
   } else if (type === "birthday") {
-    // 2. 매년 반복 생일/기념일
-    let thisYearBirthday = new Date(now.getFullYear(), m - 1, d).getTime();
-    if (thisYearBirthday < today) {
-      thisYearBirthday = new Date(now.getFullYear() + 1, m - 1, d).getTime();
+    let thisYearBdayUtc = Date.UTC(now.getFullYear(), m - 1, d);
+    if (thisYearBdayUtc < todayUtc) {
+      thisYearBdayUtc = Date.UTC(now.getFullYear() + 1, m - 1, d);
     }
-    const diffDays = Math.round((thisYearBirthday - today) / oneDayMs);
+    const diffDays = Math.round((thisYearBdayUtc - todayUtc) / oneDayMs);
 
     const isToday = diffDays === 0;
     let ddayText = "";
@@ -200,9 +187,8 @@ export function calculateDdayInfo(item) {
       diffDays,
     };
   } else {
-    // 3. 데이트 / 여행 / 예정된 일정 (D-)
-    const targetDate = new Date(y, m - 1, d).getTime();
-    const diffDays = Math.round((targetDate - today) / oneDayMs);
+    const targetUtc = Date.UTC(y, m - 1, d);
+    const diffDays = Math.round((targetUtc - todayUtc) / oneDayMs);
 
     let ddayText = "";
     let sortScore = 0;
@@ -210,7 +196,7 @@ export function calculateDdayInfo(item) {
     const isToday = diffDays === 0;
 
     if (isToday) {
-      ddayText = `${icon} 오늘 데이트!`;
+      ddayText = `${icon} 오늘 일정!`;
       sortScore = 0;
       milestoneHint = "오늘 예정된 일정/데이트 당일입니다! ✨";
     } else if (diffDays > 0) {
@@ -237,26 +223,18 @@ export function calculateDdayInfo(item) {
   }
 }
 
-/**
- * 디데이 일정 목록을 정렬합니다.
- * - 대표 기념일(★)은 최상단에 고정
- * - 그 외 일정들은 오늘 시점과 가장 가까운 순(오늘 D-Day ➔ 다가오는 일정 ➔ 지난 일정)으로 정렬
- * @param {Array<Object>} items
- * @param {string|null} mainId
- * @returns {Array<Object>}
- */
 export function sortDdayItems(items, mainId) {
   if (!Array.isArray(items) || items.length === 0) return [];
 
-  // 대표 항목 식별 (설정된 mainId 우선, 없으면 첫 count_up 또는 첫 항목)
   const effectiveMainId =
     mainId ||
-    (items.length === 1 ? items[0].id : (items.find((it) => (it.type || "count_up") === "count_up") || items[0]).id);
+    (items.length === 1
+      ? items[0].id
+      : (items.find((it) => (it.type || "count_up") === "count_up") || items[0]).id);
 
   const mainItem = items.find((it) => it.id === effectiveMainId);
   const otherItems = items.filter((it) => it.id !== effectiveMainId);
 
-  // 계산 결과를 Map에 캐시하여 O(N)으로 1회만 계산 후 빠른 정렬 수행
   const scoreMap = new Map();
   for (const item of otherItems) {
     scoreMap.set(item.id, calculateDdayInfo(item).sortScore);
@@ -267,35 +245,23 @@ export function sortDdayItems(items, mainId) {
   return mainItem ? [mainItem, ...otherItems] : otherItems;
 }
 
-/**
- * 현재 등록된 기념일 목록을 반환합니다 (캘린더 연동용).
- */
 export function getDdayItems() {
   return currentDdayConfig && currentDdayConfig.items ? currentDdayConfig.items : [];
 }
 
-/**
- * 대표 기념일 항목을 반환합니다.
- */
 export function getMainDdayItem() {
   if (!currentDdayConfig || !currentDdayConfig.items || currentDdayConfig.items.length === 0) {
     return null;
   }
   let mainItem = currentDdayConfig.items.find((it) => it.id === currentDdayConfig.mainId);
   if (!mainItem) {
-    mainItem = currentDdayConfig.items.find((it) => (it.type || "count_up") === "count_up") || currentDdayConfig.items[0];
+    mainItem =
+      currentDdayConfig.items.find((it) => (it.type || "count_up") === "count_up") ||
+      currentDdayConfig.items[0];
   }
   return mainItem;
 }
 
-/**
- * 특정 날짜(YYYY-MM-DD)에 해당하는 대표 기념일의 마일스톤 목록을 반환합니다 (2099년까지 지원).
- * - 첫 1년(365일 이내): 50일 단위 (50일, 100일, 150일, 200일, 250일, 300일, 350일)
- * - 1년 이후: 100일 단위 (400일, 500일, 600일...)
- * - 매년 N주년 (1주년, 2주년...)
- * @param {string} dateStr - "YYYY-MM-DD"
- * @returns {Array<Object>} - [{ id, title, icon, type, isMilestone, milestoneText, date }]
- */
 export function getMilestonesForDate(dateStr) {
   const mainItem = getMainDdayItem();
   if (!mainItem || !mainItem.date || (mainItem.type && mainItem.type !== "count_up")) {
@@ -305,24 +271,19 @@ export function getMilestonesForDate(dateStr) {
   const [startY, startM, startD] = mainItem.date.split("-").map(Number);
   const [targetY, targetM, targetD] = dateStr.split("-").map(Number);
 
-  // 2099년까지 D-Day 마일스톤 생성 지원 (2099년 초과 날짜는 미생성)
   if (targetY > 2099) {
     return [];
   }
 
-  // 타임존 왜곡을 방지하기 위해 UTC 기준으로 일수 차이 계산
   const startUtc = Date.UTC(startY, startM - 1, startD);
   const targetUtc = Date.UTC(targetY, targetM - 1, targetD);
 
   const oneDayMs = 1000 * 60 * 60 * 24;
   const diffDays = Math.round((targetUtc - startUtc) / oneDayMs);
-  const count = diffDays + 1; // 당일 = D+1일
+  const count = diffDays + 1;
 
   const milestones = [];
 
-  // 1. 일수 마일스톤 체크
-  // - 첫 1년(365일 이내): 50일 단위 (50일, 100일, 150일, 200일, 250일, 300일, 350일)
-  // - 1년 이후: 100일 단위 (400일, 500일, 600일...)
   const isFirstYear = count <= 365;
   const isDayMilestone = count > 0 && (isFirstYear ? count % 50 === 0 : count % 100 === 0);
 
@@ -338,7 +299,6 @@ export function getMilestonesForDate(dateStr) {
     });
   }
 
-  // 2. N주년 체크 (1주년, 2주년, 3주년...)
   if (targetY > startY && targetM === startM && targetD === startD) {
     const years = targetY - startY;
     milestones.push({
@@ -355,9 +315,6 @@ export function getMilestonesForDate(dateStr) {
   return milestones;
 }
 
-/**
- * 헤더 상단 D-Day 뱃지 갱신
- */
 function updateHeaderBadge() {
   if (!ddayBadgeBtn || !ddayBadgeText) return;
 
@@ -368,28 +325,23 @@ function updateHeaderBadge() {
     return;
   }
 
-  // 대표 항목 찾기 (없으면 첫 번째 항목)
   let mainItem = items.find((it) => it.id === currentDdayConfig.mainId);
   if (!mainItem) {
     mainItem = items[0];
   }
 
   const { ddayText } = calculateDdayInfo(mainItem);
-  const icon = mainItem.icon || (mainItem.type === "birthday" ? "🎂" : mainItem.type === "event" ? "🌟" : "💖");
+  const icon =
+    mainItem.icon || (mainItem.type === "birthday" ? "🎂" : mainItem.type === "event" ? "🌟" : "💖");
 
-  // 함께한 날(count_up)인 경우 홈화면 뱃지에는 제목 없이 '💖 D+숫자' 형식으로 심플하게 표시
   if (mainItem.type === "count_up") {
     ddayBadgeText.textContent = `${icon} ${ddayText}`;
-    ddayBadgeBtn.title = `${mainItem.title} (${mainItem.date}) ${ddayText} - 클릭하여 전체 목록 보기`;
   } else {
     ddayBadgeText.textContent = `${icon} ${mainItem.title} ${ddayText}`;
-    ddayBadgeBtn.title = `${mainItem.title} (${mainItem.date}) ${ddayText} - 클릭하여 전체 목록 보기`;
   }
+  ddayBadgeBtn.title = `${mainItem.title} (${mainItem.date}) ${ddayText} - 클릭하여 전체 목록 보기`;
 }
 
-/**
- * 기념일 모달 목록 UI 렌더링
- */
 function renderDdayList() {
   if (!ddayList) return;
   ddayList.innerHTML = "";
@@ -402,11 +354,11 @@ function renderDdayList() {
 
   if (ddayEmptyText) ddayEmptyText.hidden = true;
 
-  // 대표 기념일 최상단 고정 & 오늘 시점과 가장 가까운 일정 우선 정렬
   const sortedItems = sortDdayItems(items, currentDdayConfig.mainId);
 
   sortedItems.forEach((item) => {
-    const isMain = item.id === currentDdayConfig.mainId || (items.length === 1 && !currentDdayConfig.mainId);
+    const isMain =
+      item.id === currentDdayConfig.mainId || (items.length === 1 && !currentDdayConfig.mainId);
     const { ddayText, tagLabel, tagClass, milestoneHint, isToday } = calculateDdayInfo(item);
 
     const card = document.createElement("div");
@@ -414,74 +366,94 @@ function renderDdayList() {
 
     const safeTitle = escapeHtml(item.title);
     const safeDate = escapeHtml(item.date);
+    const safeTagLabel = escapeHtml(tagLabel);
+    const safeHint = escapeHtml(milestoneHint);
+    const safeDdayText = escapeHtml(ddayText);
+    const safeId = escapeHtml(item.id);
 
     card.innerHTML = `
       <div class="dday-card-left">
         <div class="dday-card-header">
-          <span class="dday-type-tag ${tagClass}">${tagLabel}</span>
+          <span class="dday-type-tag ${tagClass}">${safeTagLabel}</span>
           ${isMain ? '<span class="dday-main-badge">★ 대표</span>' : ""}
           ${isToday && !isMain ? '<span class="dday-today-badge">🔥 오늘</span>' : ""}
           <span class="dday-card-date">${safeDate}</span>
         </div>
         <h4 class="dday-card-title">${safeTitle}</h4>
-        ${milestoneHint ? `<span class="dday-card-hint">${milestoneHint}</span>` : ""}
+        ${safeHint ? `<span class="dday-card-hint">${safeHint}</span>` : ""}
       </div>
       <div class="dday-card-right">
-        <span class="dday-card-calc ${tagClass} ${isToday ? "today-calc" : ""}">${ddayText}</span>
+        <span class="dday-card-calc ${tagClass} ${isToday ? "today-calc" : ""}">${safeDdayText}</span>
         <div class="dday-card-actions">
-          ${!isMain ? `<button type="button" class="dday-action-btn set-main-btn" data-id="${item.id}" title="상단 대표 뱃지로 지정">대표설정</button>` : ""}
-          <button type="button" class="dday-action-btn edit-dday-btn" data-id="${item.id}" title="기념일 수정">수정</button>
-          <button type="button" class="dday-action-btn delete-dday-btn" data-id="${item.id}" title="기념일 삭제">삭제</button>
+          ${!isMain ? `<button type="button" class="dday-action-btn set-main-btn" data-id="${safeId}" title="상단 대표 뱃지로 지정">대표설정</button>` : ""}
+          <button type="button" class="dday-action-btn edit-dday-btn" data-id="${safeId}" title="기념일 수정">수정</button>
+          <button type="button" class="dday-action-btn delete-dday-btn" data-id="${safeId}" title="기념일 삭제">삭제</button>
         </div>
       </div>
     `;
 
-    // 대표 설정 버튼
     const setMainBtn = card.querySelector(".set-main-btn");
     if (setMainBtn) {
       setMainBtn.addEventListener("click", async () => {
-        currentDdayConfig.mainId = item.id;
-        await saveDdayConfig(currentDdayConfig);
-        renderDdayList();
-        updateHeaderBadge();
+        try {
+          currentDdayConfig.mainId = item.id;
+          await saveDdayConfig(currentDdayConfig);
+          renderDdayList();
+          updateHeaderBadge();
+          notifyDdayChange();
+        } catch (err) {
+          console.error("[dday] 대표 기념일 설정 실패:", err);
+          showError("대표 기념일을 설정하지 못했습니다: " + err.message);
+        }
       });
     }
 
-    // 수정 버튼
     const editBtn = card.querySelector(".edit-dday-btn");
     if (editBtn) {
       editBtn.addEventListener("click", () => {
         editingDdayId = item.id;
         if (ddayTitleInput) ddayTitleInput.value = item.title || "";
         if (ddayDateInput) ddayDateInput.value = item.date || "";
-        if (ddayTypeSelect) {
-          ddayTypeSelect.value = item.type || "count_up";
-        }
-        setActiveIcon(item.icon || (item.type === "birthday" ? "🎂" : item.type === "event" ? "🌟" : "💖"));
-        if (ddaySubmitBtn) {
-          ddaySubmitBtn.textContent = "기념일 수정 완료";
-        }
+        if (ddayTypeSelect) ddayTypeSelect.value = item.type || "count_up";
+        setActiveIcon(
+          item.icon || (item.type === "birthday" ? "🎂" : item.type === "event" ? "🌟" : "💖")
+        );
+        if (ddaySubmitBtn) ddaySubmitBtn.textContent = "기념일 수정 완료";
         const formTitle = document.querySelector(".dday-form-title");
         if (formTitle) formTitle.textContent = "✏️ 기념일 / 일정 수정";
         if (ddayTitleInput) {
+          ddayTitleInput.scrollIntoView({ behavior: "smooth", block: "nearest" });
           ddayTitleInput.focus({ preventScroll: true });
         }
       });
     }
 
-    // 삭제 버튼
     const deleteBtn = card.querySelector(".delete-dday-btn");
     if (deleteBtn) {
       deleteBtn.addEventListener("click", async () => {
-        if (!confirm(`"${item.title}" 일정을 삭제하시겠습니까?`)) return;
-        currentDdayConfig.items = currentDdayConfig.items.filter((it) => it.id !== item.id);
-        if (currentDdayConfig.mainId === item.id) {
-          currentDdayConfig.mainId = currentDdayConfig.items[0]?.id || null;
+        const ok = await showConfirmDialog({
+          title: "일정 삭제",
+          message: `"${item.title}" 일정을 삭제하시겠습니까?`,
+          confirmText: "삭제",
+          danger: true,
+        });
+        if (!ok) return;
+        try {
+          currentDdayConfig.items = currentDdayConfig.items.filter((it) => it.id !== item.id);
+          if (currentDdayConfig.mainId === item.id) {
+            currentDdayConfig.mainId = currentDdayConfig.items[0]?.id || null;
+          }
+          if (editingDdayId === item.id) {
+            resetDdayFormState();
+          }
+          await saveDdayConfig(currentDdayConfig);
+          renderDdayList();
+          updateHeaderBadge();
+          notifyDdayChange();
+        } catch (err) {
+          console.error("[dday] 일정 삭제 실패:", err);
+          showError("일정을 삭제하지 못했습니다: " + err.message);
         }
-        await saveDdayConfig(currentDdayConfig);
-        renderDdayList();
-        updateHeaderBadge();
-        notifyDdayChange();
       });
     }
 
@@ -489,11 +461,9 @@ function renderDdayList() {
   });
 }
 
-/**
- * 기념일 설정 모달 열기
- */
 export function openDdayModal() {
   if (!ddayModal) return;
+  resetDdayFormState();
   renderDdayList();
   if (ddayDateInput && !ddayDateInput.value) {
     ddayDateInput.value = formatDateString();
@@ -501,13 +471,9 @@ export function openDdayModal() {
   openModal(ddayModal);
 }
 
-/**
- * 특정 날짜로 일정/기념일 등록 모달 열기 (캘린더 연동)
- * @param {string} dateStr - YYYY-MM-DD
- * @param {string} type - 'event' | 'count_up' | 'birthday'
- */
 export function openDdayModalWithDate(dateStr, type = "event") {
   if (!ddayModal) return;
+  resetDdayFormState();
   renderDdayList();
   if (ddayDateInput && dateStr) {
     ddayDateInput.value = dateStr;
@@ -524,28 +490,16 @@ export function openDdayModalWithDate(dateStr, type = "event") {
   }, 100);
 }
 
-/**
- * 기념일 모달 닫기
- */
 function closeDdayModal() {
-  editingDdayId = null;
-  if (ddaySubmitBtn) ddaySubmitBtn.textContent = "일정 등록하기";
-  const formTitle = document.querySelector(".dday-form-title");
-  if (formTitle) formTitle.textContent = "+ 새 기념일 / 일정 추가";
-  if (ddayTitleInput) ddayTitleInput.value = "";
+  resetDdayFormState();
   closeModal(ddayModal);
 }
 
-/**
- * 디데이 모듈 초기화
- */
 export function initDday() {
-  // 1. 헤더 뱃지 클릭 시 모달 열기
   if (ddayBadgeBtn) {
     ddayBadgeBtn.addEventListener("click", openDdayModal);
   }
 
-  // 2. 모달 닫기 버튼 및 하단 취소 버튼
   if (ddayCloseBtn) {
     ddayCloseBtn.addEventListener("click", closeDdayModal);
   }
@@ -554,21 +508,25 @@ export function initDday() {
     ddayCancelBtn.addEventListener("click", closeDdayModal);
   }
 
-  // iOS 가상 키보드 닫힘 시 뷰포트 오프셋 정상 복구
+  // ESC 키나 오버레이 클릭으로 닫혀도 수정 상태 초기화
+  if (ddayModal) {
+    ddayModal.addEventListener("modal:closed", () => {
+      resetDdayFormState();
+    });
+  }
+
   if (ddayTitleInput) {
     ddayTitleInput.addEventListener("blur", () => {
       window.scrollTo({ top: window.scrollY, left: 0, behavior: "instant" });
     });
   }
 
-  // 3. 아이콘 선택 팔레트 버튼 이벤트
   ddayIconBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
       setActiveIcon(btn.dataset.icon);
     });
   });
 
-  // 4. 유형 변경 시 추천 기본 아이콘 자동 활성화
   if (ddayTypeSelect) {
     ddayTypeSelect.addEventListener("change", (e) => {
       const type = e.target.value;
@@ -582,7 +540,6 @@ export function initDday() {
     });
   }
 
-  // 5. 새 기념일 추가 폼 제출
   if (ddayAddForm) {
     ddayAddForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -592,7 +549,7 @@ export function initDday() {
       const icon = selectedIcon || "💖";
 
       if (!title || !date) {
-        alert("일정 제목과 날짜를 입력해 주세요!");
+        showError("일정 제목과 날짜를 입력해 주세요!");
         return;
       }
 
@@ -607,10 +564,7 @@ export function initDday() {
             targetItem.type = type;
             targetItem.icon = icon;
           }
-          editingDdayId = null;
-          if (ddaySubmitBtn) ddaySubmitBtn.textContent = "일정 등록하기";
-          const formTitle = document.querySelector(".dday-form-title");
-          if (formTitle) formTitle.textContent = "+ 새 기념일 / 일정 추가";
+          resetDdayFormState();
         } else {
           const newItem = {
             id: "dday_" + Date.now(),
@@ -623,22 +577,20 @@ export function initDday() {
           if (!currentDdayConfig.items) currentDdayConfig.items = [];
           currentDdayConfig.items.push(newItem);
 
-          // 첫 번째 항목이면 자동으로 대표 설정
           if (!currentDdayConfig.mainId) {
             currentDdayConfig.mainId = newItem.id;
           }
+          ddayTitleInput.value = "";
         }
 
         await saveDdayConfig(currentDdayConfig);
 
-        // 폼 초기화
-        ddayTitleInput.value = "";
         renderDdayList();
         updateHeaderBadge();
         notifyDdayChange();
       } catch (err) {
-        console.error("기념일 저장 실패:", err);
-        alert("기념일을 저장하지 못했습니다. 다시 시도해 주세요.");
+        console.error("[dday] 기념일 저장 실패:", err);
+        showError("기념일을 저장하지 못했습니다. 다시 시도해 주세요.");
       } finally {
         if (ddaySubmitBtn) ddaySubmitBtn.disabled = false;
       }
@@ -648,9 +600,6 @@ export function initDday() {
 
 let unsubscribeDday = null;
 
-/**
- * 로그인 후 D-Day 실시간 구독을 시작합니다.
- */
 export function startDdaySubscription() {
   if (unsubscribeDday) return;
   try {
@@ -662,7 +611,7 @@ export function startDdaySubscription() {
             items: [
               {
                 id: "dday_legacy",
-                title: config.title || "사귄 날",
+                title: config.title || "함께한 날",
                 date: config.startDate,
                 type: "count_up",
                 icon: "💖",
@@ -679,20 +628,6 @@ export function startDdaySubscription() {
         currentDdayConfig = { mainId: null, items: [] };
       }
 
-      // 이전에 '사귄 날'로 일괄 변경되었던 항목이 있다면 원래의 '현피뜨는날'로 복원
-      let needsRestore = false;
-      if (currentDdayConfig.items) {
-        currentDdayConfig.items.forEach((it) => {
-          if (it.title === "사귄 날") {
-            it.title = "현피뜨는날";
-            needsRestore = true;
-          }
-        });
-      }
-      if (needsRestore) {
-        saveDdayConfig(currentDdayConfig).catch((e) => console.warn("[dday] 원래 타이틀 복원 처리:", e));
-      }
-
       updateHeaderBadge();
       if (ddayModal && !ddayModal.hidden) {
         renderDdayList();
@@ -704,15 +639,9 @@ export function startDdaySubscription() {
   }
 }
 
-/**
- * 로그아웃 시 D-Day 실시간 구독을 중단합니다.
- */
 export function stopDdaySubscription() {
   if (unsubscribeDday) {
     unsubscribeDday();
     unsubscribeDday = null;
   }
 }
-
-
-

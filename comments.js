@@ -1,28 +1,30 @@
 // =========================================================
 // comments.js - 일기 댓글 및 대댓글(답글) 컴포넌트 모듈
-// 댓글/답글 목록 렌더링, 인라인 답글 등록, 댓글 수정 및 삭제를 담당합니다.
-// ★ 목록 갱신은 Firestore onSnapshot이 담당하므로 수동 render 호출은 불필요하며 render.js를 import하지 않습니다.
+// 댓글/답글 목록 렌더링, 인라인 답글 등록, 인라인 댓글 수정 및 삭제 담당
+// ★ render.js를 import하지 않아 단방향 의존성 유지
 // =========================================================
 
 import { addComment, updateComment, removeComment } from "./store.js";
 import {
-  getCurrentProfiles,
   isMyContent,
   createAvatarElement,
   getUserDisplayName,
 } from "./state.js";
-import { showError, formatDateTime } from "./ui.js";
-import { sendPushToPartner } from "./notify.js";
+import { showError, formatDateTime, showConfirmDialog } from "./ui.js";
+import { sendPushToPartner, showToastNotification } from "./notify.js";
 
 /**
  * 개별 댓글 또는 답글(대댓글) DOM 요소를 생성합니다.
  */
-function createCommentItem(comment, entry, { isReply = false, idPrefix = "", onReplyToggle = null } = {}) {
-  const currentProfiles = getCurrentProfiles();
-
+function createCommentItem(
+  comment,
+  entry,
+  { isReply = false, idPrefix = "", onReplyToggle = null } = {}
+) {
   const item = document.createElement("li");
   item.className = isReply ? "comment-reply-item" : "comment-item";
   item.id = `${idPrefix}comment-${comment.id}`;
+  item.dataset.commentId = comment.id;
 
   const commentMeta = document.createElement("div");
   commentMeta.className = "comment-meta";
@@ -51,6 +53,12 @@ function createCommentItem(comment, entry, { isReply = false, idPrefix = "", onR
   if (comment.createdAt) {
     dateSpan.textContent = formatDateTime(comment.createdAt);
   }
+  if (comment.updatedAt) {
+    const editedTag = document.createElement("span");
+    editedTag.className = "edited-badge";
+    editedTag.textContent = " (수정됨)";
+    dateSpan.appendChild(editedTag);
+  }
 
   commentMeta.appendChild(authorWrapper);
   commentMeta.appendChild(dateSpan);
@@ -59,16 +67,44 @@ function createCommentItem(comment, entry, { isReply = false, idPrefix = "", onR
   commentText.className = "comment-text";
   commentText.textContent = comment.text;
 
+  // 인라인 수정 폼 (prompt() 대신 앱 내부에서 바로 수정)
+  const editForm = document.createElement("form");
+  editForm.className = "comment-inline-edit-form";
+  editForm.hidden = true;
+
+  const editTextarea = document.createElement("textarea");
+  editTextarea.className = "comment-inline-edit-input";
+  editTextarea.rows = 2;
+  editTextarea.value = comment.text || "";
+  editTextarea.setAttribute("aria-label", isReply ? "답글 수정 내용" : "댓글 수정 내용");
+  editTextarea.dataset.draftKey = `edit:${entry.id}:${comment.id}`;
+
+  const editFormActions = document.createElement("div");
+  editFormActions.className = "comment-inline-edit-actions";
+
+  const editCancelBtn = document.createElement("button");
+  editCancelBtn.type = "button";
+  editCancelBtn.className = "comment-inline-btn cancel";
+  editCancelBtn.textContent = "취소";
+
+  const editSaveBtn = document.createElement("button");
+  editSaveBtn.type = "submit";
+  editSaveBtn.className = "comment-inline-btn save";
+  editSaveBtn.textContent = "저장";
+
+  editFormActions.appendChild(editCancelBtn);
+  editFormActions.appendChild(editSaveBtn);
+  editForm.appendChild(editTextarea);
+  editForm.appendChild(editFormActions);
+
   item.appendChild(commentMeta);
   item.appendChild(commentText);
+  item.appendChild(editForm);
 
-  // 하단 액션 영역 (답글 달기, 본인 작성 시 수정/삭제)
   const isMyComment = isMyContent(comment);
-
   const commentActions = document.createElement("div");
   commentActions.className = "comment-actions";
 
-  // 답글 달기 버튼 (루트 댓글에만 제공)
   if (!isReply && onReplyToggle) {
     const replyToggleBtn = document.createElement("button");
     replyToggleBtn.type = "button";
@@ -79,43 +115,82 @@ function createCommentItem(comment, entry, { isReply = false, idPrefix = "", onR
   }
 
   if (isMyComment) {
-    // 수정 버튼
     const editBtn = document.createElement("button");
     editBtn.type = "button";
     editBtn.className = "comment-action-btn edit";
     editBtn.textContent = "수정";
-    editBtn.addEventListener("click", async () => {
-      const promptTitle = isReply ? "답글 내용을 수정하세요:" : "댓글 내용을 수정하세요:";
-      const newText = prompt(promptTitle, comment.text);
-      if (newText === null) return;
-      const trimmed = newText.trim();
-      if (!trimmed) {
-        alert(isReply ? "답글 내용을 입력해주세요." : "댓글 내용을 입력해주세요.");
-        return;
-      }
-      try {
-        await updateComment(entry.id, comment.id, trimmed);
-      } catch (err) {
-        console.error(err);
-        showError((isReply ? "답글 수정에 실패했습니다: " : "댓글 수정에 실패했습니다: ") + err.message);
-      }
+    editBtn.addEventListener("click", () => {
+      editTextarea.value = comment.text || "";
+      commentText.hidden = true;
+      editForm.hidden = false;
+      editTextarea.focus();
+      editTextarea.setSelectionRange(editTextarea.value.length, editTextarea.value.length);
     });
     commentActions.appendChild(editBtn);
 
-    // 삭제 버튼
+    editCancelBtn.addEventListener("click", () => {
+      editForm.hidden = true;
+      commentText.hidden = false;
+    });
+
+    editForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const trimmed = editTextarea.value.trim();
+      if (!trimmed) {
+        showToastNotification(
+          isReply ? "답글 내용을 입력해 주세요." : "댓글 내용을 입력해 주세요.",
+          "✏️"
+        );
+        editTextarea.focus();
+        return;
+      }
+      if (trimmed === comment.text) {
+        editForm.hidden = true;
+        commentText.hidden = false;
+        return;
+      }
+
+      editSaveBtn.disabled = true;
+      try {
+        await updateComment(entry.id, comment.id, trimmed);
+        editForm.hidden = true;
+        commentText.hidden = false;
+        showToastNotification(
+          isReply ? "답글이 수정되었습니다." : "댓글이 수정되었습니다.",
+          "✏️"
+        );
+      } catch (err) {
+        console.error(err);
+        showError(
+          (isReply ? "답글 수정에 실패했습니다: " : "댓글 수정에 실패했습니다: ") + err.message
+        );
+      } finally {
+        editSaveBtn.disabled = false;
+      }
+    });
+
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "comment-action-btn delete";
     deleteBtn.textContent = "삭제";
     deleteBtn.addEventListener("click", async () => {
-      const confirmMsg = isReply ? "정말 이 답글을 삭제하시겠습니까?" : "정말 이 댓글을 삭제하시겠습니까?";
-      if (confirm(confirmMsg)) {
-        try {
-          await removeComment(entry.id, comment.id);
-        } catch (err) {
-          console.error(err);
-          showError((isReply ? "답글 삭제에 실패했습니다: " : "댓글 삭제에 실패했습니다: ") + err.message);
-        }
+      const ok = await showConfirmDialog({
+        title: isReply ? "답글 삭제" : "댓글 삭제",
+        message: isReply
+          ? "정말 이 답글을 삭제하시겠습니까?"
+          : "정말 이 댓글을 삭제하시겠습니까? 연결된 답글도 함께 삭제됩니다.",
+        confirmText: "삭제",
+        danger: true,
+      });
+      if (!ok) return;
+      try {
+        await removeComment(entry.id, comment.id);
+        showToastNotification(isReply ? "답글이 삭제되었습니다." : "댓글이 삭제되었습니다.", "🗑️");
+      } catch (err) {
+        console.error(err);
+        showError(
+          (isReply ? "답글 삭제에 실패했습니다: " : "댓글 삭제에 실패했습니다: ") + err.message
+        );
       }
     });
     commentActions.appendChild(deleteBtn);
@@ -130,24 +205,20 @@ function createCommentItem(comment, entry, { isReply = false, idPrefix = "", onR
 
 /**
  * 개별 일기 카드의 댓글/답글 영역 DOM 요소를 생성하여 반환합니다.
- * @param {Object} entry - 일기 문서 객체
- * @param {string} [idPrefix=""] - DOM ID 접두어 (충돌 방지)
- * @returns {HTMLElement} 댓글 섹션 div 요소
  */
 export function createCommentsSection(entry, idPrefix = "") {
-  const currentProfiles = getCurrentProfiles();
-
   const commentsSection = document.createElement("div");
   commentsSection.className = "comments-section";
 
-  const allComments = entry.comments || [];
+  const allComments = [...(entry.comments || [])].sort(
+    (a, b) => (a.createdAt || 0) - (b.createdAt || 0)
+  );
 
   const commentsHeader = document.createElement("div");
   commentsHeader.className = "comments-header";
   commentsHeader.textContent = `댓글 ${allComments.length > 0 ? `(${allComments.length})` : ""}`;
   commentsSection.appendChild(commentsHeader);
 
-  // 부모 댓글(루트 댓글)과 대댓글(답글) 분류
   const rootComments = allComments.filter((c) => !c.parentId);
   const repliesByParent = {};
   allComments
@@ -159,7 +230,6 @@ export function createCommentsSection(entry, idPrefix = "") {
       repliesByParent[c.parentId].push(c);
     });
 
-  // 댓글 목록 렌더링
   if (rootComments.length > 0) {
     const commentsList = document.createElement("ul");
     commentsList.className = "comments-list";
@@ -167,15 +237,17 @@ export function createCommentsSection(entry, idPrefix = "") {
     for (const comment of rootComments) {
       const commentAuthorDisplayName = getUserDisplayName(comment.uid, comment.author || "상대방");
 
-      // 인라인 답글 작성 폼
       const replyForm = document.createElement("form");
       replyForm.className = "reply-form";
       replyForm.hidden = true;
+      replyForm.dataset.replyFormKey = `${entry.id}:${comment.id}`;
 
       const replyInput = document.createElement("input");
       replyInput.className = "reply-input";
       replyInput.type = "text";
       replyInput.placeholder = `${commentAuthorDisplayName}님에게 답글 작성...`;
+      replyInput.setAttribute("aria-label", `${commentAuthorDisplayName}님에게 답글 작성`);
+      replyInput.dataset.draftKey = `reply:${entry.id}:${comment.id}`;
       replyInput.required = true;
 
       const replySubmitBtn = document.createElement("button");
@@ -200,13 +272,17 @@ export function createCommentsSection(entry, idPrefix = "") {
 
         replySubmitBtn.disabled = true;
         try {
-          await addComment(entry.id, text, comment.id);
-          sendPushToPartner({
-            title: "💬 류이어리 새 답글",
-            message: "당신의 반쪽이 새 답글을 남겼습니다.",
-          });
+          const res = await addComment(entry.id, text, comment.id);
           replyInput.value = "";
           replyForm.hidden = true;
+          if (res?.queuedOffline) {
+            showToastNotification("오프라인 보관 완료! 연결 시 자동 전송됩니다.", "☁️");
+          } else {
+            sendPushToPartner({
+              title: "💬 류이어리 새 답글",
+              message: "새 답글이 등록되었습니다.",
+            }).catch(() => {});
+          }
         } catch (error) {
           console.error(error);
           showError("답글을 저장하지 못했습니다. 연결을 확인하세요.");
@@ -223,7 +299,6 @@ export function createCommentsSection(entry, idPrefix = "") {
 
       commentItem.appendChild(replyForm);
 
-      // 해당 댓글에 달린 대댓글 목록 렌더링
       const replies = repliesByParent[comment.id] || [];
       if (replies.length > 0) {
         const repliesList = document.createElement("ul");
@@ -246,9 +321,22 @@ export function createCommentsSection(entry, idPrefix = "") {
     commentsSection.appendChild(commentsList);
   }
 
-  // 기본 댓글 작성 폼
   const commentForm = document.createElement("form");
   commentForm.className = "comment-form";
+
+  const commentInput = document.createElement("input");
+  commentInput.className = "comment-input";
+  commentInput.type = "text";
+  commentInput.placeholder = "따뜻한 댓글을 남겨보세요...";
+  commentInput.setAttribute("aria-label", "댓글 작성");
+  commentInput.dataset.draftKey = `comment:${entry.id}`;
+  commentInput.required = true;
+
+  const commentSubmitBtn = document.createElement("button");
+  commentSubmitBtn.className = "comment-submit-btn";
+  commentSubmitBtn.type = "submit";
+  commentSubmitBtn.textContent = "등록";
+
   commentForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const text = commentInput.value.trim();
@@ -256,12 +344,16 @@ export function createCommentsSection(entry, idPrefix = "") {
 
     commentSubmitBtn.disabled = true;
     try {
-      await addComment(entry.id, text);
-      sendPushToPartner({
-        title: "💬 류이어리 새 댓글",
-        message: "당신의 반쪽이 새 댓글을 남겼습니다.",
-      });
+      const res = await addComment(entry.id, text);
       commentInput.value = "";
+      if (res?.queuedOffline) {
+        showToastNotification("오프라인 보관 완료! 연결 시 자동 전송됩니다.", "☁️");
+      } else {
+        sendPushToPartner({
+          title: "💬 류이어리 새 댓글",
+          message: "새 댓글이 등록되었습니다.",
+        }).catch(() => {});
+      }
     } catch (error) {
       console.error(error);
       showError("댓글을 저장하지 못했습니다. 연결을 확인하세요.");
@@ -270,23 +362,9 @@ export function createCommentsSection(entry, idPrefix = "") {
     }
   });
 
-  const commentInput = document.createElement("input");
-  commentInput.className = "comment-input";
-  commentInput.type = "text";
-  commentInput.placeholder = "따뜻한 댓글을 남겨보세요...";
-  commentInput.required = true;
-
-  const commentSubmitBtn = document.createElement("button");
-  commentSubmitBtn.className = "comment-submit-btn";
-  commentSubmitBtn.type = "submit";
-  commentSubmitBtn.textContent = "등록";
-
   commentForm.appendChild(commentInput);
   commentForm.appendChild(commentSubmitBtn);
   commentsSection.appendChild(commentForm);
 
   return commentsSection;
 }
-
-
-

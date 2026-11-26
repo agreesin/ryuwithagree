@@ -10,9 +10,11 @@ import {
   getProfilePhoto,
   getUserInitial,
   isAdmin,
+  isUserProfileId,
 } from "./state.js";
-import { showError, openModal, closeModal } from "./ui.js";
+import { showError, openModal, closeModal, escapeHtml, sanitizeImageUrl } from "./ui.js";
 import { render } from "./render.js";
+import { showToastNotification } from "./notify.js";
 import { updateProfile } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
 // DOM 화면 요소
@@ -41,11 +43,17 @@ const profilePhotoCancelBtn = document.getElementById("profile-photo-cancel-btn"
 const profilePhotoSaveBtn = document.getElementById("profile-photo-save-btn");
 const profileEmojiBtns = document.querySelectorAll(".profile-emoji-btn");
 
-// 모달 내부 상태
 let currentModalTargetUid = null;
-let pendingPhotoData = null; // 저장 대기 중인 사진 데이터 (Data URL, URL, 또는 null)
+let pendingPhotoData = null;
 let originalName = "";
 let originalPhotoData = null;
+
+function getOtherUserUids(currentUser) {
+  const currentProfiles = getCurrentProfiles();
+  return Object.keys(currentProfiles).filter(
+    (uid) => isUserProfileId(uid) && uid !== currentUser.uid
+  );
+}
 
 /**
  * 상단 헤더의 내 프로필 아바타를 갱신합니다.
@@ -55,34 +63,25 @@ export function updateHeaderAvatar() {
 
   const currentUser = getCurrentUser();
   if (!currentUser) {
-    whoAmIAvatar.innerHTML = "👤";
+    whoAmIAvatar.textContent = "👤";
     return;
   }
 
-  const photo = getProfilePhoto(currentUser.uid);
+  const safePhoto = sanitizeImageUrl(getProfilePhoto(currentUser.uid));
   const profiles = getCurrentProfiles();
   const displayName = profiles[currentUser.uid] || currentUser.displayName || "이름 없음";
 
-  if (photo) {
-    whoAmIAvatar.innerHTML = `<img src="${photo}" alt="내 프로필 사진" />`;
+  if (safePhoto) {
+    whoAmIAvatar.innerHTML = `<img src="${escapeHtml(safePhoto)}" alt="내 프로필 사진" />`;
   } else {
-    const initial = getUserInitial(displayName);
-    whoAmIAvatar.textContent = initial;
+    whoAmIAvatar.textContent = getUserInitial(displayName);
   }
 }
 
-/**
- * 사용자 권한 및 로그인 상태에 따라 프로필 UI를 갱신합니다.
- */
-export function updateProfileButtonsVisibility(user) {
+export function updateProfileButtonsVisibility() {
   updateHeaderAvatar();
 }
 
-/**
- * 이미지를 1:1 정방형 160x160 픽셀로 중앙 크롭 및 고압축(WebP/JPEG 0.8)합니다.
- * @param {File} file
- * @returns {Promise<string>} Data URL
- */
 function compressProfilePhoto(file) {
   return new Promise((resolve, reject) => {
     if (!file || !file.type.startsWith("image/")) {
@@ -100,7 +99,6 @@ function compressProfilePhoto(file) {
         canvas.height = TARGET_SIZE;
         const ctx = canvas.getContext("2d");
 
-        // 1:1 정방형 중앙 크롭 (Center crop)
         const minSide = Math.min(img.width, img.height);
         const startX = (img.width - minSide) / 2;
         const startY = (img.height - minSide) / 2;
@@ -122,9 +120,6 @@ function compressProfilePhoto(file) {
           dataUrl = canvas.toDataURL("image/jpeg", 0.8);
         }
 
-        const compSizeKb = Math.round((dataUrl.length * 0.75) / 1024);
-        console.log(`[ProfilePhoto] 프로필 사진 압축 완료: ${compSizeKb}KB (160x160)`);
-
         resolve(dataUrl);
       };
       img.onerror = () => reject(new Error("이미지를 읽는 중 오류가 발생했습니다."));
@@ -137,29 +132,34 @@ function compressProfilePhoto(file) {
 
 /**
  * 이모지를 1:1 정방형 벡터 SVG Data URL로 변환합니다.
+ * (#fff0f3 원문을 encodeURIComponent에 전달해 이중 인코딩 버그 방지)
  */
 function createEmojiAvatarDataUrl(emoji) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="%23fff0f3"/><text x="50" y="68" font-size="54" text-anchor="middle" font-family="Apple Color Emoji, Segoe UI Emoji, sans-serif">${emoji}</text></svg>`;
+  const safeEmoji = escapeHtml(emoji);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#fff0f3"/><text x="50" y="68" font-size="54" text-anchor="middle" font-family="Apple Color Emoji, Segoe UI Emoji, sans-serif">${safeEmoji}</text></svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-/**
- * 모달 내부의 아바타 미리보기를 갱신합니다.
- */
 function updateModalPreview() {
   if (!currentModalTargetUid) return;
 
   const currentProfiles = getCurrentProfiles();
-  const targetName = (profileNameInput && profileNameInput.value.trim()) || currentProfiles[currentModalTargetUid] || "참여자";
+  const targetName =
+    (profileNameInput && profileNameInput.value.trim()) ||
+    currentProfiles[currentModalTargetUid] ||
+    "참여자";
 
   if (profilePhotoUserDesc) {
     const isSelf = currentModalTargetUid === getCurrentUser()?.uid;
-    profilePhotoUserDesc.textContent = isSelf ? `내 프로필 (${targetName})` : `${targetName}님의 프로필`;
+    profilePhotoUserDesc.textContent = isSelf
+      ? `내 프로필 (${targetName})`
+      : `${targetName}님의 프로필`;
   }
 
-  if (pendingPhotoData) {
+  const safePhoto = sanitizeImageUrl(pendingPhotoData);
+  if (safePhoto) {
     if (profilePhotoPreviewImg) {
-      profilePhotoPreviewImg.src = pendingPhotoData;
+      profilePhotoPreviewImg.src = safePhoto;
       profilePhotoPreviewImg.hidden = false;
     }
     if (profilePhotoPreviewFallback) {
@@ -177,18 +177,17 @@ function updateModalPreview() {
   }
 }
 
-/**
- * 모달의 대상을 변경하고 폼을 해당 사용자의 데이터로 채웁니다.
- * @param {string} targetUid
- */
 function switchTargetUser(targetUid) {
   const currentUser = getCurrentUser();
-  if (!currentUser || !targetUid) return;
+  if (!currentUser || !isUserProfileId(targetUid)) return;
 
   currentModalTargetUid = targetUid;
   const currentProfiles = getCurrentProfiles();
 
-  originalName = currentProfiles[targetUid] || (targetUid === currentUser.uid ? currentUser.displayName : "") || "";
+  originalName =
+    currentProfiles[targetUid] ||
+    (targetUid === currentUser.uid ? currentUser.displayName : "") ||
+    "";
   originalPhotoData = getProfilePhoto(targetUid);
   pendingPhotoData = originalPhotoData;
 
@@ -196,12 +195,15 @@ function switchTargetUser(targetUid) {
     profileNameInput.value = originalName;
   }
 
-  // 탭 active 스타일 동기화
   const isSelf = targetUid === currentUser.uid;
   if (profileTabSelf) profileTabSelf.classList.toggle("active", isSelf);
   if (profileTabPartner) profileTabPartner.classList.toggle("active", !isSelf);
 
-  // 구글 사진 연동 버튼: 본인 대상 + 구글 photoURL 존재 시만 노출
+  if (profilePhotoTargetWrap) {
+    const otherUids = getOtherUserUids(currentUser);
+    profilePhotoTargetWrap.hidden = isSelf || otherUids.length <= 1;
+  }
+
   if (profilePhotoGoogleBtn) {
     profilePhotoGoogleBtn.hidden = !isSelf || !currentUser.photoURL;
   }
@@ -209,70 +211,50 @@ function switchTargetUser(targetUid) {
   updateModalPreview();
 }
 
-/**
- * 통합 프로필 설정 모달을 엽니다.
- * @param {string|null} defaultTargetUid
- */
 export function openProfileModal(defaultTargetUid = null) {
   const currentUser = getCurrentUser();
   if (!currentUser) {
-    alert("로그인이 필요합니다.");
+    showToastNotification("로그인이 필요합니다.", "🔒");
     return;
   }
 
   const adminUser = isAdmin(currentUser);
   const currentProfiles = getCurrentProfiles();
-  const otherUids = Object.keys(currentProfiles).filter((uid) => uid !== currentUser.uid);
+  const otherUids = getOtherUserUids(currentUser);
 
-  // 관리자 권한 시 탭 노출 (상대방이 1명 이상 있을 때)
   if (profileTargetTabs) {
     profileTargetTabs.hidden = !adminUser || otherUids.length === 0;
   }
 
-  // 드롭다운 셀렉트 박스 세팅 (상대방이 2명 이상일 때)
-  if (profilePhotoTargetSelect && profilePhotoTargetWrap) {
+  if (profilePhotoTargetSelect) {
+    profilePhotoTargetSelect.innerHTML = "";
     if (adminUser && otherUids.length > 1) {
-      profilePhotoTargetWrap.hidden = false;
-      profilePhotoTargetSelect.innerHTML = "";
       otherUids.forEach((uid) => {
         const opt = document.createElement("option");
         opt.value = uid;
         opt.textContent = `👥 ${currentProfiles[uid] || "상대방"}`;
         profilePhotoTargetSelect.appendChild(opt);
       });
-    } else {
-      profilePhotoTargetWrap.hidden = true;
     }
   }
 
-  // 기본 타겟 설정 (인자가 없으면 본인)
   const initialTarget = defaultTargetUid || currentUser.uid;
   switchTargetUser(initialTarget);
 
   openModal(profilePhotoModal);
 }
 
-/**
- * 프로필 관리 이벤트 리스너를 초기화합니다.
- */
 export function initProfileHandlers() {
-  // ---------------------------------------------------------
-  // 1. 상단 내 정보 영역 터치 시 통합 모달 오픈
-  // ---------------------------------------------------------
   if (whoAmIProfileBtn) {
     whoAmIProfileBtn.addEventListener("click", () => {
       openProfileModal();
     });
   }
 
-  // ---------------------------------------------------------
-  // 2. 관리자용 대상 전환 탭
-  // ---------------------------------------------------------
   if (profileTabSelf) {
     profileTabSelf.addEventListener("click", () => {
       const currentUser = getCurrentUser();
       if (currentUser) {
-        if (profilePhotoTargetWrap) profilePhotoTargetWrap.hidden = true;
         switchTargetUser(currentUser.uid);
       }
     });
@@ -283,16 +265,13 @@ export function initProfileHandlers() {
       const currentUser = getCurrentUser();
       if (!currentUser) return;
 
-      const currentProfiles = getCurrentProfiles();
-      const otherUids = Object.keys(currentProfiles).filter((uid) => uid !== currentUser.uid);
-
+      const otherUids = getOtherUserUids(currentUser);
       if (otherUids.length === 0) {
-        alert("아직 등록된 다른 참여자가 없습니다.");
+        showToastNotification("아직 등록된 다른 참여자가 없습니다.", "👥");
         return;
       }
 
-      if (otherUids.length > 1 && profilePhotoTargetWrap) {
-        profilePhotoTargetWrap.hidden = false;
+      if (profilePhotoTargetSelect && otherUids.length > 1) {
         profilePhotoTargetSelect.value = otherUids[0];
       }
 
@@ -306,17 +285,12 @@ export function initProfileHandlers() {
     });
   }
 
-  // 이름 실시간 입력 시 미리보기 폴백(이니셜) 갱신
   if (profileNameInput) {
     profileNameInput.addEventListener("input", () => {
       updateModalPreview();
     });
   }
 
-  // ---------------------------------------------------------
-  // 3. 사진 변경 옵션 핸들러
-  // ---------------------------------------------------------
-  // 원형 미리보기 박스 또는 사진 선택 버튼 클릭
   const triggerPhotoUpload = () => {
     if (profilePhotoFileInput) {
       profilePhotoFileInput.value = "";
@@ -348,7 +322,6 @@ export function initProfileHandlers() {
     });
   }
 
-  // 구글 계정 사진 적용
   if (profilePhotoGoogleBtn) {
     profilePhotoGoogleBtn.addEventListener("click", () => {
       const currentUser = getCurrentUser();
@@ -359,7 +332,6 @@ export function initProfileHandlers() {
     });
   }
 
-  // 감성 이모지 프리셋
   profileEmojiBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
       const emoji = btn.dataset.emoji;
@@ -370,7 +342,6 @@ export function initProfileHandlers() {
     });
   });
 
-  // 사진 삭제
   if (profilePhotoDeleteBtn) {
     profilePhotoDeleteBtn.addEventListener("click", () => {
       pendingPhotoData = null;
@@ -378,9 +349,6 @@ export function initProfileHandlers() {
     });
   }
 
-  // ---------------------------------------------------------
-  // 4. 모달 닫기 및 취소
-  // ---------------------------------------------------------
   if (profilePhotoCloseBtn) {
     profilePhotoCloseBtn.addEventListener("click", () => {
       closeModal(profilePhotoModal);
@@ -393,16 +361,13 @@ export function initProfileHandlers() {
     });
   }
 
-  // ---------------------------------------------------------
-  // 5. 저장 완료 버튼 (이름 + 사진 동시 저장)
-  // ---------------------------------------------------------
   if (profilePhotoSaveBtn) {
     profilePhotoSaveBtn.addEventListener("click", async () => {
       if (!currentModalTargetUid) return;
 
       const newName = profileNameInput ? profileNameInput.value.trim() : "";
       if (!newName) {
-        alert("이름은 빈 칸으로 둘 수 없습니다.");
+        showToastNotification("이름은 빈 칸으로 둘 수 없습니다.", "✏️");
         if (profileNameInput) profileNameInput.focus();
         return;
       }
@@ -414,27 +379,27 @@ export function initProfileHandlers() {
         profilePhotoSaveBtn.disabled = true;
         profilePhotoSaveBtn.textContent = "저장 중...";
 
-        // 1) 이름 변경 처리
         if (newName !== originalName) {
           await setUserDisplayName(currentModalTargetUid, newName);
           if (isSelf && currentUser) {
             try {
               await updateProfile(currentUser, { displayName: newName });
-            } catch (e) {}
+            } catch {
+              // Auth 프로필 동기화 실패 시 Firestore 값 유지
+            }
             if (whoAmI) whoAmI.textContent = newName;
           }
         }
 
-        // 2) 프로필 사진 변경 처리
         if (pendingPhotoData !== originalPhotoData) {
           await setUserProfilePhoto(currentModalTargetUid, pendingPhotoData);
         }
 
         updateHeaderAvatar();
-        render(); // 타임라인 즉각 갱신
+        render();
         closeModal(profilePhotoModal);
 
-        alert(`프로필이 성공적으로 저장되었습니다!`);
+        showToastNotification("프로필이 저장되었습니다! ✨", "👤");
       } catch (err) {
         console.error(err);
         showError("프로필 저장 실패: " + err.message);
@@ -445,6 +410,3 @@ export function initProfileHandlers() {
     });
   }
 }
-
-
-

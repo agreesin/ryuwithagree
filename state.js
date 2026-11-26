@@ -3,6 +3,20 @@
 // 사용자 정보 및 프로필 캐시, 관리자 권한 검사를 담당합니다.
 // =========================================================
 
+import { escapeHtml, sanitizeImageUrl } from "./ui.js";
+
+// 프로필 컬렉션 내부에 공존하는 시스템 메타 문서 ID 목록 (실제 사용자에서 제외)
+export const RESERVED_PROFILE_IDS = new Set(["app_meta_dday"]);
+
+/**
+ * 실제 사용자 프로필 문서 ID인지 판별합니다.
+ * @param {string|null|undefined} uid
+ * @returns {boolean}
+ */
+export function isUserProfileId(uid) {
+  return Boolean(uid && !RESERVED_PROFILE_IDS.has(uid));
+}
+
 // 로그인한 사용자 정보
 let currentUser = null;
 
@@ -12,7 +26,7 @@ let currentProfiles = {};
 // 캐시된 프로필 사진 목록 { uid: photoURL }
 let currentProfilePhotos = {};
 
-// 관리자 계정의 SHA-256 단방향 해시 (원문 역추적 및 복호화 절대 불가)
+// 관리자 계정의 SHA-256 단방향 해시
 const ADMIN_EMAIL_HASHES = [
   "8156cfad701c0f7efd9f477b4be3c208240f6e994a6df5183a6618859ffdb3d7",
 ];
@@ -33,7 +47,15 @@ export function getCurrentProfiles() {
 }
 
 export function setCurrentProfiles(profiles) {
-  currentProfiles = profiles || {};
+  const filtered = {};
+  if (profiles && typeof profiles === "object") {
+    for (const [uid, name] of Object.entries(profiles)) {
+      if (isUserProfileId(uid)) {
+        filtered[uid] = name;
+      }
+    }
+  }
+  currentProfiles = filtered;
 }
 
 export function getCurrentProfilePhotos() {
@@ -41,11 +63,19 @@ export function getCurrentProfilePhotos() {
 }
 
 export function setCurrentProfilePhotos(photos) {
-  currentProfilePhotos = photos || {};
+  const filtered = {};
+  if (photos && typeof photos === "object") {
+    for (const [uid, url] of Object.entries(photos)) {
+      if (isUserProfileId(uid)) {
+        filtered[uid] = url;
+      }
+    }
+  }
+  currentProfilePhotos = filtered;
 }
 
 export function getProfilePhoto(uid) {
-  if (!uid) return null;
+  if (!isUserProfileId(uid)) return null;
   return currentProfilePhotos[uid] || null;
 }
 
@@ -59,16 +89,18 @@ export function getUserInitial(name) {
 }
 
 /**
- * 프로필 아바타의 내부 HTML 문자열을 반환합니다.
+ * 프로필 아바타의 내부 HTML 문자열을 안전하게 이스케이프하여 반환합니다.
  * @param {string|null} uid
  * @param {string} [name="?"]
  * @returns {string}
  */
 export function getAvatarHtml(uid, name = "?") {
-  const photo = getProfilePhoto(uid);
-  return photo
-    ? `<img src="${photo}" alt="${name} 프로필" />`
-    : `<span>${getUserInitial(name)}</span>`;
+  const safePhoto = sanitizeImageUrl(getProfilePhoto(uid));
+  const safeName = escapeHtml(name);
+  if (safePhoto) {
+    return `<img src="${escapeHtml(safePhoto)}" alt="${safeName} 프로필" loading="lazy" decoding="async" />`;
+  }
+  return `<span>${escapeHtml(getUserInitial(name))}</span>`;
 }
 
 /**
@@ -103,19 +135,21 @@ export function createAvatarElement(uid, name = "?", className = "") {
  * @returns {string}
  */
 export function getUserDisplayName(uid, fallback = "이름 없음") {
-  if (uid && currentProfiles && currentProfiles[uid]) {
+  if (isUserProfileId(uid) && currentProfiles && currentProfiles[uid]) {
     return currentProfiles[uid];
   }
   return fallback;
 }
 
 /**
- * 상대방의 UID와 닉네임을 구합니다.
+ * 상대방의 UID와 닉네임을 구합니다. (시스템 메타 문서 제외)
  */
 export function getPartnerInfo() {
   if (!currentUser || !currentProfiles) return { uid: null, name: "상대방" };
 
-  const partnerUid = Object.keys(currentProfiles).find((uid) => uid !== currentUser.uid);
+  const partnerUid = Object.keys(currentProfiles).find(
+    (uid) => isUserProfileId(uid) && uid !== currentUser.uid
+  );
   const partnerName = getUserDisplayName(partnerUid, "상대방");
 
   return { uid: partnerUid || null, name: partnerName };

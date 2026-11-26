@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <!--
-  다이어리 - 바이브 코딩 실습
-  이 파일은 화면의 "구조"만 담당합니다.
-  두 사람이 함께 쓰는 공용 파일입니다. 고치기 전에 상대에게 말하세요.
+  류이어리 - 비공개 실시간 교환 일기장
+  이 파일은 화면의 시맨틱 구조와 접근성 마크업을 담당합니다.
 -->
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>류이어리</title>
 
     <!-- 탭 파비콘 (Favicon) -->
@@ -22,30 +21,63 @@
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
     <meta name="theme-color" content="#e66d7b" />
 
+    <!-- 초기 다크 모드 깜빡임 방지(FOUC 차단) -->
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem("diary_theme_pref") || "system";
+          var dark =
+            pref === "dark" ||
+            (pref !== "light" &&
+              window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta && dark) meta.setAttribute("content", "#1c1519");
+        } catch (e) {}
+      })();
+    </script>
+
     <!-- Pretendard Variable & MaruBuri 웹 폰트 -->
-    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+    <link
+      rel="stylesheet"
+      as="style"
+      crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    />
     <link rel="stylesheet" href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" />
 
-    <link rel="stylesheet" href="style.css?v=20261023_5" />
+    <link rel="stylesheet" href="style.css?v=20261126_2" />
   </head>
 
   <body>
     <!-- 앱 내 실시간 토스트 알림 컨테이너 -->
-    <div id="toast-container" class="toast-container"></div>
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="false"></div>
 
     <!-- 오프라인 모드 상태 알림 배너 -->
-    <div id="offline-banner" class="offline-banner" hidden>
+    <div id="offline-banner" class="offline-banner" role="status" hidden>
       <div class="offline-banner-content">
-        <span class="offline-icon">☁️</span>
+        <span class="offline-icon" aria-hidden="true">☁️</span>
         <span class="offline-text">오프라인 모드입니다. 작성한 일기와 댓글은 기기에 안전하게 보관되며, 연결 시 자동 동기화됩니다.</span>
       </div>
     </div>
 
     <header class="header">
-      <h1 class="header-title" id="header-home-btn" title="홈으로 이동 / 새로고침">류이어리</h1>
+      <h1 class="header-title-wrap">
+        <button id="header-home-btn" class="header-title" type="button" title="홈으로 이동 / 필터 초기화">
+          류이어리
+        </button>
+      </h1>
       <div class="header-actions">
-        <button id="monthly-report-btn" class="monthly-report-btn" type="button" title="월간 레포트" hidden>
-          <span class="monthly-report-icon">📊</span>
+        <button
+          id="monthly-report-btn"
+          class="monthly-report-btn"
+          type="button"
+          title="월간 레포트"
+          aria-label="월간 레포트 열기"
+          hidden
+        >
+          <span class="monthly-report-icon" aria-hidden="true">📊</span>
           <span class="monthly-report-text">월간 레포트</span>
           <span id="monthly-report-badge" class="monthly-report-badge" hidden>NEW</span>
         </button>
@@ -54,18 +86,38 @@
           <span id="dday-badge-text">D-Day 설정</span>
         </button>
 
-        <div class="notif-wrapper">
-          <button id="notif-bell-btn" class="notif-bell-btn" type="button" title="알림 센터">
-            <span id="notif-bell-icon" class="notif-bell-icon">🔔</span>
+        <button
+          id="theme-toggle-btn"
+          class="theme-toggle-btn"
+          type="button"
+          title="다크 모드로 전환"
+          aria-label="다크 모드로 전환"
+          aria-pressed="false"
+        >
+          <span id="theme-toggle-icon" aria-hidden="true">🌙</span>
+        </button>
+
+        <!-- 알림 센터: 인증 완료 사용자에게만 표시 -->
+        <div id="notif-wrapper" class="notif-wrapper" hidden>
+          <button
+            id="notif-bell-btn"
+            class="notif-bell-btn"
+            type="button"
+            title="알림 센터"
+            aria-label="알림 센터 열기"
+            aria-expanded="false"
+            aria-controls="notif-dropdown"
+          >
+            <span id="notif-bell-icon" class="notif-bell-icon" aria-hidden="true">🔔</span>
             <span id="notif-badge" class="notif-badge" hidden>0</span>
           </button>
 
           <!-- 알림 내역 드롭다운 패널 -->
-          <div id="notif-dropdown" class="notif-dropdown" hidden>
+          <div id="notif-dropdown" class="notif-dropdown" role="region" aria-label="알림 센터" hidden>
             <div class="notif-dropdown-header">
               <div class="notif-dropdown-title-wrap">
                 <span class="notif-dropdown-title">🔔 알림 센터</span>
-                <span id="notif-unread-count" class="notif-unread-count"></span>
+                <span id="notif-unread-count" class="notif-unread-count" hidden></span>
               </div>
               <div class="notif-dropdown-actions">
                 <button id="notif-mark-all-btn" class="notif-action-btn" type="button">모두 읽음</button>
@@ -75,7 +127,7 @@
               <span id="notif-push-status-text" class="notif-push-status-text">기기 푸시 알림 확인 중...</span>
               <div class="notif-push-btn-group">
                 <button id="notif-push-toggle-btn" class="notif-push-toggle-btn" type="button">알림 켜기</button>
-                <button id="notif-test-push-btn" class="notif-test-push-btn" type="button" title="푸시 알림 테스트 발송">테스트</button>
+                <button id="notif-test-push-btn" class="notif-test-push-btn" type="button" title="내 기기로 푸시 알림 테스트 발송">테스트</button>
               </div>
             </div>
             <div id="notif-list-wrapper" class="notif-list-wrapper">
@@ -87,114 +139,23 @@
       </div>
     </header>
 
-    <!-- 디데이(기념일 & 일정) 다중 관리 모달 -->
-    <div id="dday-modal" class="modal-overlay" hidden>
-      <div class="modal-content dday-modal-card">
-        <div class="dday-modal-header">
-          <div class="dday-title-wrap">
-            <span class="dday-header-icon">📅</span>
-            <h3 class="dday-modal-title">기념일 & 일정 관리</h3>
-          </div>
-          <button id="dday-close-btn" class="dday-close-btn" type="button" title="닫기">✕</button>
-        </div>
-        <p class="dday-modal-desc">우리들의 소중한 기념일, 생일 및 일정을 예쁘게 기록해 보세요.</p>
-
-        <!-- 등록된 기념일 목록 -->
-        <div class="dday-list-container">
-          <p id="dday-empty-text" class="dday-empty-text" hidden>등록된 기념일이 없습니다. 아래에서 추가해 보세요! 🎈</p>
-          <div id="dday-list" class="dday-list"></div>
-        </div>
-
-        <!-- 새 기념일 추가 폼 -->
-        <form id="dday-add-form" class="dday-add-form">
-          <h3 class="dday-form-title">+ 새 기념일 / 일정 추가</h3>
-          <div class="form-group">
-            <label for="dday-title-input" class="form-label">제목</label>
-            <input type="text" id="dday-title-input" class="form-input dday-input" placeholder="예: 함께한 날, 류의 생일, 제주도 여행" required maxlength="20" />
-          </div>
-
-          <div class="dday-form-row">
-            <div class="form-group flex-1">
-              <label for="dday-date-input" class="form-label">날짜</label>
-              <input type="date" id="dday-date-input" class="form-input dday-input" required />
-            </div>
-            <div class="form-group flex-1">
-              <label for="dday-type-select" class="form-label">유형</label>
-              <select id="dday-type-select" class="form-input dday-select">
-                <option value="count_up">💖 함께한 날 (D+)</option>
-                <option value="birthday">🎂 매년 생일 (D-)</option>
-                <option value="event">🌟 일정/데이트 (D-)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- 감성 아이콘 선택 팔레트 -->
-          <div class="form-group">
-            <label class="form-label">아이콘 선택</label>
-            <div id="dday-icon-picker" class="dday-icon-picker">
-              <button type="button" class="dday-icon-btn active" data-icon="💖" title="사랑/기념일">💖</button>
-              <button type="button" class="dday-icon-btn" data-icon="🎂" title="생일">🎂</button>
-              <button type="button" class="dday-icon-btn" data-icon="🍿" title="영화 데이트">🍿</button>
-              <button type="button" class="dday-icon-btn" data-icon="☕" title="카페/디저트">☕</button>
-              <button type="button" class="dday-icon-btn" data-icon="🍽️" title="맛집/외식">🍽️</button>
-              <button type="button" class="dday-icon-btn" data-icon="🚗" title="드라이브/나들이">🚗</button>
-              <button type="button" class="dday-icon-btn" data-icon="✈️" title="여행">✈️</button>
-              <button type="button" class="dday-icon-btn" data-icon="🏨" title="호캉스/펜션">🏨</button>
-              <button type="button" class="dday-icon-btn" data-icon="🎡" title="놀이공원/테마파크">🎡</button>
-              <button type="button" class="dday-icon-btn" data-icon="🎉" title="파티/축하">🎉</button>
-              <button type="button" class="dday-icon-btn" data-icon="⛺" title="캠핑/피크닉">⛺</button>
-              <button type="button" class="dday-icon-btn" data-icon="⭐" title="특별한 날">⭐</button>
-            </div>
-          </div>
-
-          <div class="dday-form-btn-group">
-            <button type="button" id="dday-cancel-btn" class="modal-btn cancel dday-cancel-btn">닫기</button>
-            <button type="submit" id="dday-submit-btn" class="modal-btn submit dday-submit-btn">기념일 추가하기</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
     <main class="main">
-      <!-- 문제가 생기면 여기에 표시됨 -->
-      <p id="error-banner" class="error-banner" hidden></p>
+      <!-- 에러 배너 -->
+      <p id="error-banner" class="error-banner" role="alert" hidden></p>
 
-      <!-- 로그인 전에 보이는 곳 (외부인에게는 실명 및 공지 일체 비노출) -->
+      <!-- 로그인 전 화면 -->
       <section id="login-area" class="login-area">
-        <p class="login-message">허용된 사람만 볼 수 있는 일기장입니다.</p>
-        <div id="auth-status" style="display:none;margin:10px auto;max-width:320px;padding:10px 14px;border:1px solid #ffccd5;border-radius:10px;background:#fff5f6;color:#d93856;font-size:13px;word-break:break-all;text-align:center;line-height:1.4;"></div>
+        <div class="login-hero-icon" aria-hidden="true">💌</div>
+        <p class="login-message">허용된 참여자만 이용할 수 있는 비공개 교환 일기장입니다.</p>
+        <div id="auth-status" class="auth-status-box" role="alert" style="display: none"></div>
         <button id="login-button" class="login-button" type="button">
           구글 계정으로 로그인
         </button>
       </section>
 
-      <!-- 암호 확인 팝업 모달 -->
-      <div id="passcode-modal" class="modal-overlay" hidden>
-        <div class="modal-content passcode-modal-card">
-          <div class="modal-icon">🔒</div>
-          <h2 class="modal-title">암호를 대시오</h2>
-          <p class="modal-desc">다이어리에 접근하려면 암호를 입력해야 합니다.</p>
-          <form id="passcode-form" class="passcode-form">
-            <input
-              type="text"
-              id="passcode-input"
-              class="passcode-input"
-              placeholder="암호를 입력하세요"
-              autocomplete="off"
-              required
-            />
-            <p id="passcode-error" class="passcode-error" hidden></p>
-            <div class="modal-actions">
-              <button type="button" id="passcode-cancel-btn" class="modal-btn cancel">취소</button>
-              <button type="submit" id="passcode-submit-btn" class="modal-btn submit">확인</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <!-- 로그인 후에 보이는 곳 (인증 후 다이어리 진입 시에만 노출) -->
+      <!-- 로그인 및 2차 인증 완료 후 메인 앱 영역 -->
       <div id="app-area" hidden>
-        <!-- 모바일 PWA 당겨서 새로고침 (Pull-to-refresh) 인디케이터 -->
+        <!-- 모바일 PWA 당겨서 새로고침 인디케이터 -->
         <div id="ptr-indicator" class="ptr-indicator" aria-hidden="true">
           <div class="ptr-content">
             <span id="ptr-icon" class="ptr-icon">💖</span>
@@ -202,205 +163,352 @@
           </div>
         </div>
 
-        <!-- 상단 공지사항 영역 -->
-        <section id="notice-area" class="notice-area">
+        <!-- 상단 공지사항 영역 (접힘 상태 저장 + 1줄 미리보기) -->
+        <section id="notice-area" class="notice-area" aria-label="공지사항">
           <div class="notice-header">
             <div class="notice-title-wrap">
-              <span class="notice-icon">📢</span>
+              <span class="notice-icon" aria-hidden="true">📢</span>
               <span class="notice-title">공지사항</span>
               <span id="notice-count" class="notice-count"></span>
             </div>
             <div class="notice-controls">
               <button id="add-notice-btn" class="notice-btn" type="button">+ 공지 쓰기</button>
-              <button id="toggle-notices-btn" class="notice-toggle-btn" type="button" title="접기">▲</button>
+              <button
+                id="toggle-notices-btn"
+                class="notice-toggle-btn"
+                type="button"
+                title="접기"
+                aria-expanded="true"
+                aria-controls="notice-list"
+              >
+                ▲
+              </button>
             </div>
           </div>
 
+          <p id="notice-preview" class="notice-preview" hidden></p>
+
           <!-- 공지 작성/수정 폼 -->
           <div id="notice-form-wrapper" class="notice-form-wrapper" hidden>
-            <textarea id="notice-input" class="notice-input" rows="3" placeholder="공지사항 내용을 입력하세요..."></textarea>
+            <textarea
+              id="notice-input"
+              class="notice-input"
+              rows="3"
+              placeholder="공지사항 내용을 입력하세요..."
+              aria-label="공지사항 내용"
+            ></textarea>
             <div class="notice-form-actions">
               <button id="notice-cancel-btn" class="notice-action-btn cancel" type="button">취소</button>
               <button id="notice-submit-btn" class="notice-action-btn submit" type="button">등록</button>
             </div>
           </div>
 
-          <!-- 공지 목록 -->
           <ul id="notice-list" class="notice-list"></ul>
         </section>
 
+        <!-- 사용자 프로필 · 콕 찌르기 · 로그아웃 바 -->
         <div class="who">
-          <button id="who-am-i-profile-btn" class="who-profile-btn" type="button" title="프로필 사진 및 닉네임 설정">
+          <button
+            id="who-am-i-profile-btn"
+            class="who-profile-btn"
+            type="button"
+            title="프로필 사진 및 닉네임 설정"
+          >
             <span id="who-am-i-avatar" class="who-avatar">👤</span>
             <span class="who-text-wrap">
               <span class="who-label">쓰는 사람:</span>
               <strong id="who-am-i"></strong>
-              <span class="who-edit-badge" title="프로필 설정">✏️</span>
+              <span class="who-edit-badge" aria-hidden="true">✏️</span>
             </span>
           </button>
-          <button id="free-nudge-btn" class="free-nudge-btn" type="button" title="상대방 콕 찌르기">
-            <span class="nudge-btn-finger">👉</span>
-            <span class="free-nudge-text">콕 찌르기</span>
-            <span id="free-nudge-quota-badge" class="nudge-quota-badge">5/5</span>
+          <div class="who-right-actions">
+            <button id="free-nudge-btn" class="free-nudge-btn" type="button" title="상대방 콕 찌르기">
+              <span class="nudge-btn-finger" aria-hidden="true">👉</span>
+              <span class="free-nudge-text">콕 찌르기</span>
+              <span id="free-nudge-quota-badge" class="nudge-quota-badge">5/5</span>
+            </button>
+            <button id="logout-button" class="logout-button" type="button">로그아웃</button>
+          </div>
+        </div>
+
+        <!-- 데스크톱/상단 뷰 모드 전환 탭 -->
+        <div class="view-mode-tabs" role="tablist" aria-label="화면 보기 전환">
+          <button
+            id="view-tab-feed"
+            class="view-tab-btn active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="feed-view-section"
+          >
+            📜 피드 보기
           </button>
-          <button id="logout-button" class="logout-button" type="button">
-            로그아웃
+          <button
+            id="view-tab-cal"
+            class="view-tab-btn"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="calendar-view-section"
+          >
+            📅 달력 보기
+          </button>
+          <button
+            id="view-tab-question"
+            class="view-tab-btn"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="question-view-section"
+          >
+            💌 오늘의 질문
           </button>
         </div>
 
-        <!-- 뷰 모드 전환 탭 (피드 보기 / 달력 보기 / 오늘의 질문) -->
-        <div class="view-mode-tabs">
-          <button id="view-tab-feed" class="view-tab-btn active" type="button">📜 피드 보기</button>
-          <button id="view-tab-cal" class="view-tab-btn" type="button">📅 달력 보기</button>
-          <button id="view-tab-question" class="view-tab-btn" type="button">💌 오늘의 질문</button>
-        </div>
-
-        <!-- 1. 피드 뷰 모드 섹션 (글 작성 + 검색/필터 + 타임라인 피드) -->
-        <div id="feed-view-section">
+        <!-- 1. 피드 뷰 모드 섹션 -->
+        <div id="feed-view-section" role="tabpanel" aria-labelledby="view-tab-feed">
           <!-- 오늘 일기 재촉 콕 찌르기 배너 -->
           <div id="diary-nudge-banner" class="diary-nudge-banner" hidden>
             <div class="diary-nudge-content">
-              <span class="diary-nudge-icon">📖</span>
+              <span class="diary-nudge-icon" aria-hidden="true">📖</span>
               <div class="diary-nudge-text-wrap">
-                <span class="diary-nudge-desc"><strong id="diary-nudge-partner-name" class="diary-nudge-title">상대방</strong>님이 오늘 아직 일기를 작성하지 않았어요!</span>
+                <span class="diary-nudge-desc">
+                  <strong id="diary-nudge-partner-name" class="diary-nudge-title">상대방</strong>님이 오늘 아직 일기를 작성하지 않았어요!
+                </span>
               </div>
             </div>
             <button type="button" id="diary-nudge-btn" class="diary-nudge-btn" title="일기 쓰라고 콕 찌르기">
-              <span class="nudge-btn-finger">👉</span>
+              <span class="nudge-btn-finger" aria-hidden="true">👉</span>
               <span class="diary-nudge-btn-text">일기 콕 찌르기</span>
               <span id="diary-nudge-quota-badge" class="nudge-quota-badge">5/5</span>
             </button>
           </div>
 
-          <!-- 글 쓰는 곳 -->
-          <section class="editor">
-          <!-- 오늘의 기분 선택 바 -->
-          <div class="mood-selector-container">
-            <span class="mood-title">오늘의 기분:</span>
-            <div id="mood-options" class="mood-options">
-              <button type="button" class="mood-btn" data-mood="😁" title="기쁨/신남">😁</button>
-              <button type="button" class="mood-btn" data-mood="🥰" title="행복/사랑">🥰</button>
-              <button type="button" class="mood-btn" data-mood="😭" title="슬픔/눈물">😭</button>
-              <button type="button" class="mood-btn" data-mood="🤬" title="화남/분노">🤬</button>
-              <button type="button" class="mood-btn" data-mood="🤯" title="멘붕/멍함">🤯</button>
-              <button type="button" class="mood-btn" data-mood="😴" title="피곤/졸림">😴</button>
-            </div>
-          </div>
-
-          <input
-            id="title-input"
-            class="title-input"
-            type="text"
-            placeholder="제목 (미입력 시 'M/D 오늘의 일기' 자동 입력)"
-          />
-          <textarea
-            id="body-input"
-            class="body-input"
-            rows="5"
-            placeholder="오늘 있었던 일"
-          ></textarea>
-
-          <!-- 미디어 첨부 버튼 그룹 (사진 첨부 / 그림 그리기) -->
-          <div class="editor-media-buttons">
-            <button id="photo-toggle-btn" class="media-btn photo-btn" type="button">
-              📷 사진 첨부
+          <!-- 컴팩트 글쓰기 트리거 바 (기본 접힘으로 피드 첫 화면 가시성 극대화) -->
+          <div id="composer-compact-bar" class="composer-compact-bar">
+            <button
+              type="button"
+              id="composer-compact-open-btn"
+              class="composer-compact-open-btn"
+              aria-expanded="false"
+              aria-controls="editor-section"
+            >
+              <span class="composer-compact-icon" aria-hidden="true">✏️</span>
+              <span class="composer-compact-placeholder">오늘 하루를 기록해 보세요...</span>
             </button>
-            <input type="file" id="photo-file-input" accept="image/*" multiple style="display: none;" />
-            <button id="draw-toggle-btn" class="media-btn draw-btn" type="button">
-              🎨 그림 그리기
-            </button>
-          </div>
-
-          <!-- 첨부된 사진 다중 미리보기 영역 (최대 5장) -->
-          <div id="photo-preview-wrap" class="photo-preview-wrap" hidden>
-            <div class="photo-preview-header">
-              <span id="photo-count-badge" class="photo-count-badge">📷 사진 (0/5)</span>
-              <div class="photo-preview-actions">
-                <button type="button" id="photo-add-more-btn" class="photo-mini-btn add">+ 사진 추가</button>
-                <button type="button" id="photo-clear-all-btn" class="photo-mini-btn clear">전체 삭제</button>
-              </div>
-            </div>
-            <div id="photo-preview-list" class="photo-preview-list"></div>
-            <span class="photo-compressed-badge">✨ 최대 5장 고화질 자동 압축 완료</span>
-          </div>
-
-          <!-- 접이식 그림판 영역 -->
-          <div id="drawing-container" class="drawing-container" hidden>
-            <div class="drawing-toolbar">
-              <div class="tool-group">
-                <button type="button" id="tool-pen" class="tool-btn active">✏️ 펜</button>
-                <button type="button" id="tool-eraser" class="tool-btn">🧹 지우개</button>
-              </div>
-              <div class="tool-group colors-group">
-                <input type="color" id="tool-color-picker" class="color-picker" value="#333333" title="색상 선택" />
-                <button type="button" class="color-chip active" data-color="#333333" style="background-color: #333333;"></button>
-                <button type="button" class="color-chip" data-color="#e66d7b" style="background-color: #e66d7b;"></button>
-                <button type="button" class="color-chip" data-color="#3b82f6" style="background-color: #3b82f6;"></button>
-                <button type="button" class="color-chip" data-color="#10b981" style="background-color: #10b981;"></button>
-                <button type="button" class="color-chip" data-color="#f59e0b" style="background-color: #f59e0b;"></button>
-              </div>
-              <div class="tool-group size-group">
-                <button type="button" class="size-btn" data-size="3" title="얇게">●</button>
-                <button type="button" class="size-btn active" data-size="8" title="보통">●</button>
-                <button type="button" class="size-btn" data-size="16" title="굵게">●</button>
-              </div>
-              <div class="tool-group action-group">
-                <button type="button" id="tool-undo" class="tool-btn action-btn" title="실행취소">↩ 취소</button>
-                <button type="button" id="tool-clear" class="tool-btn action-btn" title="전체 지우기">🗑️ 지우기</button>
-              </div>
-            </div>
-            <div class="canvas-wrapper">
-              <canvas id="drawing-canvas"></canvas>
+            <div class="composer-compact-quick">
+              <button
+                type="button"
+                id="composer-quick-photo-btn"
+                class="composer-quick-btn"
+                title="사진 첨부하며 일기 쓰기"
+                aria-label="사진 첨부하며 일기 쓰기"
+              >
+                📷
+              </button>
+              <button
+                type="button"
+                id="composer-quick-draw-btn"
+                class="composer-quick-btn"
+                title="그림 그리며 일기 쓰기"
+                aria-label="그림 그리며 일기 쓰기"
+              >
+                🎨
+              </button>
             </div>
           </div>
 
-          <button id="save-button" class="save-button" type="button">
-            저장
-          </button>
-        </section>
-
-        <!-- 실시간 검색 및 필터 바 -->
-          <section class="search-filter-section">
-            <div class="search-box">
-              <span class="search-icon">🔍</span>
-              <input type="text" id="search-input" class="search-input" placeholder="제목이나 내용으로 검색..." autocomplete="off" />
-              <button id="search-clear-btn" class="search-clear-btn" type="button" hidden title="검색어 지우기">✕</button>
+          <!-- 일기 작성 / 수정 에디터 -->
+          <section id="editor-section" class="editor" hidden aria-label="일기 작성 영역">
+            <div class="editor-top-bar">
+              <h2 id="editor-header-title" class="editor-header-title">✏️ 오늘의 일기 쓰기</h2>
+              <button
+                type="button"
+                id="editor-collapse-btn"
+                class="editor-collapse-btn"
+                title="에디터 접기"
+                aria-label="에디터 접기"
+              >
+                접기 ✕
+              </button>
             </div>
 
-            <div class="filter-group-wrap">
-              <!-- 기분 필터 -->
-              <div class="filter-chips mood-chips">
-                <button type="button" class="filter-chip filter-mood-btn active" data-mood="all">전체 기분</button>
-                <button type="button" class="filter-chip filter-mood-btn" data-mood="😁">😁</button>
-                <button type="button" class="filter-chip filter-mood-btn" data-mood="🥰">🥰</button>
-                <button type="button" class="filter-chip filter-mood-btn" data-mood="😭">😭</button>
-                <button type="button" class="filter-chip filter-mood-btn" data-mood="🤬">🤬</button>
-                <button type="button" class="filter-chip filter-mood-btn" data-mood="🤯">🤯</button>
-                <button type="button" class="filter-chip filter-mood-btn" data-mood="😴">😴</button>
-              </div>
+            <!-- 임시저장 복구 안내 배너 -->
+            <div id="draft-restore-banner" class="draft-restore-banner" hidden>
+              <span>💾 임시저장된 일기를 이어서 작성 중입니다.</span>
+              <button type="button" id="draft-discard-btn" class="draft-discard-btn">초기화</button>
+            </div>
 
-              <!-- 작성자 필터 -->
-              <div class="filter-chips author-chips">
-                <button type="button" class="filter-chip filter-author-btn active" data-author="all">모든 글</button>
-                <button type="button" class="filter-chip filter-author-btn" data-author="other">상대 글</button>
-                <button type="button" class="filter-chip filter-author-btn" data-author="my">내 글</button>
+            <!-- 오늘의 기분 선택 바 -->
+            <div class="mood-selector-container">
+              <span class="mood-title">오늘의 기분:</span>
+              <div id="mood-options" class="mood-options" role="group" aria-label="오늘의 기분 선택">
+                <button type="button" class="mood-btn" data-mood="😁" title="기쁨/신남" aria-label="기쁨" aria-pressed="false">😁</button>
+                <button type="button" class="mood-btn" data-mood="🥰" title="행복/사랑" aria-label="행복" aria-pressed="false">🥰</button>
+                <button type="button" class="mood-btn" data-mood="😭" title="슬픔/눈물" aria-label="슬픔" aria-pressed="false">😭</button>
+                <button type="button" class="mood-btn" data-mood="🤬" title="화남/분노" aria-label="화남" aria-pressed="false">🤬</button>
+                <button type="button" class="mood-btn" data-mood="🤯" title="멘붕/멍함" aria-label="멘붕" aria-pressed="false">🤯</button>
+                <button type="button" class="mood-btn" data-mood="😴" title="피곤/졸림" aria-label="피곤" aria-pressed="false">😴</button>
               </div>
             </div>
 
-            <p id="search-result-count" class="search-result-count" hidden></p>
+            <input
+              id="title-input"
+              class="title-input"
+              type="text"
+              placeholder="제목 (미입력 시 오늘 날짜 자동 입력)"
+              aria-label="일기 제목"
+            />
+            <textarea
+              id="body-input"
+              class="body-input"
+              rows="5"
+              placeholder="오늘 있었던 일을 자유롭게 기록해 보세요..."
+              aria-label="일기 본문"
+            ></textarea>
+
+            <!-- 미디어 첨부 버튼 그룹 (사진 + 그림 동시 첨부 지원) -->
+            <div class="editor-media-buttons">
+              <button id="photo-toggle-btn" class="media-btn photo-btn" type="button">
+                📷 사진 첨부
+              </button>
+              <input type="file" id="photo-file-input" accept="image/*" multiple style="display: none" />
+              <button id="draw-toggle-btn" class="media-btn draw-btn" type="button">
+                🎨 그림 그리기
+              </button>
+            </div>
+
+            <!-- 첨부된 사진 다중 미리보기 영역 -->
+            <div id="photo-preview-wrap" class="photo-preview-wrap" hidden>
+              <div class="photo-preview-header">
+                <span id="photo-count-badge" class="photo-count-badge">📷 사진 (0/5)</span>
+                <div class="photo-preview-actions">
+                  <button type="button" id="photo-add-more-btn" class="photo-mini-btn add">+ 사진 추가</button>
+                  <button type="button" id="photo-clear-all-btn" class="photo-mini-btn clear">전체 삭제</button>
+                </div>
+              </div>
+              <div id="photo-preview-list" class="photo-preview-list"></div>
+              <span class="photo-compressed-badge">✨ 최대 5장 고화질 자동 압축 · 그림과 함께 첨부 가능</span>
+            </div>
+
+            <!-- 접이식 그림판 영역 -->
+            <div id="drawing-container" class="drawing-container" hidden>
+              <div class="drawing-toolbar">
+                <div class="tool-group">
+                  <button type="button" id="tool-pen" class="tool-btn active">✏️ 펜</button>
+                  <button type="button" id="tool-eraser" class="tool-btn">🧹 지우개</button>
+                </div>
+                <div class="tool-group colors-group" role="group" aria-label="펜 색상 선택">
+                  <input type="color" id="tool-color-picker" class="color-picker" value="#333333" title="직접 색상 선택" aria-label="직접 색상 선택" />
+                  <button type="button" class="color-chip active" data-color="#333333" style="background-color: #333333" title="검정" aria-label="검정색"></button>
+                  <button type="button" class="color-chip" data-color="#e66d7b" style="background-color: #e66d7b" title="핑크" aria-label="핑크색"></button>
+                  <button type="button" class="color-chip" data-color="#3b82f6" style="background-color: #3b82f6" title="파랑" aria-label="파란색"></button>
+                  <button type="button" class="color-chip" data-color="#10b981" style="background-color: #10b981" title="초록" aria-label="초록색"></button>
+                  <button type="button" class="color-chip" data-color="#f59e0b" style="background-color: #f59e0b" title="노랑" aria-label="노란색"></button>
+                </div>
+                <div class="tool-group size-group" role="group" aria-label="펜 굵기 선택">
+                  <button type="button" class="size-btn" data-size="3" title="얇게" aria-label="얇은 펜">●</button>
+                  <button type="button" class="size-btn active" data-size="8" title="보통" aria-label="보통 펜">●</button>
+                  <button type="button" class="size-btn" data-size="16" title="굵게" aria-label="굵은 펜">●</button>
+                </div>
+                <div class="tool-group action-group">
+                  <button type="button" id="tool-undo" class="tool-btn action-btn" title="실행취소" disabled>↩ 취소</button>
+                  <button type="button" id="tool-redo" class="tool-btn action-btn" title="다시 실행" disabled>↪ 다시</button>
+                  <button type="button" id="tool-clear" class="tool-btn action-btn" title="전체 지우기">🗑️ 지우기</button>
+                </div>
+              </div>
+              <div class="canvas-wrapper">
+                <canvas id="drawing-canvas"></canvas>
+              </div>
+            </div>
+
+            <div class="editor-submit-row">
+              <button id="cancel-edit-button" class="cancel-edit-button" type="button" hidden>
+                수정 취소
+              </button>
+              <button id="save-button" class="save-button" type="button">
+                저장
+              </button>
+            </div>
           </section>
 
-          <!-- 쓴 글이 쌓이는 곳 (통합 타임라인 피드) -->
+          <!-- 타임라인 피드 헤더 + 접이식 검색/필터 -->
           <section class="entries timeline-section">
             <div class="timeline-header">
               <div class="timeline-title-wrap">
-                <span class="timeline-icon">📖</span>
-                <h2 class="timeline-title">니랑나의 일기</h2>
+                <span class="timeline-icon" aria-hidden="true">📖</span>
+                <h2 class="timeline-title">우리의 일기</h2>
                 <span id="timeline-total-count" class="timeline-count">0</span>
               </div>
+              <button
+                type="button"
+                id="search-filter-toggle-btn"
+                class="search-filter-toggle-btn"
+                aria-expanded="false"
+                aria-controls="search-filter-body"
+              >
+                <span aria-hidden="true">🔍</span>
+                <span>검색 · 필터</span>
+                <span id="search-active-badge" class="search-active-badge" hidden>0</span>
+              </button>
             </div>
 
-            <p id="empty-message" class="empty-message" hidden>아직 작성된 일기가 없습니다. 첫 일기를 남겨보세요! 💖</p>
+            <!-- 실시간 검색 및 필터 패널 (기본 접힘) -->
+            <section id="search-filter-body" class="search-filter-section" hidden>
+              <div class="search-box">
+                <span class="search-icon" aria-hidden="true">🔍</span>
+                <input
+                  type="text"
+                  id="search-input"
+                  class="search-input"
+                  placeholder="제목이나 내용으로 검색..."
+                  aria-label="일기 검색"
+                  autocomplete="off"
+                />
+                <button
+                  id="search-clear-btn"
+                  class="search-clear-btn"
+                  type="button"
+                  hidden
+                  title="검색어 지우기"
+                  aria-label="검색어 지우기"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div class="filter-group-wrap">
+                <div class="filter-chips mood-chips" role="group" aria-label="기분 필터">
+                  <button type="button" class="filter-chip filter-mood-btn active" data-mood="all">전체 기분</button>
+                  <button type="button" class="filter-chip filter-mood-btn" data-mood="😁" aria-label="기쁨 필터">😁</button>
+                  <button type="button" class="filter-chip filter-mood-btn" data-mood="🥰" aria-label="행복 필터">🥰</button>
+                  <button type="button" class="filter-chip filter-mood-btn" data-mood="😭" aria-label="슬픔 필터">😭</button>
+                  <button type="button" class="filter-chip filter-mood-btn" data-mood="🤬" aria-label="화남 필터">🤬</button>
+                  <button type="button" class="filter-chip filter-mood-btn" data-mood="🤯" aria-label="멘붕 필터">🤯</button>
+                  <button type="button" class="filter-chip filter-mood-btn" data-mood="😴" aria-label="피곤 필터">😴</button>
+                </div>
+
+                <div class="filter-chips author-chips" role="group" aria-label="작성자 필터">
+                  <button type="button" class="filter-chip filter-author-btn active" data-author="all">모든 글</button>
+                  <button type="button" class="filter-chip filter-author-btn" data-author="other">상대 글</button>
+                  <button type="button" class="filter-chip filter-author-btn" data-author="my">내 글</button>
+                </div>
+              </div>
+
+              <p id="search-result-count" class="search-result-count" hidden></p>
+            </section>
+
+            <p id="empty-message" class="empty-message" hidden>
+              아직 작성된 일기가 없습니다. 첫 일기를 남겨보세요! 💖
+            </p>
+
+            <div id="empty-search-wrap" class="empty-search-wrap" hidden>
+              <p class="empty-search-text">조건에 맞는 일기를 찾지 못했어요 🔍</p>
+              <button type="button" id="empty-reset-filter-btn" class="empty-reset-filter-btn">
+                필터 초기화
+              </button>
+            </div>
+
             <ul id="timeline-entry-list" class="entry-list timeline-list"></ul>
 
             <!-- 더보기 버튼 컨테이너 -->
@@ -414,19 +522,21 @@
         </div>
 
         <!-- 2. 캘린더(달력) 뷰 모드 섹션 -->
-        <section id="calendar-view-section" class="calendar-view-section" hidden>
+        <section id="calendar-view-section" class="calendar-view-section" role="tabpanel" aria-labelledby="view-tab-cal" hidden>
           <div class="calendar-card">
-            <!-- 캘린더 상단 네비게이션 -->
             <div class="cal-nav-bar">
-              <button type="button" id="cal-prev-btn" class="cal-nav-btn" title="이전 달">◀</button>
-              <h2 id="cal-month-title" class="cal-month-title">2026년 8월</h2>
-              <button type="button" id="cal-next-btn" class="cal-nav-btn" title="다음 달">▶</button>
-              <button type="button" id="cal-today-btn" class="cal-today-btn">오늘</button>
-              <button type="button" id="cal-report-btn" class="cal-report-btn" title="이 달의 월간 레포트">📊 레포트</button>
+              <div class="cal-nav-month-group">
+                <button type="button" id="cal-prev-btn" class="cal-nav-btn" title="이전 달" aria-label="이전 달">◀</button>
+                <h2 id="cal-month-title" class="cal-month-title">2026년 11월</h2>
+                <button type="button" id="cal-next-btn" class="cal-nav-btn" title="다음 달" aria-label="다음 달">▶</button>
+              </div>
+              <div class="cal-nav-util-group">
+                <button type="button" id="cal-today-btn" class="cal-today-btn">오늘</button>
+                <button type="button" id="cal-report-btn" class="cal-report-btn" title="이 달의 월간 레포트">📊 레포트</button>
+              </div>
             </div>
 
-            <!-- 요일 헤더 -->
-            <div class="cal-weekdays-grid">
+            <div class="cal-weekdays-grid" aria-hidden="true">
               <span class="cal-weekday sun">일</span>
               <span class="cal-weekday">월</span>
               <span class="cal-weekday">화</span>
@@ -436,11 +546,9 @@
               <span class="cal-weekday sat">토</span>
             </div>
 
-            <!-- 날짜 그리드 -->
             <div id="cal-days-grid" class="cal-days-grid"></div>
           </div>
 
-          <!-- 선택된 날짜의 일기 및 일정 목록 -->
           <div class="cal-selected-section">
             <div class="cal-selected-header-wrap">
               <h3 id="cal-selected-date-title" class="cal-selected-date-title">📅 선택된 날짜의 기록</h3>
@@ -460,13 +568,12 @@
         </section>
 
         <!-- 3. 오늘의 커플 문답 뷰 모드 섹션 -->
-        <section id="question-view-section" class="question-view-section" hidden>
+        <section id="question-view-section" class="question-view-section" role="tabpanel" aria-labelledby="view-tab-question" hidden>
           <div id="daily-question-section" class="daily-question-section">
             <div class="dq-card">
-              <!-- 과거 문답 열람 중 안내 배너 -->
               <div id="dq-history-banner" class="dq-history-banner" hidden>
                 <div class="dq-hbanner-left">
-                  <span class="dq-hbanner-icon">📖</span>
+                  <span class="dq-hbanner-icon" aria-hidden="true">📖</span>
                   <span class="dq-hbanner-text">과거에 완료된 문답을 열람 중입니다.</span>
                 </div>
                 <button type="button" id="dq-history-banner-latest-btn" class="dq-hbanner-btn">
@@ -474,7 +581,6 @@
                 </button>
               </div>
 
-              <!-- 질문 상단 헤더: 배지, 지난 문답 목록 버튼 -->
               <div class="dq-header">
                 <span id="dq-badge" class="dq-badge">💌 Q.1</span>
                 <div class="dq-header-actions">
@@ -488,10 +594,8 @@
                 </div>
               </div>
 
-              <!-- 질문 본문 -->
               <h3 id="dq-question-text" class="dq-question-text">질문을 불러오는 중입니다...</h3>
 
-              <!-- 문답 상태 컨테이너 -->
               <div id="dq-answers-wrap" class="dq-answers-wrap">
                 <!-- 나의 답변 영역 -->
                 <div class="dq-answer-box my-box">
@@ -502,12 +606,19 @@
                     </span>
                     <button type="button" id="dq-edit-btn" class="dq-edit-btn" hidden>✏️ 수정</button>
                   </div>
-                  <!-- 작성 폼 -->
                   <div id="dq-my-form" class="dq-form">
-                    <textarea id="dq-my-input" class="dq-textarea" rows="3" placeholder="질문에 대한 솔직한 생각을 남겨보세요..."></textarea>
-                    <button type="button" id="dq-submit-btn" class="dq-submit-btn">답변 남기기 💌</button>
+                    <textarea
+                      id="dq-my-input"
+                      class="dq-textarea"
+                      rows="3"
+                      placeholder="질문에 대한 솔직한 생각을 남겨보세요..."
+                      aria-label="오늘의 질문 내 답변"
+                    ></textarea>
+                    <div class="dq-form-actions">
+                      <button type="button" id="dq-edit-cancel-btn" class="dq-edit-cancel-btn" hidden>취소</button>
+                      <button type="button" id="dq-submit-btn" class="dq-submit-btn">답변 남기기 💌</button>
+                    </div>
                   </div>
-                  <!-- 작성 완료 시 내 답변 표시 -->
                   <div id="dq-my-display" class="dq-display" hidden>
                     <p id="dq-my-text" class="dq-text"></p>
                   </div>
@@ -521,35 +632,27 @@
                       <strong id="dq-partner-name">상대방의 답변</strong>
                     </span>
                   </div>
-                  <!-- 1. 상대방 미작성 또는 블라인드 잠금 상태 -->
                   <div id="dq-partner-locked" class="dq-blind-card">
-                    <div id="dq-lock-icon" class="dq-lock-icon">🔒</div>
+                    <div id="dq-lock-icon" class="dq-lock-icon" aria-hidden="true">🔒</div>
                     <strong id="dq-lock-title" class="dq-lock-title">상대방이 아직 작성하지 않았어요</strong>
                     <p id="dq-lock-desc" class="dq-lock-desc">내 답변을 먼저 남겨보세요!</p>
                     <div id="dq-partner-nudge-wrap" class="dq-partner-nudge-wrap" hidden>
                       <button type="button" id="dq-nudge-btn" class="dq-nudge-btn" title="상대방 콕 찔러서 재촉하기">
-                        <span class="nudge-btn-finger">👉</span>
+                        <span class="nudge-btn-finger" aria-hidden="true">👉</span>
                         <span class="nudge-btn-text">콕 찔러서 재촉하기</span>
                         <span id="dq-nudge-quota-badge" class="nudge-quota-badge">5/5</span>
                       </button>
                     </div>
                   </div>
-                  <!-- 2. 내가 썼는데 상대방은 아직 안 썼을 때: 대기 상태 -->
-                  <div id="dq-partner-waiting" class="dq-waiting-card" hidden>
-                    <div class="dq-wait-icon">⏳</div>
-                    <p class="dq-wait-desc">상대방의 답변을 기다리는 중이에요...</p>
-                  </div>
-                  <!-- 3. 둘 다 썼을 때: 상대방 답변 공개 -->
                   <div id="dq-partner-display" class="dq-display" hidden>
                     <p id="dq-partner-text" class="dq-text"></p>
                   </div>
                 </div>
               </div>
 
-              <!-- 두 사람 모두 작성 완료 시 나타나는 다음 질문 진행 바 -->
               <div id="dq-next-question-wrap" class="dq-next-question-wrap" hidden>
                 <div class="dq-celebrate-box">
-                  <span class="dq-celebrate-icon">🎉</span>
+                  <span class="dq-celebrate-icon" aria-hidden="true">🎉</span>
                   <span class="dq-celebrate-text">두 사람 모두 답변을 완료했어요! 서로의 마음을 확인해 보세요.</span>
                 </div>
                 <button type="button" id="dq-advance-btn" class="dq-advance-btn">
@@ -557,23 +660,20 @@
                 </button>
               </div>
 
-              <!-- 문답 댓글/대화 영역 -->
               <div id="dq-comments-container" class="dq-comments-container">
                 <div class="dq-comments-divider"></div>
                 <div class="dq-comments-header">
                   <span class="dq-comments-title">
-                    <span class="dq-comments-icon">💬</span>
+                    <span class="dq-comments-icon" aria-hidden="true">💬</span>
                     <span>우리들의 한마디</span>
                   </span>
                   <span id="dq-comments-count" class="dq-comments-count">0</span>
                 </div>
 
-                <!-- 잠금 안내 (답변 미완료 시) -->
                 <div id="dq-comments-locked-notice" class="dq-comments-notice" hidden>
                   <span>🔒 두 사람 모두 답변을 남기면 댓글로 대화를 나눌 수 있어요!</span>
                 </div>
 
-                <!-- 댓글 목록 및 작성 폼 (둘 다 작성 완료 시 열림) -->
                 <div id="dq-comments-content" class="dq-comments-content" hidden>
                   <div id="dq-comments-empty" class="dq-comments-empty" hidden>
                     두 사람만의 톡을 시작해보세요! 💬✨
@@ -586,6 +686,7 @@
                       id="dq-comment-input"
                       class="dq-comment-input"
                       placeholder="메시지를 입력하세요... 💬"
+                      aria-label="오늘의 질문 한마디 입력"
                       maxlength="300"
                       autocomplete="off"
                       required
@@ -602,6 +703,34 @@
       </div>
     </main>
 
+    <!-- 플로팅 일기 쓰기 버튼 (모바일 퀵 작성) -->
+    <button
+      type="button"
+      id="fab-write-btn"
+      class="fab-write-btn"
+      title="새 일기 쓰기"
+      aria-label="새 일기 쓰기"
+      hidden
+    >
+      <span aria-hidden="true">✏️</span>
+    </button>
+
+    <!-- 모바일 하단 고정 탭 네비게이션 바 -->
+    <nav id="mobile-bottom-nav" class="mobile-bottom-nav" aria-label="하단 탭 메뉴" hidden>
+      <button type="button" class="bottom-nav-btn active" data-tab="feed" aria-selected="true">
+        <span class="bottom-nav-icon" aria-hidden="true">📜</span>
+        <span class="bottom-nav-label">피드</span>
+      </button>
+      <button type="button" class="bottom-nav-btn" data-tab="cal" aria-selected="false">
+        <span class="bottom-nav-icon" aria-hidden="true">📅</span>
+        <span class="bottom-nav-label">달력</span>
+      </button>
+      <button type="button" class="bottom-nav-btn" data-tab="question" aria-selected="false">
+        <span class="bottom-nav-icon" aria-hidden="true">💌</span>
+        <span class="bottom-nav-label">질문</span>
+      </button>
+    </nav>
+
     <!-- 하단 푸터 (업데이트 내역 버튼) -->
     <footer id="app-footer" class="app-footer" hidden>
       <button id="changelog-btn" class="changelog-btn" type="button">
@@ -609,17 +738,152 @@
       </button>
     </footer>
 
+    <!-- =========================================================
+         전역 모달 레이어 (모두 role="dialog" / aria-modal="true" 표준화)
+         ========================================================= -->
+
+    <!-- 2차 암호 확인 모달 (잠금 모달: ESC/배경 클릭 닫기 차단) -->
+    <div
+      id="passcode-modal"
+      class="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="passcode-modal-title"
+      data-locked-modal="true"
+      hidden
+    >
+      <div class="modal-content passcode-modal-card">
+        <div class="modal-icon" aria-hidden="true">🔒</div>
+        <h2 id="passcode-modal-title" class="modal-title">암호를 입력하세요</h2>
+        <p class="modal-desc">다이어리에 접근하려면 2차 암호 확인이 필요합니다.</p>
+        <form id="passcode-form" class="passcode-form">
+          <div class="passcode-input-wrap">
+            <input
+              type="password"
+              id="passcode-input"
+              class="passcode-input"
+              placeholder="암호를 입력하세요"
+              aria-label="2차 접근 암호"
+              autocomplete="off"
+              required
+            />
+            <button
+              type="button"
+              id="passcode-toggle-btn"
+              class="passcode-toggle-btn"
+              title="암호 보기"
+              aria-label="암호 표시 전환"
+              aria-pressed="false"
+            >
+              👁️
+            </button>
+          </div>
+          <p id="passcode-error" class="passcode-error" role="alert" hidden></p>
+          <div class="modal-actions">
+            <button type="button" id="passcode-cancel-btn" class="modal-btn cancel">취소</button>
+            <button type="submit" id="passcode-submit-btn" class="modal-btn submit">확인</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 디데이(기념일 & 일정) 다중 관리 모달 -->
+    <div
+      id="dday-modal"
+      class="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dday-modal-title"
+      hidden
+    >
+      <div class="modal-content dday-modal-card">
+        <div class="dday-modal-header">
+          <div class="dday-title-wrap">
+            <span class="dday-header-icon" aria-hidden="true">📅</span>
+            <h2 id="dday-modal-title" class="dday-modal-title">기념일 & 일정 관리</h2>
+          </div>
+          <button id="dday-close-btn" class="dday-close-btn" type="button" title="닫기" aria-label="닫기">✕</button>
+        </div>
+        <p class="dday-modal-desc">소중한 기념일, 생일 및 일정을 기록해 보세요.</p>
+
+        <div class="dday-list-container">
+          <p id="dday-empty-text" class="dday-empty-text" hidden>등록된 기념일이 없습니다. 아래에서 추가해 보세요! 🎈</p>
+          <div id="dday-list" class="dday-list"></div>
+        </div>
+
+        <form id="dday-add-form" class="dday-add-form">
+          <h3 class="dday-form-title">+ 새 기념일 / 일정 추가</h3>
+          <div class="form-group">
+            <label for="dday-title-input" class="form-label">제목</label>
+            <input
+              type="text"
+              id="dday-title-input"
+              class="form-input dday-input"
+              placeholder="예: 함께한 날, 생일, 제주도 여행"
+              required
+              maxlength="20"
+            />
+          </div>
+
+          <div class="dday-form-row">
+            <div class="form-group flex-1">
+              <label for="dday-date-input" class="form-label">날짜</label>
+              <input type="date" id="dday-date-input" class="form-input dday-input" required />
+            </div>
+            <div class="form-group flex-1">
+              <label for="dday-type-select" class="form-label">유형</label>
+              <select id="dday-type-select" class="form-input dday-select">
+                <option value="count_up">💖 함께한 날 (D+)</option>
+                <option value="birthday">🎂 매년 생일 (D-)</option>
+                <option value="event">🌟 일정/데이트 (D-)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <span class="form-label">아이콘 선택</span>
+            <div id="dday-icon-picker" class="dday-icon-picker" role="group" aria-label="일정 아이콘 선택">
+              <button type="button" class="dday-icon-btn active" data-icon="💖" title="사랑/기념일" aria-label="하트">💖</button>
+              <button type="button" class="dday-icon-btn" data-icon="🎂" title="생일" aria-label="생일 케이크">🎂</button>
+              <button type="button" class="dday-icon-btn" data-icon="🍿" title="영화 데이트" aria-label="팝콘">🍿</button>
+              <button type="button" class="dday-icon-btn" data-icon="☕" title="카페/디저트" aria-label="커피">☕</button>
+              <button type="button" class="dday-icon-btn" data-icon="🍽️" title="맛집/외식" aria-label="식사">🍽️</button>
+              <button type="button" class="dday-icon-btn" data-icon="🚗" title="드라이브/나들이" aria-label="드라이브">🚗</button>
+              <button type="button" class="dday-icon-btn" data-icon="✈️" title="여행" aria-label="비행기">✈️</button>
+              <button type="button" class="dday-icon-btn" data-icon="🏨" title="호캉스/펜션" aria-label="숙소">🏨</button>
+              <button type="button" class="dday-icon-btn" data-icon="🎡" title="놀이공원/테마파크" aria-label="관람차">🎡</button>
+              <button type="button" class="dday-icon-btn" data-icon="🎉" title="파티/축하" aria-label="파티">🎉</button>
+              <button type="button" class="dday-icon-btn" data-icon="⛺" title="캠핑/피크닉" aria-label="캠핑">⛺</button>
+              <button type="button" class="dday-icon-btn" data-icon="⭐" title="특별한 날" aria-label="별">⭐</button>
+            </div>
+          </div>
+
+          <div class="dday-form-btn-group">
+            <button type="button" id="dday-cancel-btn" class="modal-btn cancel dday-cancel-btn">닫기</button>
+            <button type="submit" id="dday-submit-btn" class="modal-btn submit dday-submit-btn">기념일 추가하기</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- 업데이트 내역 팝업 모달 -->
-    <div id="changelog-modal" class="modal-overlay" hidden>
+    <div
+      id="changelog-modal"
+      class="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="changelog-modal-title"
+      hidden
+    >
       <div class="modal-content changelog-modal-card">
         <div class="changelog-modal-header">
           <div class="modal-title-wrap">
-            <span class="modal-icon">✨</span>
-            <h2 class="modal-title">업데이트 내역</h2>
+            <span class="modal-icon" aria-hidden="true">✨</span>
+            <h2 id="changelog-modal-title" class="modal-title">업데이트 내역</h2>
           </div>
-          <button id="changelog-close-btn" class="changelog-close-btn" type="button" title="닫기">✕</button>
+          <button id="changelog-close-btn" class="changelog-close-btn" type="button" title="닫기" aria-label="닫기">✕</button>
         </div>
-        <p class="modal-desc">류이어리가 발전해 온 소중한 기록들입니다.</p>
+        <p class="modal-desc">류이어리가 발전해 온 기록들입니다.</p>
         <div class="changelog-list-wrap">
           <ul id="changelog-list" class="changelog-list"></ul>
         </div>
@@ -627,105 +891,116 @@
     </div>
 
     <!-- 감성 월간 레포트 모달 -->
-    <div id="monthly-report-modal" class="modal-overlay" hidden>
+    <div
+      id="monthly-report-modal"
+      class="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="report-modal-month-title"
+      hidden
+    >
       <div class="modal-content report-modal-card">
-        <!-- 모달 헤더: 타이틀, 월 선택기, 닫기 버튼 -->
         <div class="report-modal-header">
           <div class="report-month-picker">
-            <button type="button" id="report-prev-month-btn" class="report-month-nav-btn" title="이전 달">◀</button>
-            <h2 id="report-modal-month-title" class="report-modal-month-title">2026년 8월</h2>
-            <button type="button" id="report-next-month-btn" class="report-month-nav-btn" title="다음 달">▶</button>
+            <button type="button" id="report-prev-month-btn" class="report-month-nav-btn" title="이전 달" aria-label="이전 달">◀</button>
+            <h2 id="report-modal-month-title" class="report-modal-month-title">2026년 11월</h2>
+            <button type="button" id="report-next-month-btn" class="report-month-nav-btn" title="다음 달" aria-label="다음 달">▶</button>
           </div>
-          <button id="report-close-btn" class="report-close-btn" type="button" title="닫기">✕</button>
+          <button id="report-close-btn" class="report-close-btn" type="button" title="닫기" aria-label="닫기">✕</button>
         </div>
 
-        <!-- 슬라이드 캐러셀 영역 -->
         <div id="report-carousel" class="report-carousel">
           <div id="report-slides-wrapper" class="report-slides-wrapper"></div>
-
-          <!-- 좌우 네비게이션 버튼 -->
-          <button type="button" id="report-prev-slide" class="report-slide-nav-btn prev" title="이전 카드">❮</button>
-          <button type="button" id="report-next-slide" class="report-slide-nav-btn next" title="다음 카드">❯</button>
+          <button type="button" id="report-prev-slide" class="report-slide-nav-btn prev" title="이전 카드" aria-label="이전 카드">❮</button>
+          <button type="button" id="report-next-slide" class="report-slide-nav-btn next" title="다음 카드" aria-label="다음 카드">❯</button>
         </div>
 
-        <!-- 하단 도트 인디케이터 -->
         <div id="report-dots" class="report-dots"></div>
       </div>
     </div>
 
-    <!-- 통합 프로필(사진 및 닉네임) 설정 모달 -->
-    <div id="profile-photo-modal" class="modal-overlay" hidden>
+    <!-- 통합 프로필 설정 모달 -->
+    <div
+      id="profile-photo-modal"
+      class="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="profile-photo-modal-title"
+      hidden
+    >
       <div class="modal-content profile-photo-modal-card">
         <div class="profile-photo-modal-header">
           <div class="modal-title-wrap">
-            <span class="modal-icon">👤</span>
+            <span class="modal-icon" aria-hidden="true">👤</span>
             <h2 id="profile-photo-modal-title" class="modal-title">프로필 설정</h2>
           </div>
-          <button id="profile-photo-close-btn" class="profile-photo-close-btn" type="button" title="닫기">✕</button>
+          <button id="profile-photo-close-btn" class="profile-photo-close-btn" type="button" title="닫기" aria-label="닫기">✕</button>
         </div>
 
-        <!-- 대상 전환 탭 (관리자 전용: 내 프로필 / 친구 프로필) -->
         <div id="profile-target-tabs" class="profile-tab-group" hidden>
           <button type="button" id="profile-tab-self" class="profile-tab-btn active">🙋 내 프로필</button>
-          <button type="button" id="profile-tab-partner" class="profile-tab-btn">👥 친구 프로필</button>
+          <button type="button" id="profile-tab-partner" class="profile-tab-btn">👥 상대 프로필</button>
         </div>
 
-        <!-- 상대방 다수일 때 선택 드롭다운 -->
         <div id="profile-photo-target-wrap" class="form-group profile-target-wrap" hidden>
           <label for="profile-photo-target-select" class="form-label">대상 선택:</label>
           <select id="profile-photo-target-select" class="form-input profile-target-select"></select>
         </div>
 
-        <!-- 프로필 아바타 미리보기 영역 -->
         <div class="profile-photo-preview-section">
-          <div id="profile-photo-preview-wrap" class="profile-photo-preview-wrap" title="클릭하여 사진 변경">
+          <button
+            type="button"
+            id="profile-photo-preview-wrap"
+            class="profile-photo-preview-wrap"
+            title="클릭하여 사진 변경"
+            aria-label="프로필 사진 변경"
+          >
             <img id="profile-photo-preview-img" class="profile-photo-preview-img" src="" alt="프로필 사진 미리보기" hidden />
             <div id="profile-photo-preview-fallback" class="profile-photo-preview-fallback">?</div>
-          </div>
+          </button>
           <p id="profile-photo-user-desc" class="profile-photo-user-desc"></p>
         </div>
 
-        <!-- 닉네임(이름) 입력 필드 -->
         <div class="form-group profile-name-group">
           <label for="profile-name-input" class="form-label">이름 (닉네임)</label>
-          <input type="text" id="profile-name-input" class="form-input profile-name-input" placeholder="변경할 이름을 입력하세요" maxlength="20" required />
+          <input
+            type="text"
+            id="profile-name-input"
+            class="form-input profile-name-input"
+            placeholder="변경할 이름을 입력하세요"
+            maxlength="20"
+            required
+          />
         </div>
 
-        <!-- 사진 변경 옵션 모음 -->
         <div class="profile-photo-options">
-          <!-- 기기 사진 업로드 (숨겨진 파일 인풋 + 예쁜 버튼) -->
           <input type="file" id="profile-photo-file-input" accept="image/*" hidden />
           <button type="button" id="profile-photo-upload-btn" class="profile-opt-btn primary">
             📁 앨범에서 사진 선택
           </button>
-
-          <!-- 구글 계정 사진 연동 버튼 -->
           <button type="button" id="profile-photo-google-btn" class="profile-opt-btn secondary">
             🌐 구글 계정 프로필 사진 적용
           </button>
 
-          <!-- 감성 이모지 아바타 선택 팔레트 -->
           <div class="profile-emoji-section">
-            <label class="form-label">또는 감성 이모지로 선택</label>
-            <div id="profile-emoji-palette" class="profile-emoji-palette">
-              <button type="button" class="profile-emoji-btn" data-emoji="🐱" title="고양이">🐱</button>
-              <button type="button" class="profile-emoji-btn" data-emoji="🐰" title="토끼">🐰</button>
-              <button type="button" class="profile-emoji-btn" data-emoji="🐶" title="강아지">🐶</button>
-              <button type="button" class="profile-emoji-btn" data-emoji="🐻" title="곰돌이">🐻</button>
-              <button type="button" class="profile-emoji-btn" data-emoji="🐥" title="병아리">🐥</button>
-              <button type="button" class="profile-emoji-btn" data-emoji="💖" title="하트">💖</button>
-              <button type="button" class="profile-emoji-btn" data-emoji="🌸" title="벚꽃">🌸</button>
-              <button type="button" class="profile-emoji-btn" data-emoji="🍀" title="네잎클로버">🍀</button>
+            <span class="form-label">또는 감성 이모지로 선택</span>
+            <div id="profile-emoji-palette" class="profile-emoji-palette" role="group" aria-label="이모지 아바타 선택">
+              <button type="button" class="profile-emoji-btn" data-emoji="🐱" title="고양이" aria-label="고양이">🐱</button>
+              <button type="button" class="profile-emoji-btn" data-emoji="🐰" title="토끼" aria-label="토끼">🐰</button>
+              <button type="button" class="profile-emoji-btn" data-emoji="🐶" title="강아지" aria-label="강아지">🐶</button>
+              <button type="button" class="profile-emoji-btn" data-emoji="🐻" title="곰돌이" aria-label="곰돌이">🐻</button>
+              <button type="button" class="profile-emoji-btn" data-emoji="🐥" title="병아리" aria-label="병아리">🐥</button>
+              <button type="button" class="profile-emoji-btn" data-emoji="💖" title="하트" aria-label="하트">💖</button>
+              <button type="button" class="profile-emoji-btn" data-emoji="🌸" title="벚꽃" aria-label="벚꽃">🌸</button>
+              <button type="button" class="profile-emoji-btn" data-emoji="🍀" title="네잎클로버" aria-label="네잎클로버">🍀</button>
             </div>
           </div>
 
-          <!-- 사진 삭제 버튼 (이니셜 배지로 복원) -->
           <button type="button" id="profile-photo-delete-btn" class="profile-opt-btn delete">
             🗑️ 사진 삭제 (기본 이니셜 복원)
           </button>
         </div>
 
-        <!-- 모달 하단 버튼 -->
         <div class="profile-modal-actions">
           <button type="button" id="profile-photo-cancel-btn" class="profile-modal-btn cancel">취소</button>
           <button type="button" id="profile-photo-save-btn" class="profile-modal-btn save">저장 완료</button>
@@ -734,14 +1009,21 @@
     </div>
 
     <!-- 지난 커플 문답 보관함 모달 -->
-    <div id="dq-history-modal" class="modal-overlay" hidden>
+    <div
+      id="dq-history-modal"
+      class="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dq-history-modal-title"
+      hidden
+    >
       <div class="modal-content dq-history-modal-card">
         <div class="dq-history-modal-header">
           <div class="modal-title-wrap">
-            <span class="modal-icon">📚</span>
-            <h2 class="modal-title">우리가 함께한 문답 기록</h2>
+            <span class="modal-icon" aria-hidden="true">📚</span>
+            <h2 id="dq-history-modal-title" class="modal-title">우리가 함께한 문답 기록</h2>
           </div>
-          <button id="dq-history-close-btn" class="dq-history-close-btn" type="button" title="닫기">✕</button>
+          <button id="dq-history-close-btn" class="dq-history-close-btn" type="button" title="닫기" aria-label="닫기">✕</button>
         </div>
         <p class="modal-desc">둘이 함께 답변을 완성했던 소중한 질문들입니다.</p>
 
@@ -752,25 +1034,30 @@
       </div>
     </div>
 
-    <!-- 콕 찔림 수신 팝업 모달 (듀오링고 감성) -->
-    <div id="nudge-received-modal" class="modal-overlay nudge-rx-overlay" hidden>
+    <!-- 콕 찔림 수신 팝업 모달 -->
+    <div
+      id="nudge-received-modal"
+      class="modal-overlay nudge-rx-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="nudge-rx-heading"
+      hidden
+    >
       <div class="modal-content nudge-rx-card">
-        <div class="nudge-rx-top-anim">
+        <div class="nudge-rx-top-anim" aria-hidden="true">
           <span class="nudge-rx-finger-anim">👉</span>
           <span class="nudge-rx-sparkle">💥</span>
           <span class="nudge-rx-heart">💖</span>
         </div>
-        <h2 class="nudge-rx-title">
+        <h2 id="nudge-rx-heading" class="nudge-rx-title">
           <span id="nudge-rx-sender-name">상대방</span>님이 나를 콕! 찔렀어요!
         </h2>
         <span id="nudge-rx-poke-index" class="nudge-rx-poke-index">오늘 1번째 콕! ⚡</span>
 
-        <!-- 말풍선 -->
         <div class="nudge-rx-bubble">
-          <p id="nudge-rx-message-text">"나 답변 썼는데 너는 언제 써줄 거야? 궁금해 죽겠어! 🥺"</p>
+          <p id="nudge-rx-message-text"></p>
         </div>
 
-        <!-- 액션 버튼들 -->
         <div class="nudge-rx-actions">
           <button type="button" id="nudge-rx-action-btn" class="modal-btn submit nudge-rx-action-btn">
             답변 작성하러 가기 💌
@@ -782,10 +1069,53 @@
       </div>
     </div>
 
-    <!-- type="module" 을 지우면 앱이 통째로 죽습니다 -->
-    <script type="module" src="./app.js?v=20260917_4"></script>
+    <!-- 공통 커스텀 확인 다이얼로그 (네이티브 confirm 대체) -->
+    <div
+      id="confirm-modal"
+      class="modal-overlay confirm-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-modal-title"
+      hidden
+    >
+      <div class="modal-content confirm-modal-card">
+        <div id="confirm-modal-icon" class="confirm-modal-icon" aria-hidden="true">💌</div>
+        <h2 id="confirm-modal-title" class="confirm-modal-title">한 번 더 확인해 주세요</h2>
+        <p id="confirm-modal-message" class="confirm-modal-message"></p>
+        <div class="modal-actions">
+          <button type="button" id="confirm-modal-cancel" class="modal-btn cancel">취소</button>
+          <button type="button" id="confirm-modal-ok" class="modal-btn submit">확인</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 사진 전체화면 라이트박스 뷰어 -->
+    <div
+      id="lightbox-modal"
+      class="modal-overlay lightbox-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="사진 크게 보기"
+      hidden
+    >
+      <div class="lightbox-shell">
+        <div class="lightbox-topbar">
+          <span id="lightbox-counter" class="lightbox-counter" hidden>1 / 1</span>
+          <div class="lightbox-tools">
+            <button type="button" id="lightbox-zoom" class="lightbox-tool-btn" title="확대/축소" aria-label="확대 또는 축소">🔍</button>
+            <a id="lightbox-download" class="lightbox-tool-btn" href="#" download="ryudiary-photo.webp" title="사진 저장" aria-label="사진 저장">⬇️</a>
+            <button type="button" id="lightbox-close" class="lightbox-tool-btn close" title="닫기" aria-label="닫기">✕</button>
+          </div>
+        </div>
+        <div id="lightbox-stage" class="lightbox-stage">
+          <button type="button" id="lightbox-prev" class="lightbox-nav-btn prev" title="이전 사진" aria-label="이전 사진" hidden>‹</button>
+          <img id="lightbox-img" class="lightbox-img" src="" alt="확대 사진" />
+          <button type="button" id="lightbox-next" class="lightbox-nav-btn next" title="다음 사진" aria-label="다음 사진" hidden>›</button>
+        </div>
+        <p id="lightbox-caption" class="lightbox-caption" hidden></p>
+      </div>
+    </div>
+
+    <script type="module" src="./app.js?v=20261126_2"></script>
   </body>
 </html>
-
-
-

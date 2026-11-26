@@ -32,6 +32,7 @@ import {
   getDocs,
   where,
   writeBatch,
+  runTransaction,
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -59,29 +60,57 @@ try {
   db = getFirestore(app);
 }
 
-// app, auth, db 내보내기
 export { app, auth, db };
 
-// 일기가 쌓이는 곳의 이름
 const entriesRef = collection(db, "entries");
-// 사용자 프로필(이름)이 쌓이는 곳의 이름
 const profilesRef = collection(db, "profiles");
-// 공지사항이 쌓이는 곳의 이름
 const noticesRef = collection(db, "notices");
-// FCM 기기 푸시 토큰이 쌓이는 곳의 이름
 const fcmTokensRef = collection(db, "fcm_tokens");
 
-// 캐시된 프로필 목록 { uid: displayName }
+// 프로필 컬렉션 내 시스템 메타 문서 ID (사용자 프로필 목록에서 제외)
+const SYSTEM_PROFILE_DOC_IDS = new Set(["app_meta_dday"]);
+
 let cachedProfiles = {};
-// 캐시된 프로필 사진 목록 { uid: photoURL }
 let cachedProfilePhotos = {};
 
+/**
+ * 오프라인 환경에서 Firestore 영구 로컬 캐시 쓰기가 서버 ACK를 무한 대기하지 않도록 처리합니다.
+ * - 온라인: 서버 응답까지 정상 대기
+ * - 오프라인: 로컬 캐시에 기록된 직후 UI가 멈추지 않도록 즉시 반환 (연결 시 자동 동기화)
+ */
+async function commitWrite(promise) {
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    promise.catch((err) => {
+      console.warn("[store] 오프라인 지연 동기화 경고:", err);
+    });
+    await new Promise((r) => setTimeout(r, 80));
+    return { queuedOffline: true };
+  }
+  await promise;
+  return { queuedOffline: false };
+}
+
+function extractTokensFromDoc(data) {
+  const result = [];
+  if (!data) return result;
+  if (Array.isArray(data.tokens)) {
+    data.tokens.forEach((t) => {
+      if (t && !result.includes(t)) result.push(t);
+    });
+  }
+  if (data.token && !result.includes(data.token)) {
+    result.push(data.token);
+  }
+  return result;
+}
+
 // =========================================================
-// FCM 푸시 토큰 관리
+// FCM 푸시 토큰 관리 (멀티 기기 지원)
 // =========================================================
 
 /**
  * 사용자의 FCM 푸시 토큰을 Firestore fcm_tokens 컬렉션에 저장합니다.
+ * 기존 token 필드(하위 호환)와 tokens 배열(멀티 기기)을 함께 유지합니다.
  */
 export async function saveUserFcmToken(uid, token, email = "") {
   if (!uid || !token) return;
@@ -91,19 +120,19 @@ export async function saveUserFcmToken(uid, token, email = "") {
       tokenDocRef,
       {
         token,
+        tokens: arrayUnion(token),
         email: email || "",
         updatedAt: Date.now(),
       },
       { merge: true }
     );
-    console.log("[store] FCM 토큰 Firestore 저장 완료:", uid);
   } catch (err) {
     console.warn("[store] FCM 토큰 저장 오류:", err);
   }
 }
 
 /**
- * 상대방의 FCM 푸시 토큰 목록을 조회합니다 (내 UID 제외).
+ * 상대방의 FCM 푸시 토큰 목록을 조회합니다 (내 UID 제외, 멀티 기기 중복 제거).
  */
 export async function getPartnerFcmTokens(myUid) {
   try {
@@ -111,10 +140,9 @@ export async function getPartnerFcmTokens(myUid) {
     const tokens = [];
     snapshot.forEach((docSnap) => {
       if (docSnap.id !== myUid) {
-        const data = docSnap.data();
-        if (data.token) {
-          tokens.push(data.token);
-        }
+        extractTokensFromDoc(docSnap.data()).forEach((t) => {
+          if (!tokens.includes(t)) tokens.push(t);
+        });
       }
     });
     return tokens;
@@ -125,17 +153,31 @@ export async function getPartnerFcmTokens(myUid) {
 }
 
 /**
- * 모든 등록된 사용자의 FCM 푸시 토큰 목록을 조회합니다 (테스트용).
+ * 현재 로그인한 본인 기기들의 FCM 푸시 토큰 목록만 조회합니다 (자가 진단 테스트용).
+ */
+export async function getMyFcmTokens(myUid) {
+  if (!myUid) return [];
+  try {
+    const snap = await getDoc(doc(db, "fcm_tokens", myUid));
+    if (!snap.exists()) return [];
+    return extractTokensFromDoc(snap.data());
+  } catch (err) {
+    console.warn("[store] 내 FCM 토큰 조회 오류:", err);
+    return [];
+  }
+}
+
+/**
+ * 모든 등록된 사용자의 FCM 푸시 토큰 목록을 조회합니다.
  */
 export async function getAllFcmTokens() {
   try {
     const snapshot = await getDocs(fcmTokensRef);
     const tokens = [];
     snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      if (data.token && !tokens.includes(data.token)) {
-        tokens.push(data.token);
-      }
+      extractTokensFromDoc(docSnap.data()).forEach((t) => {
+        if (!tokens.includes(t)) tokens.push(t);
+      });
     });
     return tokens;
   } catch (err) {
@@ -148,12 +190,13 @@ export async function getAllFcmTokens() {
 // 프로필 관리 (모든 사용자 이름 실시간 동기화)
 // =========================================================
 
-// 모든 사용자 프로필(이름 및 사진)을 실시간으로 감시한다.
 export function subscribeProfiles(onChange) {
   return onSnapshot(profilesRef, (snapshot) => {
     const profiles = {};
     const profilePhotos = {};
     snapshot.forEach((d) => {
+      // D-Day 메타데이터 문서 등 시스템 문서는 사용자 프로필에서 제외
+      if (SYSTEM_PROFILE_DOC_IDS.has(d.id)) return;
       const data = d.data();
       profiles[d.id] = data.displayName || "";
       profilePhotos[d.id] = data.photoURL || null;
@@ -164,7 +207,6 @@ export function subscribeProfiles(onChange) {
   });
 }
 
-// 로그인 시 프로필 생성 및 동기화 (예외 발생 시에도 메인 흐름을 방해하지 않음)
 export async function syncUserProfile(user) {
   if (!user) return;
   try {
@@ -197,11 +239,10 @@ export async function syncUserProfile(user) {
   }
 }
 
-// 특정 사용자(본인 또는 상대방)의 이름 자체를 변경한다.
+// 특정 사용자(본인 또는 상대방)의 이름 변경 (500건 배치 한도 대응 청크 분할)
 export async function setUserDisplayName(targetUid, newName) {
-  if (!targetUid || !newName) return;
+  if (!targetUid || !newName || SYSTEM_PROFILE_DOC_IDS.has(targetUid)) return;
 
-  // 1. 프로필 컬렉션에 새 이름 저장
   try {
     const userDoc = doc(db, "profiles", targetUid);
     await setDoc(
@@ -215,27 +256,30 @@ export async function setUserDisplayName(targetUid, newName) {
     cachedProfiles[targetUid] = newName;
   } catch (err) {
     console.error("[store] 프로필 업데이트 오류:", err);
+    throw err;
   }
 
-  // 2. 해당 사용자가 작성한 모든 글(entries)의 작성자명을 일괄 변경
   try {
     const q = query(entriesRef, where("uid", "==", targetUid));
     const snap = await getDocs(q);
     if (!snap.empty) {
-      const batch = writeBatch(db);
-      snap.forEach((d) => {
-        batch.update(d.ref, { author: newName });
-      });
-      await batch.commit();
+      const CHUNK_SIZE = 450;
+      const docs = snap.docs;
+      for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
+        const batch = writeBatch(db);
+        docs.slice(i, i + CHUNK_SIZE).forEach((d) => {
+          batch.update(d.ref, { author: newName });
+        });
+        await batch.commit();
+      }
     }
   } catch (err) {
     console.error("[store] 글 일괄 업데이트 오류:", err);
   }
 }
 
-// 특정 사용자(본인 또는 상대방)의 프로필 사진을 변경하거나 삭제한다.
 export async function setUserProfilePhoto(targetUid, photoURL) {
-  if (!targetUid) return;
+  if (!targetUid || SYSTEM_PROFILE_DOC_IDS.has(targetUid)) return;
 
   try {
     const userDoc = doc(db, "profiles", targetUid);
@@ -258,8 +302,6 @@ export async function setUserProfilePhoto(targetUid, photoURL) {
 // 로그인
 // =========================================================
 
-// 로그인 상태가 바뀔 때마다 onChange(user)가 실행된다.
-// 로그인 상태면 user 객체, 아니면 null 이 들어온다.
 export function watchLogin(onChange) {
   return onAuthStateChanged(auth, async (user) => {
     if (user) {
@@ -273,9 +315,6 @@ export function watchLogin(onChange) {
   });
 }
 
-/**
- * 리다이렉트 복귀 결과 확인 (에러 감지용으로만 사용, 화면 렌더링에 직접 쓰지 않음)
- */
 export async function consumeRedirectResult() {
   try {
     const result = await getRedirectResult(auth);
@@ -292,9 +331,6 @@ export async function consumeRedirectResult() {
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
 
-/**
- * 구글 로그인 실행 (iOS PWA 및 브라우저 환경 모두 인앱 팝업/인증 시트로 완결)
- */
 export function loginWithGoogle() {
   return signInWithPopup(auth, googleProvider);
 }
@@ -308,12 +344,9 @@ export function logout() {
 }
 
 // =========================================================
-// 일기
+// 일기 CRUD
 // =========================================================
 
-// 목록을 계속 지켜본다.
-// 누가 어디서 쓰든, 바뀌는 즉시 onChange가 실행된다.
-// 반환값을 나중에 함수로 실행하면 지켜보기를 멈춘다.
 export function subscribeEntries(onChange, onError) {
   const q = query(entriesRef, orderBy("createdAt", "desc"));
 
@@ -333,7 +366,6 @@ export function subscribeEntries(onChange, onError) {
   );
 }
 
-// 일기 한 개를 저장한다. 작성자는 프로필 또는 로그인 정보에서 자동으로 붙는다.
 export async function addEntry({ title, body, image, images, mood, drawingData }) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
@@ -348,12 +380,10 @@ export async function addEntry({ title, body, image, images, mood, drawingData }
     createdAt: Date.now(),
   };
 
-  // 오늘의 기분이 선택되었을 때만 mood 필드 추가
   if (mood) {
     entryData.mood = mood;
   }
 
-  // 다중 사진 및 단일 사진/그림 필드 설정 (하위 호환 보장)
   const entryImages = Array.isArray(images) && images.length > 0
     ? images
     : (image ? [image] : []);
@@ -363,20 +393,46 @@ export async function addEntry({ title, body, image, images, mood, drawingData }
     entryData.image = entryImages[0];
   }
 
-  // 타임랩스 그림 데이터가 있을 때만 drawingData 필드 추가
   if (drawingData && Array.isArray(drawingData) && drawingData.length > 0) {
     entryData.drawingData = drawingData;
   }
 
-  await addDoc(entriesRef, entryData);
+  return commitWrite(addDoc(entriesRef, entryData));
 }
 
-// 일기 한 개를 지운다.
+/**
+ * 기존 일기의 제목, 본문, 기분, 사진/그림을 수정합니다. (기존 스키마 필드 불변성 유지)
+ */
+export async function updateEntry(id, { title, body, image, images, mood, drawingData }) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("로그인이 필요합니다.");
+  if (!id) throw new Error("수정할 일기 ID가 없습니다.");
+
+  const entryImages = Array.isArray(images) && images.length > 0
+    ? images
+    : (image ? [image] : []);
+
+  const payload = {
+    title,
+    body,
+    mood: mood || null,
+    images: entryImages,
+    image: entryImages.length > 0 ? entryImages[0] : null,
+    drawingData: Array.isArray(drawingData) && drawingData.length > 0 ? drawingData : null,
+    updatedAt: Date.now(),
+  };
+
+  return commitWrite(updateDoc(doc(db, "entries", id), payload));
+}
+
 export async function removeEntry(id) {
-  await deleteDoc(doc(db, "entries", id));
+  return commitWrite(deleteDoc(doc(db, "entries", id)));
 }
 
-// 댓글(또는 답글) 한 개를 추가한다.
+// =========================================================
+// 댓글 및 답글 (트랜잭션 기반 동시성 보호)
+// =========================================================
+
 export async function addComment(entryId, text, parentId = null) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
@@ -391,25 +447,36 @@ export async function addComment(entryId, text, parentId = null) {
     createdAt: Date.now(),
   };
 
-  // 대댓글인 경우 부모 댓글 id 기록
   if (parentId) {
     comment.parentId = parentId;
   }
 
   const entryRef = doc(db, "entries", entryId);
-  await updateDoc(entryRef, {
-    comments: arrayUnion(comment),
-  });
+  return commitWrite(
+    updateDoc(entryRef, {
+      comments: arrayUnion(comment),
+    })
+  );
 }
 
-// 댓글(또는 답글) 내용을 수정한다.
 export async function updateComment(entryId, commentId, newText) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
   const entryRef = doc(db, "entries", entryId);
-  const snap = await getDoc(entryRef);
-  if (snap.exists()) {
+
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    const snap = await getDoc(entryRef);
+    if (!snap.exists()) return { queuedOffline: true };
+    const updatedComments = (snap.data().comments || []).map((c) =>
+      c.id === commentId ? { ...c, text: newText, updatedAt: Date.now() } : c
+    );
+    return commitWrite(updateDoc(entryRef, { comments: updatedComments }));
+  }
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(entryRef);
+    if (!snap.exists()) return;
     const data = snap.data();
     const updatedComments = (data.comments || []).map((c) => {
       if (c.id === commentId) {
@@ -417,42 +484,48 @@ export async function updateComment(entryId, commentId, newText) {
       }
       return c;
     });
-    await updateDoc(entryRef, {
-      comments: updatedComments,
-    });
-  }
+    tx.update(entryRef, { comments: updatedComments });
+  });
+  return { queuedOffline: false };
 }
 
-// 댓글(또는 답글)을 삭제한다. (부모 댓글 삭제 시 연결된 답글도 함께 삭제)
 export async function removeComment(entryId, commentId) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
   const entryRef = doc(db, "entries", entryId);
-  const snap = await getDoc(entryRef);
-  if (snap.exists()) {
+
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    const snap = await getDoc(entryRef);
+    if (!snap.exists()) return { queuedOffline: true };
+    const updatedComments = (snap.data().comments || []).filter(
+      (c) => c.id !== commentId && c.parentId !== commentId
+    );
+    return commitWrite(updateDoc(entryRef, { comments: updatedComments }));
+  }
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(entryRef);
+    if (!snap.exists()) return;
     const data = snap.data();
     const updatedComments = (data.comments || []).filter(
       (c) => c.id !== commentId && c.parentId !== commentId
     );
-    await updateDoc(entryRef, {
-      comments: updatedComments,
-    });
-  }
+    tx.update(entryRef, { comments: updatedComments });
+  });
+  return { queuedOffline: false };
 }
 
 // =========================================================
 // 공지사항 (Notices)
 // =========================================================
 
-// 공지사항 목록을 실시간으로 감시한다.
 export function subscribeNotices(onChange, onError) {
   const q = query(noticesRef, orderBy("createdAt", "desc"));
 
   return onSnapshot(
     q,
     async (snapshot) => {
-      // 공지가 하나도 없는 경우 기본 공지 자동 생성
       if (snapshot.empty) {
         try {
           await addDoc(noticesRef, {
@@ -461,9 +534,9 @@ export function subscribeNotices(onChange, onError) {
             uid: "system",
             createdAt: Date.now(),
           });
-          return; // 생성 후 다음 스냅샷에서 전달
+          return;
         } catch (e) {
-          console.warn("[store] 기본 공지 자동 생성 건너뜀 (비로그인 상태 등):", e.message);
+          console.warn("[store] 기본 공지 자동 생성 건너뜀:", e.message);
         }
       }
 
@@ -480,70 +553,86 @@ export function subscribeNotices(onChange, onError) {
   );
 }
 
-// 새 공지사항을 추가한다.
 export async function addNotice(text) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
   const authorName = cachedProfiles[user.uid] || user.displayName || "이름 없음";
 
-  await addDoc(noticesRef, {
-    text: text,
-    author: authorName,
-    uid: user.uid,
-    createdAt: Date.now(),
-  });
+  return commitWrite(
+    addDoc(noticesRef, {
+      text: text,
+      author: authorName,
+      uid: user.uid,
+      createdAt: Date.now(),
+    })
+  );
 }
 
-// 공지사항을 수정한다.
 export async function updateNotice(id, text) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
-  const noticeRef = doc(db, "notices", id);
-  await updateDoc(noticeRef, {
-    text: text,
-    updatedAt: Date.now(),
-  });
+  return commitWrite(
+    updateDoc(doc(db, "notices", id), {
+      text: text,
+      updatedAt: Date.now(),
+    })
+  );
 }
 
-// 공지사항을 삭제한다.
 export async function removeNotice(id) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
-  await deleteDoc(doc(db, "notices", id));
+  return commitWrite(deleteDoc(doc(db, "notices", id)));
 }
 
 // =========================================================
-// 공감 리액션 (Reactions)
+// 공감 리액션 (Reactions - 트랜잭션 보호)
 // =========================================================
 
-// 일기에 이모지 리액션을 토글(추가/취소)한다.
 export async function toggleReaction(entryId, emoji) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
   const entryRef = doc(db, "entries", entryId);
-  const snap = await getDoc(entryRef);
-  if (!snap.exists()) return null;
 
-  const data = snap.data();
-  const reactions = data.reactions || {};
-  const currentUids = reactions[emoji] || [];
-
-  let nextUids;
-  let isAdded = false;
-  if (currentUids.includes(user.uid)) {
-    nextUids = currentUids.filter((uid) => uid !== user.uid);
-  } else {
-    nextUids = [...currentUids, user.uid];
-    isAdded = true;
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    const snap = await getDoc(entryRef);
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    const reactions = data.reactions || {};
+    const currentUids = reactions[emoji] || [];
+    const isAdded = !currentUids.includes(user.uid);
+    const nextUids = isAdded
+      ? [...currentUids, user.uid]
+      : currentUids.filter((uid) => uid !== user.uid);
+    await commitWrite(updateDoc(entryRef, { reactions: { ...reactions, [emoji]: nextUids } }));
+    return { isAdded, emoji, author: data.author, uid: data.uid };
   }
 
-  const newReactions = { ...reactions, [emoji]: nextUids };
-  await updateDoc(entryRef, { reactions: newReactions });
-  return { isAdded, emoji, author: data.author, uid: data.uid };
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(entryRef);
+    if (!snap.exists()) return null;
+
+    const data = snap.data();
+    const reactions = data.reactions || {};
+    const currentUids = Array.isArray(reactions[emoji]) ? reactions[emoji] : [];
+
+    let nextUids;
+    let isAdded = false;
+    if (currentUids.includes(user.uid)) {
+      nextUids = currentUids.filter((uid) => uid !== user.uid);
+    } else {
+      nextUids = [...currentUids, user.uid];
+      isAdded = true;
+    }
+
+    const newReactions = { ...reactions, [emoji]: nextUids };
+    tx.update(entryRef, { reactions: newReactions });
+    return { isAdded, emoji, author: data.author, uid: data.uid };
+  });
 }
 
 // =========================================================
@@ -552,7 +641,6 @@ export async function toggleReaction(entryId, emoji) {
 
 const metaRef = doc(db, "profiles", "app_meta_dday");
 
-// 디데이 설정을 실시간 구독한다.
 export function subscribeDday(onChange) {
   return onSnapshot(metaRef, (snapshot) => {
     if (snapshot.exists()) {
@@ -563,30 +651,23 @@ export function subscribeDday(onChange) {
   });
 }
 
-// 디데이 설정을 저장한다.
 export async function saveDdayConfig(configData) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
-  await setDoc(metaRef, {
-    ...configData,
-    updatedAt: Date.now(),
-    updatedBy: user.uid,
-  });
+  return commitWrite(
+    setDoc(metaRef, {
+      ...configData,
+      updatedAt: Date.now(),
+      updatedBy: user.uid,
+    })
+  );
 }
 
 // =========================================================
 // 오늘의 커플 문답 (Daily Question) 관리
 // =========================================================
 
-const dailyQuestionsRef = collection(db, "daily_questions");
-
-/**
- * 특정 날짜의 문답 데이터를 실시간 구독합니다.
- * @param {string} dateStr - YYYY-MM-DD
- * @param {Function} onChange - (data) => void
- * @returns {Function} 구독 해제 함수
- */
 export function subscribeDailyQuestion(dateStr, onChange) {
   if (!dateStr) return () => {};
   const questionDoc = doc(db, "daily_questions", dateStr);
@@ -606,11 +687,6 @@ export function subscribeDailyQuestion(dateStr, onChange) {
   );
 }
 
-/**
- * 모든 커플 문답 데이터를 실시간 구독합니다 (알림 센터 및 전체 상태 동기화용).
- * @param {Function} onChange - (items) => void
- * @returns {Function} 구독 해제 함수
- */
 export function subscribeAllDailyQuestions(onChange) {
   const qColl = collection(db, "daily_questions");
   return onSnapshot(
@@ -632,10 +708,6 @@ export function subscribeAllDailyQuestions(onChange) {
   );
 }
 
-/**
- * 커플 질문 진행 상태(_question_state) 실시간 감시
- * @param {Function} onChange - 상태 변경 콜백 ({ currentOrder, completedIds })
- */
 export function subscribeQuestionState(onChange) {
   const stateDoc = doc(db, "daily_questions", "_question_state");
   return onSnapshot(
@@ -648,7 +720,6 @@ export function subscribeQuestionState(onChange) {
           completedIds: Array.isArray(data.completedIds) ? data.completedIds : [],
         });
       } else {
-        // 초기 상태 생성
         const initState = { currentOrder: 1, completedIds: [], updatedAt: Date.now() };
         setDoc(stateDoc, initState, { merge: true }).catch(() => {});
         onChange(initState);
@@ -661,38 +732,52 @@ export function subscribeQuestionState(onChange) {
   );
 }
 
-/**
- * 다음 질문으로 회차 전진 (Q.N -> Q.N+1)
- * @param {number} nextOrder - 전진할 회차 번호
- * @param {string} completedQuestionId - 방금 완료된 질문 ID
- */
 export async function advanceToNextQuestion(nextOrder, completedQuestionId) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
   const stateDoc = doc(db, "daily_questions", "_question_state");
-  const updatePayload = {
-    currentOrder: Math.max(1, nextOrder),
-    updatedAt: Date.now(),
-  };
+  const targetOrder = Math.max(1, nextOrder);
 
-  if (completedQuestionId) {
-    updatePayload.completedIds = arrayUnion(completedQuestionId);
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    const updatePayload = {
+      currentOrder: targetOrder,
+      updatedAt: Date.now(),
+    };
+    if (completedQuestionId) updatePayload.completedIds = arrayUnion(completedQuestionId);
+    return commitWrite(setDoc(stateDoc, updatePayload, { merge: true }));
   }
 
-  await setDoc(stateDoc, updatePayload, { merge: true });
+  // 트랜잭션으로 동시 클릭 시 회차 중복 증가(스킵) 방지
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(stateDoc);
+    const curData = snap.exists() ? snap.data() : { currentOrder: 1, completedIds: [] };
+    const existingCompleted = Array.isArray(curData.completedIds) ? curData.completedIds : [];
+    const nextCompleted =
+      completedQuestionId && !existingCompleted.includes(completedQuestionId)
+        ? [...existingCompleted, completedQuestionId]
+        : existingCompleted;
+    const resolvedOrder = Math.max(curData.currentOrder || 1, targetOrder);
+
+    tx.set(
+      stateDoc,
+      {
+        currentOrder: resolvedOrder,
+        completedIds: nextCompleted,
+        updatedAt: Date.now(),
+      },
+      { merge: true }
+    );
+  });
 }
 
-/**
- * 지난 완료 문답 목록 전체 조회 (히스토리)
- */
 export async function loadCompletedQuestions() {
   const qColl = collection(db, "daily_questions");
   const snap = await getDocs(qColl);
   const items = [];
 
   snap.forEach((d) => {
-    if (d.id === "_question_state") return;
+    if (d.id === "_question_state" || d.id === "_latest_nudge") return;
     const data = d.data();
     if (data && data.question) {
       items.push({
@@ -702,16 +787,9 @@ export async function loadCompletedQuestions() {
     }
   });
 
-  // 정렬: 가장 최근에 쓴 질문 우선 내림차순 (공통 헬퍼 활용)
   return sortCompletedQuestionsDescending(items);
 }
 
-/**
- * 오늘의 질문에 대한 본인 답변을 저장(또는 수정)합니다.
- * @param {string} docId - 질문 문서 ID (예: "order_1", "special_christmas_2026", "2026-10-01")
- * @param {Object} questionData - { id, badge, text, coupleDays, order, isSpecial }
- * @param {string} answerText - 작성한 답변 텍스트
- */
 export async function saveDailyQuestionAnswer(docId, questionData, answerText) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
@@ -727,46 +805,54 @@ export async function saveDailyQuestionAnswer(docId, questionData, answerText) {
     updatedAt: Date.now(),
   };
 
-  // 기존 문서 스냅샷 확인하여 양쪽 모두 작성되었는지 체크
-  const snap = await getDoc(questionDoc);
-  let existingAnswers = {};
-  if (snap.exists()) {
-    existingAnswers = snap.data().answers || {};
+  let isBothAnswered = false;
+
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    const snap = await getDoc(questionDoc);
+    const existingAnswers = snap.exists() ? { ...(snap.data().answers || {}) } : {};
+    existingAnswers[user.uid] = answerPayload;
+    isBothAnswered = Object.keys(existingAnswers).length >= 2;
+    const docPayload = {
+      id: docId,
+      question: questionData,
+      answers: existingAnswers,
+      isCompleted: isBothAnswered,
+      lastUpdatedAt: Date.now(),
+    };
+    if (isBothAnswered && !snap.data()?.completedAt) {
+      docPayload.completedAt = Date.now();
+    }
+    await commitWrite(setDoc(questionDoc, docPayload, { merge: true }));
+  } else {
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(questionDoc);
+      const existingData = snap.exists() ? snap.data() : {};
+      const existingAnswers = { ...(existingData.answers || {}) };
+      existingAnswers[user.uid] = answerPayload;
+      isBothAnswered = Object.keys(existingAnswers).length >= 2;
+
+      const docPayload = {
+        id: docId,
+        question: questionData,
+        answers: existingAnswers,
+        isCompleted: isBothAnswered,
+        lastUpdatedAt: Date.now(),
+      };
+      if (isBothAnswered && !existingData.completedAt) {
+        docPayload.completedAt = Date.now();
+      }
+      tx.set(questionDoc, docPayload, { merge: true });
+    });
   }
-  existingAnswers[user.uid] = answerPayload;
 
-  // 두 사람(현재 유저 외 최소 1명 더)의 답변이 있는지 판별
-  const answerKeys = Object.keys(existingAnswers);
-  const isBothAnswered = answerKeys.length >= 2;
-
-  const docPayload = {
-    id: docId,
-    question: questionData,
-    answers: existingAnswers,
-    isCompleted: isBothAnswered,
-    lastUpdatedAt: Date.now(),
-  };
-
-  if (isBothAnswered && !snap.data()?.completedAt) {
-    docPayload.completedAt = Date.now();
-  }
-
-  await setDoc(questionDoc, docPayload, { merge: true });
-
-  // 둘 다 작성 완료 시 _question_state에 완료 기록 추가
   if (isBothAnswered) {
     const stateDoc = doc(db, "daily_questions", "_question_state");
     setDoc(stateDoc, { completedIds: arrayUnion(docId) }, { merge: true }).catch(() => {});
   }
 
-  return answerPayload;
+  return { ...answerPayload, isBothAnswered };
 }
 
-/**
- * 오늘의 질문에 댓글을 작성합니다.
- * @param {string} dateStr - YYYY-MM-DD
- * @param {string} commentText - 댓글 내용
- */
 export async function addDailyQuestionComment(dateStr, commentText) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
@@ -783,43 +869,51 @@ export async function addDailyQuestionComment(dateStr, commentText) {
     createdAt: Date.now(),
   };
 
-  await setDoc(
-    questionDoc,
-    {
-      comments: arrayUnion(commentObj),
-      lastUpdatedAt: Date.now(),
-    },
-    { merge: true }
+  await commitWrite(
+    setDoc(
+      questionDoc,
+      {
+        comments: arrayUnion(commentObj),
+        lastUpdatedAt: Date.now(),
+      },
+      { merge: true }
+    )
   );
 
   return commentObj;
 }
 
-/**
- * 오늘의 질문에서 본인이 작성한 댓글을 삭제합니다.
- * @param {string} dateStr - YYYY-MM-DD
- * @param {string} commentId - 댓글 ID
- */
 export async function removeDailyQuestionComment(dateStr, commentId) {
   const user = auth.currentUser;
   if (!user) throw new Error("로그인이 필요합니다.");
 
   const questionDoc = doc(db, "daily_questions", dateStr);
-  const snap = await getDoc(questionDoc);
-  if (snap.exists()) {
+
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    const snap = await getDoc(questionDoc);
+    if (!snap.exists()) return;
+    const updatedComments = (snap.data().comments || []).filter(
+      (c) => !(c.id === commentId && c.uid === user.uid)
+    );
+    await commitWrite(
+      updateDoc(questionDoc, {
+        comments: updatedComments,
+        lastUpdatedAt: Date.now(),
+      })
+    );
+    return;
+  }
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(questionDoc);
+    if (!snap.exists()) return;
     const data = snap.data();
     const updatedComments = (data.comments || []).filter(
       (c) => !(c.id === commentId && c.uid === user.uid)
     );
-    await updateDoc(questionDoc, {
+    tx.update(questionDoc, {
       comments: updatedComments,
       lastUpdatedAt: Date.now(),
     });
-  }
+  });
 }
-
-
-
-
-
-

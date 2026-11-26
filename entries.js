@@ -1,29 +1,54 @@
 // =========================================================
-// entries.js - 일기 작성, 스마트 사진 압축 첨부 및 그림판 연동 모듈
-// 일기 저장, 유효성 검사, 오늘의 기분 선택, 앨범 사진 자동 압축 및 그림판 툴바 이벤트 배선을 담당합니다.
+// entries.js - 일기 작성/수정, 자동 임시저장, 스마트 사진 압축 첨부 및 그림판 연동 모듈
+// - 접이식 컴팩트 작성 트리거 & 모바일 FAB 지원
+// - 기존 일기 수정(diary:edit-entry) 지원
+// - 사진(최대 5장)과 그림판 동시 첨부 + Firestore 1MB 문서 안전 용량 가드
+// - localStorage 자동 임시저장 및 복구 배너
 // =========================================================
 
-import { addEntry } from "./store.js";
+import { addEntry, updateEntry } from "./store.js";
 import {
   initCanvas,
   setMode,
   setColor,
   setLineWidth,
   undo,
+  redo,
   clearCanvas,
   resetCanvas,
   hasDrawing,
   exportImage,
   exportDrawingData,
+  setOnHistoryChange,
+  DEFAULT_COLOR,
+  DEFAULT_LINE_WIDTH,
 } from "./draw.js";
-import { showError } from "./ui.js";
+import { showError, showConfirmDialog, normalizeMood } from "./ui.js";
 import { sendPushToPartner, showToastNotification } from "./notify.js";
-import { getCurrentUser, getCurrentProfiles } from "./state.js";
+
+const STORAGE_KEY_DRAFT = "diary_editor_draft_v1";
+const MAX_MEDIA_ITEMS = 5;
+const MAX_DOC_BYTES_BUDGET = 860000; // Firestore 1MiB 한도 대비 안전 예산
+
+// 컴팩트 작성 트리거 / 접이식 에디터 / FAB 요소
+const composerCompactBar = document.getElementById("composer-compact-bar");
+const composerCompactOpenBtn = document.getElementById("composer-compact-open-btn");
+const composerQuickPhotoBtn = document.getElementById("composer-quick-photo-btn");
+const composerQuickDrawBtn = document.getElementById("composer-quick-draw-btn");
+const editorSection = document.getElementById("editor-section");
+const editorHeaderTitle = document.getElementById("editor-header-title");
+const editorCollapseBtn = document.getElementById("editor-collapse-btn");
+const fabWriteBtn = document.getElementById("fab-write-btn");
+
+// 임시저장 복구 배너
+const draftRestoreBanner = document.getElementById("draft-restore-banner");
+const draftDiscardBtn = document.getElementById("draft-discard-btn");
 
 // 입력 요소
 const titleInput = document.getElementById("title-input");
 const bodyInput = document.getElementById("body-input");
 const saveButton = document.getElementById("save-button");
+const cancelEditBtn = document.getElementById("cancel-edit-button");
 const moodBtns = document.querySelectorAll(".mood-btn");
 
 // 사진 첨부 화면 요소
@@ -47,35 +72,152 @@ const toolColorPicker = document.getElementById("tool-color-picker");
 const colorChips = document.querySelectorAll(".color-chip");
 const sizeBtns = document.querySelectorAll(".size-btn");
 const toolUndoBtn = document.getElementById("tool-undo");
+const toolRedoBtn = document.getElementById("tool-redo");
 const toolClearBtn = document.getElementById("tool-clear");
 
 // 내부 상태
 let selectedMood = null;
-let attachedPhotos = []; // 최대 5장의 압축된 사진 Data URL 배열
+let attachedPhotos = []; // 첨부된 사진 Data URL 배열
+let editingEntryId = null; // 수정 중인 일기 ID (null이면 새 글 작성)
+let editingDrawingData = null; // 수정 시 기존 그림 타임랩스 데이터 보존
+let isEditorExpanded = false;
+let draftTimer = null;
+
+function isTouchDevice() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia &&
+    window.matchMedia("(hover: none) and (pointer: coarse)").matches
+  );
+}
 
 /**
- * 이미지 파일을 브라우저 캔버스를 이용해 고압축(WebP/JPEG 0.75, 최대 960px)으로 변환합니다.
+ * 에디터 펼침/접힘 상태 제어
  */
-function compressImageFile(file) {
+function setEditorExpanded(expanded, { focusBody = false } = {}) {
+  isEditorExpanded = Boolean(expanded);
+  if (editorSection) editorSection.hidden = !isEditorExpanded;
+  if (composerCompactBar) composerCompactBar.hidden = isEditorExpanded;
+  if (fabWriteBtn) fabWriteBtn.hidden = isEditorExpanded;
+
+  if (isEditorExpanded && focusBody && bodyInput) {
+    setTimeout(() => bodyInput.focus(), 60);
+  }
+}
+
+/**
+ * 툴바 UI를 지정된 펜 설정(또는 기본값)과 동기화합니다.
+ */
+function syncDrawingToolbarUI({
+  mode = "pen",
+  color = DEFAULT_COLOR,
+  width = DEFAULT_LINE_WIDTH,
+} = {}) {
+  if (toolPenBtn) toolPenBtn.classList.toggle("active", mode === "pen");
+  if (toolEraserBtn) toolEraserBtn.classList.toggle("active", mode === "eraser");
+  if (toolColorPicker) toolColorPicker.value = color;
+
+  colorChips.forEach((chip) => {
+    chip.classList.toggle("active", chip.dataset.color?.toLowerCase() === color.toLowerCase());
+  });
+
+  sizeBtns.forEach((btn) => {
+    btn.classList.toggle("active", Number(btn.dataset.size) === Number(width));
+  });
+}
+
+function syncMoodUI() {
+  moodBtns.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.mood === selectedMood);
+    btn.setAttribute("aria-pressed", String(btn.dataset.mood === selectedMood));
+  });
+}
+
+// =========================================================
+// 자동 임시저장 (Draft Auto-Save)
+// =========================================================
+
+function scheduleDraftSave() {
+  if (editingEntryId) return; // 기존 일기 수정 중에는 신규 임시저장 덮어쓰기 방지
+  if (draftTimer) clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => {
+    const title = titleInput ? titleInput.value : "";
+    const body = bodyInput ? bodyInput.value : "";
+    try {
+      if (!title.trim() && !body.trim() && !selectedMood) {
+        localStorage.removeItem(STORAGE_KEY_DRAFT);
+      } else {
+        localStorage.setItem(
+          STORAGE_KEY_DRAFT,
+          JSON.stringify({
+            title,
+            body,
+            mood: selectedMood,
+            savedAt: Date.now(),
+          })
+        );
+      }
+    } catch {
+      // 스토리지 용량/권한 오류 무시
+    }
+  }, 350);
+}
+
+function clearSavedDraft() {
+  if (draftTimer) {
+    clearTimeout(draftTimer);
+    draftTimer = null;
+  }
+  try {
+    localStorage.removeItem(STORAGE_KEY_DRAFT);
+  } catch {
+    // 무시
+  }
+  if (draftRestoreBanner) draftRestoreBanner.hidden = true;
+}
+
+function restoreSavedDraft() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_DRAFT);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    if (!draft || (!draft.title?.trim() && !draft.body?.trim() && !draft.mood)) return;
+
+    if (titleInput && draft.title) titleInput.value = draft.title;
+    if (bodyInput && draft.body) bodyInput.value = draft.body;
+    if (draft.mood) {
+      selectedMood = normalizeMood(draft.mood);
+      syncMoodUI();
+    }
+    if (draftRestoreBanner) draftRestoreBanner.hidden = false;
+    setEditorExpanded(true);
+  } catch {
+    // 손상된 임시저장 데이터 무시
+  }
+}
+
+// =========================================================
+// 이미지 압축 및 용량 최적화
+// =========================================================
+
+function compressImageFile(file, maxSide = 800, quality = 0.7) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        const MAX_WIDTH = 800;
-        const MAX_HEIGHT = 800;
         let width = img.width;
         let height = img.height;
 
         if (width > height) {
-          if (width > MAX_WIDTH) {
-            height = Math.round((height * MAX_WIDTH) / width);
-            width = MAX_WIDTH;
+          if (width > maxSide) {
+            height = Math.round((height * maxSide) / width);
+            width = maxSide;
           }
         } else {
-          if (height > MAX_HEIGHT) {
-            width = Math.round((width * MAX_HEIGHT) / height);
-            height = MAX_HEIGHT;
+          if (height > maxSide) {
+            width = Math.round((width * maxSide) / height);
+            height = maxSide;
           }
         }
 
@@ -85,15 +227,10 @@ function compressImageFile(file) {
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, width, height);
 
-        // WebP 우선 지원, 미지원 시 JPEG 0.70 압축
-        let dataUrl = canvas.toDataURL("image/webp", 0.70);
+        let dataUrl = canvas.toDataURL("image/webp", quality);
         if (!dataUrl.startsWith("data:image/webp")) {
-          dataUrl = canvas.toDataURL("image/jpeg", 0.70);
+          dataUrl = canvas.toDataURL("image/jpeg", quality);
         }
-
-        const origSizeKb = Math.round(file.size / 1024);
-        const compSizeKb = Math.round((dataUrl.length * 0.75) / 1024);
-        console.log(`[Photo] 스마트 압축 완료: ${origSizeKb}KB ➔ ${compSizeKb}KB (${width}x${height})`);
 
         resolve(dataUrl);
       };
@@ -106,8 +243,39 @@ function compressImageFile(file) {
 }
 
 /**
- * 첨부된 사진들의 미리보기 목록을 화면에 렌더링합니다.
+ * DataURL 이미지를 더 작은 크기/품질로 재압축합니다 (문서 1MB 초과 방지용).
  */
+function recompressDataUrl(dataUrl, maxSide = 640, quality = 0.52) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+      const scale = Math.min(1, maxSide / Math.max(width, height));
+      width = Math.max(1, Math.round(width * scale));
+      height = Math.max(1, Math.round(height * scale));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+
+      let out = canvas.toDataURL("image/webp", quality);
+      if (!out.startsWith("data:image/webp")) {
+        out = canvas.toDataURL("image/jpeg", quality);
+      }
+      resolve(out.length < dataUrl.length ? out : dataUrl);
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+function getMaxPhotoSlots() {
+  return hasDrawing() ? MAX_MEDIA_ITEMS - 1 : MAX_MEDIA_ITEMS;
+}
+
 function renderPhotoPreviews() {
   if (!photoPreviewWrap || !photoPreviewList) return;
   if (attachedPhotos.length === 0) {
@@ -117,12 +285,13 @@ function renderPhotoPreviews() {
     return;
   }
 
+  const maxSlots = getMaxPhotoSlots();
   photoPreviewWrap.hidden = false;
   if (photoCountBadge) {
-    photoCountBadge.textContent = `📷 사진 (${attachedPhotos.length}/5)`;
+    photoCountBadge.textContent = `📷 사진 (${attachedPhotos.length}/${maxSlots})`;
   }
   if (photoAddMoreBtn) {
-    const isFull = attachedPhotos.length >= 5;
+    const isFull = attachedPhotos.length >= maxSlots;
     photoAddMoreBtn.disabled = isFull;
     photoAddMoreBtn.style.opacity = isFull ? "0.4" : "1";
     photoAddMoreBtn.style.pointerEvents = isFull ? "none" : "auto";
@@ -147,8 +316,13 @@ function renderPhotoPreviews() {
     removeBtn.className = "photo-item-remove-btn";
     removeBtn.textContent = "✕";
     removeBtn.title = `사진 ${idx + 1} 삭제`;
+    removeBtn.setAttribute("aria-label", `첨부 사진 ${idx + 1} 삭제`);
     removeBtn.addEventListener("click", () => {
       attachedPhotos.splice(idx, 1);
+      // 0번 이미지가 기존 그림이었다면 삭제 시 타임랩스 데이터도 해제
+      if (idx === 0 && editingDrawingData) {
+        editingDrawingData = null;
+      }
       renderPhotoPreviews();
     });
 
@@ -159,16 +333,90 @@ function renderPhotoPreviews() {
   });
 }
 
-/**
- * 첨부된 모든 사진 초기화
- */
 function clearAttachedPhotos() {
   attachedPhotos = [];
+  editingDrawingData = null;
   renderPhotoPreviews();
 }
 
+function resetEditorForm({ collapse = true } = {}) {
+  editingEntryId = null;
+  editingDrawingData = null;
+
+  if (titleInput) titleInput.value = "";
+  if (bodyInput) bodyInput.value = "";
+  selectedMood = null;
+  syncMoodUI();
+
+  clearAttachedPhotos();
+
+  const defaults = resetCanvas();
+  syncDrawingToolbarUI(defaults);
+  if (drawingContainer) drawingContainer.hidden = true;
+  if (drawToggleBtn) drawToggleBtn.textContent = "🎨 그림 그리기";
+
+  if (editorHeaderTitle) editorHeaderTitle.textContent = "✏️ 오늘의 일기 쓰기";
+  if (saveButton) saveButton.textContent = "저장";
+  if (cancelEditBtn) cancelEditBtn.hidden = true;
+  if (editorSection) editorSection.classList.remove("is-editing");
+
+  if (collapse) {
+    setEditorExpanded(false);
+  }
+}
+
 /**
- * 일기 저장 핸들러
+ * 기존 일기를 에디터에 불러와 수정 모드로 전환합니다.
+ */
+function openEntryForEdit(entry) {
+  if (!entry || !entry.id) return;
+
+  // 피드 탭으로 전환 요청
+  const feedTab = document.getElementById("view-tab-feed");
+  if (feedTab && !feedTab.classList.contains("active")) {
+    feedTab.click();
+  }
+
+  editingEntryId = entry.id;
+  editingDrawingData =
+    Array.isArray(entry.drawingData) && entry.drawingData.length > 0 ? entry.drawingData : null;
+
+  if (draftRestoreBanner) draftRestoreBanner.hidden = true;
+  if (titleInput) titleInput.value = entry.title || "";
+  if (bodyInput) bodyInput.value = entry.body || "";
+
+  selectedMood = entry.mood ? normalizeMood(entry.mood) : null;
+  syncMoodUI();
+
+  const existingImages =
+    Array.isArray(entry.images) && entry.images.length > 0
+      ? [...entry.images]
+      : entry.image
+      ? [entry.image]
+      : [];
+  attachedPhotos = existingImages;
+  renderPhotoPreviews();
+
+  const defaults = resetCanvas();
+  syncDrawingToolbarUI(defaults);
+  if (drawingContainer) drawingContainer.hidden = true;
+  if (drawToggleBtn) drawToggleBtn.textContent = "🎨 새 그림 추가";
+
+  if (editorHeaderTitle) editorHeaderTitle.textContent = "✏️ 일기 수정 중";
+  if (saveButton) saveButton.textContent = "수정 완료";
+  if (cancelEditBtn) cancelEditBtn.hidden = false;
+  if (editorSection) editorSection.classList.add("is-editing");
+
+  setEditorExpanded(true);
+
+  if (editorSection) {
+    editorSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  setTimeout(() => bodyInput?.focus(), 200);
+}
+
+/**
+ * 일기 저장 / 수정 핸들러 (사진+그림 동시 첨부 & 용량 가드 & 오프라인 안전 처리)
  */
 async function onSave() {
   let title = titleInput.value.trim();
@@ -176,95 +424,215 @@ async function onSave() {
   const isDrawn = hasDrawing();
   const hasPhotos = attachedPhotos.length > 0;
 
-  // 제목, 본문, 그림, 사진이 전부 비어 있을 때만 저장을 차단
   if (title === "" && body === "" && !isDrawn && !hasPhotos) {
-    alert("본문, 사진 또는 그림을 입력하세요.");
+    showToastNotification("본문, 사진 또는 그림을 입력해 주세요.", "✏️");
     bodyInput.focus();
     return;
   }
 
-  // 제목이 비어있으면 "M/D 오늘의 일기"로 자동 완성
   if (!title) {
     const now = new Date();
     title = `${now.getMonth() + 1}/${now.getDate()} 오늘의 일기`;
   }
 
   saveButton.disabled = true;
+  const originalBtnLabel = saveButton.textContent;
+  saveButton.textContent = editingEntryId ? "수정 중..." : "저장 중...";
 
   try {
-    let image = null;
-    let images = null;
+    let finalImages = [];
     let drawingData = null;
 
     if (isDrawn) {
-      image = exportImage();
-      images = [image];
+      const drawnImg = exportImage();
+      if (drawnImg) finalImages.push(drawnImg);
       drawingData = exportDrawingData();
-    } else if (hasPhotos) {
-      images = [...attachedPhotos];
-      image = attachedPhotos[0];
     }
 
-    await addEntry({ title, body, image, images, mood: selectedMood, drawingData });
-
-    // 상대방에게 백그라운드 웹 푸시 발송 시도
-    sendPushToPartner({
-      title: "📖 류이어리 새 일기",
-      message: "당신의 반쪽이 새 일기를 남겼습니다.",
-    });
-
-    // 입력 필드, 기분 선택, 사진 및 그림판 초기화
-    titleInput.value = "";
-    bodyInput.value = "";
-    selectedMood = null;
-    moodBtns.forEach((btn) => btn.classList.remove("active"));
-    
-    // 사진 초기화
-    clearAttachedPhotos();
-
-    // 그림판 초기화
-    resetCanvas();
-    if (drawingContainer) {
-      drawingContainer.hidden = true;
-    }
-    if (drawToggleBtn) {
-      drawToggleBtn.textContent = "🎨 그림 그리기";
+    if (hasPhotos) {
+      const photoLimit = MAX_MEDIA_ITEMS - finalImages.length;
+      finalImages.push(...attachedPhotos.slice(0, photoLimit));
+      if (!isDrawn && editingDrawingData) {
+        drawingData = editingDrawingData;
+      }
     }
 
-    titleInput.focus();
-    showToastNotification("일기가 등록되었습니다! 💌", "📖");
+    // Firestore 1MB 문서 상한 방어: 총 용량 초과 시 첨부 사진 자동 재압축
+    const estimateBytes = () =>
+      JSON.stringify({ title, body, images: finalImages, drawingData }).length;
+
+    if (estimateBytes() > MAX_DOC_BYTES_BUDGET && finalImages.length > 0) {
+      const startIdx = isDrawn ? 1 : 0;
+      for (let i = startIdx; i < finalImages.length; i++) {
+        finalImages[i] = await recompressDataUrl(finalImages[i], 640, 0.52);
+      }
+      if (estimateBytes() > MAX_DOC_BYTES_BUDGET) {
+        for (let i = startIdx; i < finalImages.length; i++) {
+          finalImages[i] = await recompressDataUrl(finalImages[i], 480, 0.42);
+        }
+      }
+      if (estimateBytes() > MAX_DOC_BYTES_BUDGET) {
+        throw new Error("사진·그림 총 용량이 너무 큽니다. 사진 장수를 1~2장 줄여주세요.");
+      }
+    }
+
+    const primaryImage = finalImages.length > 0 ? finalImages[0] : null;
+    const isEditing = Boolean(editingEntryId);
+
+    let writeResult;
+    if (isEditing) {
+      writeResult = await updateEntry(editingEntryId, {
+        title,
+        body,
+        image: primaryImage,
+        images: finalImages,
+        mood: selectedMood,
+        drawingData,
+      });
+    } else {
+      writeResult = await addEntry({
+        title,
+        body,
+        image: primaryImage,
+        images: finalImages,
+        mood: selectedMood,
+        drawingData,
+      });
+
+      if (!writeResult?.queuedOffline) {
+        sendPushToPartner({
+          title: "📖 류이어리 새 일기",
+          message: "새 일기가 등록되었습니다.",
+        }).catch(() => {});
+      }
+    }
+
+    if (!isEditing) {
+      clearSavedDraft();
+    }
+    resetEditorForm({ collapse: true });
+
+    // 데스크톱이 아닌 터치/모바일에서는 저장 후 키보드가 다시 뜨지 않도록 포커스 해제
+    if (isTouchDevice() && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    if (writeResult?.queuedOffline) {
+      showToastNotification("오프라인 보관 완료! 연결 시 자동 동기화됩니다.", "☁️");
+    } else {
+      showToastNotification(
+        isEditing ? "일기가 수정되었습니다! ✨" : "일기가 등록되었습니다! 💌",
+        "📖"
+      );
+    }
   } catch (error) {
     console.error(error);
     showError("저장하지 못했습니다: " + error.message);
   } finally {
     saveButton.disabled = false;
+    if (saveButton.textContent === "저장 중..." || saveButton.textContent === "수정 중...") {
+      saveButton.textContent = originalBtnLabel;
+    }
   }
 }
 
-/**
- * 에디터 및 그림판/사진 이벤트 리스너를 초기화합니다.
- */
 export function initEditor() {
-  // 오늘의 기분 선택 버튼 이벤트 배선
+  // 1. 컴팩트 작성 바 / 접기 / FAB 이벤트
+  if (composerCompactOpenBtn) {
+    composerCompactOpenBtn.addEventListener("click", () => {
+      setEditorExpanded(true, { focusBody: true });
+    });
+  }
+
+  if (composerQuickPhotoBtn && photoFileInput) {
+    composerQuickPhotoBtn.addEventListener("click", () => {
+      setEditorExpanded(true);
+      photoFileInput.click();
+    });
+  }
+
+  if (composerQuickDrawBtn) {
+    composerQuickDrawBtn.addEventListener("click", () => {
+      setEditorExpanded(true);
+      if (drawingContainer && drawingContainer.hidden) {
+        drawingContainer.hidden = false;
+        if (drawToggleBtn) drawToggleBtn.textContent = "🎨 그림 접기";
+      }
+    });
+  }
+
+  if (fabWriteBtn) {
+    fabWriteBtn.addEventListener("click", () => {
+      const feedTab = document.getElementById("view-tab-feed");
+      if (feedTab && !feedTab.classList.contains("active")) {
+        feedTab.click();
+      }
+      setEditorExpanded(true, { focusBody: true });
+      editorSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  if (editorCollapseBtn) {
+    editorCollapseBtn.addEventListener("click", async () => {
+      if (editingEntryId) {
+        const ok = await showConfirmDialog({
+          title: "수정 취소",
+          message: "수정 중인 내용을 취소하고 닫으시겠습니까?",
+          confirmText: "수정 취소",
+        });
+        if (!ok) return;
+        resetEditorForm({ collapse: true });
+        return;
+      }
+      setEditorExpanded(false);
+    });
+  }
+
+  if (cancelEditBtn) {
+    cancelEditBtn.addEventListener("click", async () => {
+      const ok = await showConfirmDialog({
+        title: "수정 취소",
+        message: "수정 중인 내용을 취소하시겠습니까?",
+        confirmText: "취소하기",
+      });
+      if (!ok) return;
+      resetEditorForm({ collapse: true });
+    });
+  }
+
+  // 일기 카드의 [수정] 버튼 이벤트 수신
+  window.addEventListener("diary:edit-entry", (e) => {
+    openEntryForEdit(e.detail);
+  });
+
+  // 2. 임시저장 복구/삭제
+  if (draftDiscardBtn) {
+    draftDiscardBtn.addEventListener("click", () => {
+      clearSavedDraft();
+      resetEditorForm({ collapse: false });
+      showToastNotification("임시저장 내용을 비웠습니다.", "🗑️");
+    });
+  }
+
+  if (titleInput) titleInput.addEventListener("input", scheduleDraftSave);
+  if (bodyInput) bodyInput.addEventListener("input", scheduleDraftSave);
+
+  // 3. 오늘의 기분 선택
   moodBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
       const mood = btn.dataset.mood;
-      if (selectedMood === mood) {
-        selectedMood = null;
-        btn.classList.remove("active");
-      } else {
-        selectedMood = mood;
-        moodBtns.forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-      }
+      selectedMood = selectedMood === mood ? null : mood;
+      syncMoodUI();
+      scheduleDraftSave();
     });
   });
 
-  // 사진 첨부 버튼 클릭 시 파일 선택창 열기
+  // 4. 사진 첨부
   if (photoToggleBtn && photoFileInput) {
     photoToggleBtn.addEventListener("click", () => {
-      if (attachedPhotos.length >= 5) {
-        alert("사진은 한 일기당 최대 5장까지 첨부할 수 있습니다.");
+      const maxSlots = getMaxPhotoSlots();
+      if (attachedPhotos.length >= maxSlots) {
+        showToastNotification(`사진은 최대 ${maxSlots}장까지 첨부할 수 있습니다.`, "📷");
         return;
       }
       photoFileInput.click();
@@ -274,16 +642,20 @@ export function initEditor() {
       const rawFiles = Array.from(e.target.files || []);
       if (rawFiles.length === 0) return;
 
-      const remainingSlots = 5 - attachedPhotos.length;
+      const maxSlots = getMaxPhotoSlots();
+      const remainingSlots = maxSlots - attachedPhotos.length;
       if (remainingSlots <= 0) {
-        alert("사진은 한 일기당 최대 5장까지 첨부할 수 있습니다.");
+        showToastNotification(`사진은 최대 ${maxSlots}장까지 첨부할 수 있습니다.`, "📷");
         photoFileInput.value = "";
         return;
       }
 
       let filesToProcess = rawFiles;
       if (rawFiles.length > remainingSlots) {
-        alert(`사진은 최대 5장까지 첨부할 수 있어 앞선 ${remainingSlots}장만 추가됩니다.`);
+        showToastNotification(
+          `최대 ${maxSlots}장까지 가능해 앞선 ${remainingSlots}장만 추가됩니다.`,
+          "📷"
+        );
         filesToProcess = rawFiles.slice(0, remainingSlots);
       }
 
@@ -293,62 +665,65 @@ export function initEditor() {
         );
         attachedPhotos.push(...compressedList);
         renderPhotoPreviews();
-
-        // 사진을 올리면 그림판은 닫음
-        if (drawingContainer && !drawingContainer.hidden) {
-          drawingContainer.hidden = true;
-          if (drawToggleBtn) drawToggleBtn.textContent = "🎨 그림 그리기";
-          resetCanvas();
-        }
       } catch (err) {
-        console.error("사진 압축 오류:", err);
-        alert("사진을 불러오지 못했습니다.");
+        console.error("[entries] 사진 압축 오류:", err);
+        showError("사진을 불러오지 못했습니다.");
       } finally {
         photoFileInput.value = "";
       }
     });
   }
 
-  // 사진 추가 버튼
   if (photoAddMoreBtn && photoFileInput) {
     photoAddMoreBtn.addEventListener("click", () => {
-      if (attachedPhotos.length >= 5) {
-        alert("사진은 한 일기당 최대 5장까지 첨부할 수 있습니다.");
+      const maxSlots = getMaxPhotoSlots();
+      if (attachedPhotos.length >= maxSlots) {
+        showToastNotification(`사진은 최대 ${maxSlots}장까지 첨부할 수 있습니다.`, "📷");
         return;
       }
       photoFileInput.click();
     });
   }
 
-  // 사진 전체 삭제 버튼
   if (photoClearAllBtn) {
-    photoClearAllBtn.addEventListener("click", () => {
-      if (confirm("첨부된 사진을 모두 삭제하시겠습니까?")) {
+    photoClearAllBtn.addEventListener("click", async () => {
+      const ok = await showConfirmDialog({
+        title: "첨부 사진 전체 삭제",
+        message: "첨부된 사진을 모두 삭제하시겠습니까?",
+        confirmText: "전체 삭제",
+        danger: true,
+      });
+      if (ok) {
         clearAttachedPhotos();
       }
     });
   }
 
-  // 그림판 캔버스 초기화
+  // 5. 그림판 초기화 및 토글 (P0 ReferenceError 수정 + 사진과 공존 지원)
   if (drawingCanvas) {
     initCanvas(drawingCanvas);
-  }
-
-  // 그림판 토글 버튼
-  if (drawToggleBtn && drawingContainer) {
-    drawToggleBtn.addEventListener("click", () => {
-      const isHidden = drawingContainer.hidden;
-      drawingContainer.hidden = !isHidden;
-      drawToggleBtn.textContent = isHidden ? "🎨 그림 접기" : "🎨 그림 그리기";
-
-      // 그림판을 열면 첨부된 사진은 제거
-      if (isHidden && attachedPhotoData) {
-        clearAttachedPhoto();
-      }
+    setOnHistoryChange(({ canUndo, canRedo }) => {
+      if (toolUndoBtn) toolUndoBtn.disabled = !canUndo;
+      if (toolRedoBtn) toolRedoBtn.disabled = !canRedo;
+      renderPhotoPreviews();
     });
   }
 
-  // 펜 모드 버튼
+  if (drawToggleBtn && drawingContainer) {
+    drawToggleBtn.addEventListener("click", () => {
+      const willOpen = drawingContainer.hidden;
+      if (willOpen && attachedPhotos.length >= MAX_MEDIA_ITEMS) {
+        showToastNotification(
+          "사진 5장이 모두 첨부되어 있어요. 그림을 함께 넣으려면 사진 1장을 빼주세요!",
+          "🎨"
+        );
+        return;
+      }
+      drawingContainer.hidden = !willOpen;
+      drawToggleBtn.textContent = willOpen ? "🎨 그림 접기" : "🎨 그림 그리기";
+    });
+  }
+
   if (toolPenBtn) {
     toolPenBtn.addEventListener("click", () => {
       setMode("pen");
@@ -357,7 +732,6 @@ export function initEditor() {
     });
   }
 
-  // 지우개 모드 버튼
   if (toolEraserBtn) {
     toolEraserBtn.addEventListener("click", () => {
       setMode("eraser");
@@ -366,7 +740,6 @@ export function initEditor() {
     });
   }
 
-  // 컬러 피커
   if (toolColorPicker) {
     toolColorPicker.addEventListener("input", (e) => {
       setColor(e.target.value);
@@ -376,7 +749,6 @@ export function initEditor() {
     });
   }
 
-  // 프리셋 컬러 칩
   colorChips.forEach((chip) => {
     chip.addEventListener("click", () => {
       const color = chip.dataset.color;
@@ -389,7 +761,6 @@ export function initEditor() {
     });
   });
 
-  // 굵기 버튼 (3단계)
   sizeBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
       const size = Number(btn.dataset.size);
@@ -399,27 +770,35 @@ export function initEditor() {
     });
   });
 
-  // 실행취소(Undo)
   if (toolUndoBtn) {
-    toolUndoBtn.addEventListener("click", () => {
-      undo();
-    });
+    toolUndoBtn.addEventListener("click", () => undo());
   }
 
-  // 전체 지우기
+  if (toolRedoBtn) {
+    toolRedoBtn.addEventListener("click", () => redo());
+  }
+
   if (toolClearBtn) {
-    toolClearBtn.addEventListener("click", () => {
-      if (confirm("그림을 모두 지우시겠습니까?")) {
+    toolClearBtn.addEventListener("click", async () => {
+      if (!hasDrawing()) return;
+      const ok = await showConfirmDialog({
+        title: "그림 전체 지우기",
+        message: "그림을 모두 지우시겠습니까? (실수한 경우 취소 버튼으로 복구할 수 있어요)",
+        confirmText: "지우기",
+        danger: true,
+      });
+      if (ok) {
         clearCanvas();
       }
     });
   }
 
-  // 저장 버튼
   if (saveButton) {
     saveButton.addEventListener("click", onSave);
   }
+
+  // 초기 상태: 접힌 컴팩트 바 (임시저장 초안이 있으면 자동 복원 및 펼침)
+  setEditorExpanded(false);
+  syncDrawingToolbarUI();
+  restoreSavedDraft();
 }
-
-
-

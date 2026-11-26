@@ -182,21 +182,32 @@ const ROMANCE_QUESTIONS_POOL = [
 ];
 
 /**
+ * 두 YYYY-MM-DD (또는 Date) 사이의 일수 차이를 타임존/DST 왜곡 없이 UTC 기준으로 계산합니다.
+ */
+function calcUtcDiffDays(startY, startM, startD, targetDate = new Date()) {
+  const startUtc = Date.UTC(startY, startM - 1, startD);
+  const targetUtc = Date.UTC(
+    targetDate.getFullYear(),
+    targetDate.getMonth(),
+    targetDate.getDate()
+  );
+  return Math.round((targetUtc - startUtc) / (1000 * 60 * 60 * 24));
+}
+
+/**
  * 사귄 일 수 (D+n) 계산
- * @param {Array} ddayItems 
+ * @param {Array} ddayItems
+ * @param {Date} [targetDate=new Date()]
  * @returns {number}
  */
-export function getCoupleDays(ddayItems = []) {
+export function getCoupleDays(ddayItems = [], targetDate = new Date()) {
   if (!Array.isArray(ddayItems)) return 1;
   const item = ddayItems.find((it) => (it.type || "count_up") === "count_up");
   if (!item || !item.date || typeof item.date !== "string") return 1;
   const parts = item.date.split("-").map(Number);
   if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return 1;
   const [y, m, d] = parts;
-  const now = new Date();
-  const startDate = new Date(y, m - 1, d).getTime();
-  const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const diff = Math.floor((todayMid - startDate) / (1000 * 60 * 60 * 24)) + 1;
+  const diff = calcUtcDiffDays(y, m, d, targetDate) + 1;
   return diff > 0 ? diff : 1;
 }
 
@@ -385,14 +396,13 @@ export function checkSpecialDayQuestion(ddayItems, targetDate = new Date()) {
         };
       }
 
-      // 사귄 날짜 카운트업
+      // 사귄 날짜 카운트업 (dday.js 마일스톤 규칙 통일: 1년 이내 50일 단위, 이후 100일 단위)
       if (item.type === "count_up") {
-        const startDate = new Date(y, m - 1, d).getTime();
-        const targetMid = new Date(curYear, targetDate.getMonth(), curDate).getTime();
-        const diffDays = Math.floor((targetMid - startDate) / (1000 * 60 * 60 * 24)) + 1;
+        const diffDays = calcUtcDiffDays(y, m, d, targetDate) + 1;
+        const isFirstYear = diffDays <= 365;
+        const isDayMilestone = diffDays > 0 && (isFirstYear ? diffDays % 50 === 0 : diffDays % 100 === 0);
 
-        const specialDays = [100, 200, 300, 500, 1000, 1500, 2000, 3000];
-        if (specialDays.includes(diffDays)) {
+        if (isDayMilestone) {
           return {
             id: `special_dday_${diffDays}`,
             isSpecial: true,
@@ -444,31 +454,63 @@ export function checkSpecialDayQuestion(ddayItems, targetDate = new Date()) {
 }
 
 /**
- * [신규] 회차 번호(order: 1, 2, 3...)에 해당하는 일반 질문 반환 (사귄 일 수 단계별 순차 배정)
+ * 회차 번호(order: 1, 2, 3...)에 해당하는 일반 질문 반환
+ * - 현재 사귄 일 수(coupleDays)에 맞는 단계 질문 풀을 우선 배정하고,
+ * - 5회차마다 현재 계절 감성 질문(SEASONAL_QUESTIONS)을 자연스럽게 섞어 제공합니다.
  * @param {number} order - 1부터 시작하는 회차 번호
  * @param {number} coupleDays - 현재 사귄 일수
+ * @param {Date} [targetDate=new Date()]
  * @returns {Object} 질문 객체
  */
-export function getQuestionByOrder(order = 1, coupleDays = 30) {
+export function getQuestionByOrder(order = 1, coupleDays = 30, targetDate = new Date()) {
   const safeOrder = Math.max(1, parseInt(order, 10) || 1);
+  const safeDays = Math.max(1, parseInt(coupleDays, 10) || 1);
 
-  // 연애 일수 단계별에 적합한 질문들을 우선 정렬
-  // 1단계(1~70일), 2단계(40~200일), 3단계(120~500일), 4단계(250일~)
-  const sortedPool = [...ROMANCE_QUESTIONS_POOL].sort((a, b) => {
-    if (a.minDays !== b.minDays) return a.minDays - b.minDays;
-    return a.maxDays - b.maxDays;
-  });
+  // 5회차마다 계절 감성 질문 1개 배정 (40일 초과 커플)
+  if (safeDays > 40 && safeOrder % 5 === 0) {
+    const seasonKey = getSeasonKey(targetDate.getMonth() + 1);
+    const seasonList = SEASONAL_QUESTIONS[seasonKey] || [];
+    if (seasonList.length > 0) {
+      const seasonLabels = {
+        spring: "🌸 봄날 질문",
+        summer: "🌊 여름 질문",
+        autumn: "🍁 가을 질문",
+        winter: "❄️ 겨울 질문",
+      };
+      const sIdx = (Math.floor(safeOrder / 5) - 1) % seasonList.length;
+      return {
+        id: `order_${safeOrder}`,
+        order: safeOrder,
+        isSpecial: false,
+        badge: `${seasonLabels[seasonKey]} · Q.${safeOrder} (D+${safeDays})`,
+        text: seasonList[sIdx],
+        coupleDays: safeDays,
+      };
+    }
+  }
 
-  const index = (safeOrder - 1) % sortedPool.length;
-  const questionItem = sortedPool[index];
+  // 1) 현재 사귄 일 수에 적합한 질문 우선 추출
+  const phaseMatched = ROMANCE_QUESTIONS_POOL.filter(
+    (q) => safeDays >= q.minDays && safeDays <= q.maxDays
+  );
+
+  // 2) 소진 시 나머지 풀을 근접 단계순으로 이어 붙여 중복 최소화
+  const matchedSet = new Set(phaseMatched);
+  const restPool = ROMANCE_QUESTIONS_POOL.filter((q) => !matchedSet.has(q)).sort(
+    (a, b) => Math.abs(a.minDays - safeDays) - Math.abs(b.minDays - safeDays)
+  );
+  const orderedPool = phaseMatched.length > 0 ? [...phaseMatched, ...restPool] : restPool;
+
+  const index = (safeOrder - 1) % orderedPool.length;
+  const questionItem = orderedPool[index];
 
   return {
     id: `order_${safeOrder}`,
     order: safeOrder,
     isSpecial: false,
-    badge: `💌 Q.${safeOrder} (함께한 지 D+${coupleDays})`,
+    badge: `💌 Q.${safeOrder} (함께한 지 D+${safeDays})`,
     text: questionItem.text,
-    coupleDays,
+    coupleDays: safeDays,
   };
 }
 

@@ -1,6 +1,6 @@
 // =========================================================
 // notice.js - 상단 공지사항 모듈
-// 다중 공지 목록 렌더링, 사용자 간 공동 편집/추가/삭제를 담당합니다.
+// 다중 공지 목록 렌더링, 접힘 상태 기억(1줄 미리보기), 공동 편집/추가/삭제 담당
 // =========================================================
 
 import {
@@ -10,12 +10,14 @@ import {
   removeNotice,
 } from "./store.js";
 import { getCurrentUser, getUserDisplayName } from "./state.js";
-import { showError } from "./ui.js";
-import { sendPushToPartner } from "./notify.js";
+import { showError, showConfirmDialog } from "./ui.js";
+import { sendPushToPartner, showToastNotification } from "./notify.js";
 
-// 화면 요소
+const STORAGE_KEY_NOTICE_FOLDED = "diary_notice_folded";
+
 const noticeArea = document.getElementById("notice-area");
 const noticeCount = document.getElementById("notice-count");
+const noticePreview = document.getElementById("notice-preview");
 const noticeList = document.getElementById("notice-list");
 const addNoticeBtn = document.getElementById("add-notice-btn");
 const toggleNoticesBtn = document.getElementById("toggle-notices-btn");
@@ -25,48 +27,74 @@ const noticeInput = document.getElementById("notice-input");
 const noticeSubmitBtn = document.getElementById("notice-submit-btn");
 const noticeCancelBtn = document.getElementById("notice-cancel-btn");
 
-// 내부 상태
 let editingNoticeId = null;
-let isFolded = false;
+let latestNotices = [];
+let isFolded = readInitialFoldState();
+let unsubscribeNotices = null;
 
-/**
- * 로그인 상태에 따라 공지 작성 및 수정/삭제 권한 UI를 업데이트합니다.
- * (로그인한 사용자 누구나 공지 편집 가능)
- * @param {Object|null} user - Firebase User 객체
- */
+function readInitialFoldState() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_NOTICE_FOLDED);
+    if (saved === "true") return true;
+    if (saved === "false") return false;
+  } catch {
+    // 스토리지 접근 불가 무시
+  }
+  // 모바일 첫 화면 스크롤 부담 완화를 위해 초기값은 600px 이하에서 접힘
+  return typeof window !== "undefined" && window.innerWidth <= 600;
+}
+
+function applyFoldState() {
+  if (noticeList) noticeList.hidden = isFolded;
+  if (noticeFormWrapper && isFolded) noticeFormWrapper.hidden = true;
+  if (noticeArea) noticeArea.classList.toggle("folded", isFolded);
+  if (toggleNoticesBtn) {
+    toggleNoticesBtn.textContent = isFolded ? "▼" : "▲";
+    toggleNoticesBtn.title = isFolded ? "공지 펼치기" : "공지 접기";
+    toggleNoticesBtn.setAttribute("aria-expanded", String(!isFolded));
+  }
+  updateNoticePreview();
+}
+
+function updateNoticePreview() {
+  if (!noticePreview) return;
+  if (isFolded && latestNotices.length > 0) {
+    const firstLine = String(latestNotices[0].text || "").split("\n")[0].trim();
+    noticePreview.textContent = firstLine;
+    noticePreview.hidden = !firstLine;
+  } else {
+    noticePreview.hidden = true;
+  }
+}
+
 export function updateNoticeAuth(user) {
   const isLoggedIn = Boolean(user);
 
-  // [+ 공지 추가] 버튼 표시/숨김
   if (addNoticeBtn) {
     addNoticeBtn.hidden = !isLoggedIn;
   }
 
-  // 각 공지 항목 내 수정/삭제 버튼 표시/숨김
   const controlButtons = document.querySelectorAll(".notice-item-controls");
   controlButtons.forEach((el) => {
     el.hidden = !isLoggedIn;
   });
 }
 
-/**
- * 공지사항 목록을 화면에 렌더링합니다.
- * @param {Array<Object>} notices - 공지사항 목록
- */
 function renderNotices(notices) {
+  latestNotices = Array.isArray(notices) ? notices : [];
   if (!noticeList) return;
 
-  // 카운트 갱신
   if (noticeCount) {
-    noticeCount.textContent = `(${notices.length})`;
+    noticeCount.textContent = `(${latestNotices.length})`;
   }
 
+  updateNoticePreview();
   noticeList.innerHTML = "";
 
   const currentUser = getCurrentUser();
   const isLoggedIn = Boolean(currentUser);
 
-  for (const notice of notices) {
+  for (const notice of latestNotices) {
     const item = document.createElement("li");
     item.className = "notice-item";
 
@@ -100,39 +128,46 @@ function renderNotices(notices) {
     metaDiv.appendChild(dateSpan);
     contentDiv.appendChild(metaDiv);
 
-    // 로그인한 사용자에게만 수정/삭제 버튼 제공
     const controlsDiv = document.createElement("div");
     controlsDiv.className = "notice-item-controls";
     controlsDiv.hidden = !isLoggedIn;
 
-    // 수정 버튼
     const editBtn = document.createElement("button");
     editBtn.type = "button";
     editBtn.className = "notice-ctrl-btn edit";
     editBtn.textContent = "✏️ 수정";
     editBtn.addEventListener("click", () => {
       editingNoticeId = notice.id;
+      if (isFolded) {
+        isFolded = false;
+        applyFoldState();
+      }
       if (noticeInput) noticeInput.value = notice.text;
       if (noticeSubmitBtn) noticeSubmitBtn.textContent = "수정 완료";
       if (noticeFormWrapper) {
         noticeFormWrapper.hidden = false;
-        noticeInput.focus();
+        noticeInput?.focus();
       }
     });
 
-    // 삭제 버튼
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "notice-ctrl-btn delete";
     deleteBtn.textContent = "🗑️ 삭제";
     deleteBtn.addEventListener("click", async () => {
-      if (confirm("이 공지사항을 삭제하시겠습니까?")) {
-        try {
-          await removeNotice(notice.id);
-        } catch (err) {
-          console.error(err);
-          showError("공지사항 삭제에 실패했습니다: " + err.message);
-        }
+      const ok = await showConfirmDialog({
+        title: "공지사항 삭제",
+        message: "이 공지사항을 삭제하시겠습니까?",
+        confirmText: "삭제",
+        danger: true,
+      });
+      if (!ok) return;
+      try {
+        await removeNotice(notice.id);
+        showToastNotification("공지사항이 삭제되었습니다.", "🗑️");
+      } catch (err) {
+        console.error(err);
+        showError("공지사항 삭제에 실패했습니다: " + err.message);
       }
     });
 
@@ -146,11 +181,11 @@ function renderNotices(notices) {
 }
 
 /**
- * 공지사항 모듈 초기화 및 이벤트 리스너를 등록합니다.
+ * 로그인·2차 인증 완료 후 공지사항 실시간 구독을 시작합니다.
  */
-export function initNotices() {
-  // 1. 공지사항 실시간 구독 시작
-  subscribeNotices(
+export function startNoticeSubscription() {
+  if (unsubscribeNotices) return;
+  unsubscribeNotices = subscribeNotices(
     (notices) => {
       renderNotices(notices);
     },
@@ -158,11 +193,32 @@ export function initNotices() {
       console.warn("[notice] 공지사항 로드 경고:", err);
     }
   );
+}
 
-  // 2. [+ 공지 추가] 버튼
+/**
+ * 로그아웃 시 공지사항 실시간 구독을 해제하고 목록을 초기화합니다.
+ */
+export function stopNoticeSubscription() {
+  if (unsubscribeNotices) {
+    unsubscribeNotices();
+    unsubscribeNotices = null;
+  }
+  latestNotices = [];
+  if (noticeList) noticeList.innerHTML = "";
+  if (noticeCount) noticeCount.textContent = "";
+  if (noticePreview) noticePreview.hidden = true;
+}
+
+export function initNotices() {
+  applyFoldState();
+
   if (addNoticeBtn) {
     addNoticeBtn.addEventListener("click", () => {
       editingNoticeId = null;
+      if (isFolded) {
+        isFolded = false;
+        applyFoldState();
+      }
       if (noticeInput) noticeInput.value = "";
       if (noticeSubmitBtn) noticeSubmitBtn.textContent = "등록";
       if (noticeFormWrapper) {
@@ -174,20 +230,26 @@ export function initNotices() {
     });
   }
 
-  // 3. 접기/펼치기 토글 버튼
+  const toggleFold = () => {
+    isFolded = !isFolded;
+    try {
+      localStorage.setItem(STORAGE_KEY_NOTICE_FOLDED, String(isFolded));
+    } catch {
+      // 무시
+    }
+    applyFoldState();
+  };
+
   if (toggleNoticesBtn && noticeList) {
-    toggleNoticesBtn.addEventListener("click", () => {
-      isFolded = !isFolded;
-      noticeList.hidden = isFolded;
-      if (noticeFormWrapper && isFolded) {
-        noticeFormWrapper.hidden = true;
-      }
-      toggleNoticesBtn.textContent = isFolded ? "▼" : "▲";
-      toggleNoticesBtn.title = isFolded ? "펼치기" : "접기";
+    toggleNoticesBtn.addEventListener("click", toggleFold);
+  }
+
+  if (noticePreview) {
+    noticePreview.addEventListener("click", () => {
+      if (isFolded) toggleFold();
     });
   }
 
-  // 4. 작성 폼 취소 버튼
   if (noticeCancelBtn && noticeFormWrapper) {
     noticeCancelBtn.addEventListener("click", () => {
       noticeFormWrapper.hidden = true;
@@ -196,12 +258,11 @@ export function initNotices() {
     });
   }
 
-  // 5. 작성 폼 등록/수정 버튼
   if (noticeSubmitBtn) {
     noticeSubmitBtn.addEventListener("click", async () => {
       const text = noticeInput.value.trim();
       if (!text) {
-        alert("공지사항 내용을 입력해주세요.");
+        showToastNotification("공지사항 내용을 입력해 주세요.", "📢");
         noticeInput.focus();
         return;
       }
@@ -210,12 +271,14 @@ export function initNotices() {
       try {
         if (editingNoticeId) {
           await updateNotice(editingNoticeId, text);
+          showToastNotification("공지사항이 수정되었습니다.", "📢");
         } else {
           await addNotice(text);
+          showToastNotification("공지사항이 등록되었습니다.", "📢");
           sendPushToPartner({
             title: "📢 류이어리 새 공지",
-            message: "당신의 반쪽이 새 공지를 남겼습니다.",
-          });
+            message: "새 공지사항이 등록되었습니다.",
+          }).catch(() => {});
         }
 
         noticeFormWrapper.hidden = true;
@@ -230,6 +293,3 @@ export function initNotices() {
     });
   }
 }
-
-
-

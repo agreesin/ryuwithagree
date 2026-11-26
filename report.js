@@ -1,75 +1,85 @@
+// =========================================================
 // report.js - 감성 월간 레포트 모듈
-// 한 달간의 일기, 감정, 댓글, 그림/사진, 기념일을 집계하여 감성 카드 뉴스로 제공
+// - 동적 프로필 기반 익명/중립 표기 및 XSS 이스케이프 적용
+// - 실제 기분 이모지(😁🥰😭🤬🤯😴) 맞춤 마음 날씨 판별 & 다중 사진 전체 집계
+// - 베스트 일기 클릭 시 피드 전환 + 자동 페이징 탐색, 미래 월 탐색 차단
 // =========================================================
 
-import { getCurrentUser, getCurrentProfiles, getUserDisplayName } from "./state.js";
+import { getCurrentUser, getCurrentProfiles, getUserDisplayName, isUserProfileId } from "./state.js";
 import { getMilestonesForDate, getDdayItems } from "./dday.js";
 import { showToastNotification, showSystemNotification, startTitleBlink } from "./notify.js";
-import { openModal, closeModal } from "./ui.js";
+import { openModal, closeModal, escapeHtml, sanitizeImageUrl, normalizeMood, openLightbox } from "./ui.js";
 
-// 내부 캐시 및 상태
 let cachedEntries = [];
 let currentReportYear = new Date().getFullYear();
-let currentReportMonth = new Date().getMonth(); // 기본값: 지난달 (0 = 1월, 11 = 12월)
+let currentReportMonth = new Date().getMonth(); // 0-based
 let currentSlideIndex = 0;
 const TOTAL_SLIDES = 7;
 
-// DOM 요소
 let reportModal = null;
 let reportBtn = null;
 let reportBadge = null;
 let calReportBtn = null;
 
-/**
- * 일기 목록 캐시 갱신 (render.js에서 호출)
- */
+function getPreviousYearMonth() {
+  const now = new Date();
+  let prevY = now.getFullYear();
+  let prevM = now.getMonth(); // 0=1월 -> 지난달은 작년 12월
+  if (prevM === 0) {
+    prevM = 12;
+    prevY--;
+  }
+  return { year: prevY, month: prevM };
+}
+
+function getParticipantNames(authorCounts) {
+  const profiles = getCurrentProfiles();
+  const profileNames = Object.entries(profiles)
+    .filter(([uid, name]) => isUserProfileId(uid) && name)
+    .map(([, name]) => name);
+
+  const countAuthors = Object.keys(authorCounts || {});
+  const merged = [...new Set([...countAuthors, ...profileNames])];
+  return [merged[0] || "참여자 A", merged[1] || "참여자 B"];
+}
+
 export function updateReportEntries(entries) {
-  cachedEntries = entries || [];
+  cachedEntries = Array.isArray(entries) ? entries : [];
   checkReportBadge();
 }
 
-/**
- * 특정 연도와 월(1~12)의 레포트 데이터를 계산합니다.
- */
 export function generateReportData(year, month) {
-  // month: 1 ~ 12
   const startMs = new Date(year, month - 1, 1, 0, 0, 0, 0).getTime();
   const endMs = new Date(year, month, 0, 23, 59, 59, 999).getTime();
   const daysInMonth = new Date(year, month, 0).getDate();
 
-  // 1. 해당 월에 작성된 일기 필터링
   const monthEntries = cachedEntries.filter(
     (e) => e.createdAt && e.createdAt >= startMs && e.createdAt <= endMs
   );
 
-  // 2. 작성자별 통계 (이름 기준)
-  const profiles = getCurrentProfiles();
   const authorCounts = {};
   const activeDaysSet = new Set();
   const moodCounts = {};
+  let moodedEntriesCount = 0;
   let totalComments = 0;
   let totalReactions = 0;
   let bestEntry = null;
   let bestScore = -1;
-  const mediaEntries = [];
+  const mediaPhotos = []; // { src, title }
 
   monthEntries.forEach((entry) => {
-    // 작성자 (최신 프로필 닉네임 우선)
-    const authorName = getUserDisplayName(entry.uid, entry.author || "익명");
+    const authorName = getUserDisplayName(entry.uid, entry.author || "참여자");
     authorCounts[authorName] = (authorCounts[authorName] || 0) + 1;
 
-    // 작성 일자 (활동 일수)
     const d = new Date(entry.createdAt);
     activeDaysSet.add(`${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`);
 
-    // 기분 통계
     if (entry.mood) {
-      let m = entry.mood;
-      if (m === "🫪") m = "🤯";
+      const m = normalizeMood(entry.mood);
       moodCounts[m] = (moodCounts[m] || 0) + 1;
+      moodedEntriesCount += 1;
     }
 
-    // 댓글 및 공감 통계
     const commentsCount = (entry.comments && entry.comments.length) || 0;
     totalComments += commentsCount;
 
@@ -81,47 +91,59 @@ export function generateReportData(year, month) {
     }
     totalReactions += reactionsCount;
 
-    // 베스트 일기 산정 (댓글 2점 + 리액션 1.5점 + 본문 길이 가산)
-    const score = commentsCount * 2 + reactionsCount * 1.5 + ((entry.body || "").length > 30 ? 1 : 0);
+    const score =
+      commentsCount * 2 + reactionsCount * 1.5 + ((entry.body || "").length > 30 ? 1 : 0);
     if (score > bestScore) {
       bestScore = score;
       bestEntry = entry;
     }
 
-    // 사진/그림 첨부 일기
-    if (entry.image) {
-      mediaEntries.push(entry);
-    }
+    const imgs =
+      Array.isArray(entry.images) && entry.images.length > 0
+        ? entry.images
+        : entry.image
+        ? [entry.image]
+        : [];
+    imgs.forEach((src) => {
+      const safe = sanitizeImageUrl(src);
+      if (safe) {
+        mediaPhotos.push({ src: safe, title: entry.title || "추억" });
+      }
+    });
   });
 
-  // 기분 TOP 3 산출
+  // 기분이 기록된 일기 수를 분모로 계산하여 비율 합계가 자연스럽게 100%에 가깝게 표기
   const moodSorted = Object.entries(moodCounts)
     .sort((a, b) => b[1] - a[1])
     .map(([emoji, count]) => ({
       emoji,
       count,
-      percent: monthEntries.length > 0 ? Math.round((count / monthEntries.length) * 100) : 0,
+      percent: moodedEntriesCount > 0 ? Math.round((count / moodedEntriesCount) * 100) : 0,
     }));
 
-  // 마음 날씨 판별
+  // 실제 기분 선택기 이모지(😁🥰😭🤬🤯😴)와 정확히 매핑된 마음 날씨 판별
   let weatherIcon = "🌤️";
   let weatherTitle = "포근하고 다정한 날씨";
   let weatherDesc = "서로에게 든든한 온기가 되어준 소중한 한 달이었습니다.";
 
   if (moodSorted.length > 0) {
     const topEmoji = moodSorted[0].emoji;
-    if (["🥰", "💖", "🥳", "💕", "🌸", "✨"].includes(topEmoji)) {
+    if (["🥰", "😁", "💖", "🥳", "💕", "🌸", "✨"].includes(topEmoji)) {
       weatherIcon = "☀️";
       weatherTitle = "햇살 가득 맑고 사랑 넘침";
-      weatherDesc = "서로를 향한 설렘과 고마움이 가득 넘쳐났던 눈부신 달이었어요!";
-    } else if (["☕", "🌿", "😌", "💤"].includes(topEmoji)) {
-      weatherIcon = "🌤️";
-      weatherTitle = "잔잔하고 평온한 휴식";
-      weatherDesc = "바쁜 일상 속에서도 서로의 곁에서 안식과 쉼을 얻은 포근한 달이었어요.";
-    } else if (["😢", "🥺", "💧", "🌧️"].includes(topEmoji)) {
+      weatherDesc = "서로를 향한 웃음과 설렘이 가득 넘쳐났던 눈부신 달이었어요!";
+    } else if (["😴", "☕", "🌿", "😌", "💤"].includes(topEmoji)) {
+      weatherIcon = "🌙";
+      weatherTitle = "포근한 휴식과 충전의 달";
+      weatherDesc = "바쁘고 피곤한 일상 속에서도 서로의 곁에서 안식을 얻은 달이었어요.";
+    } else if (["😭", "😢", "🥺", "💧", "🌧️"].includes(topEmoji)) {
       weatherIcon = "🌧️";
       weatherTitle = "토닥토닥 감성 소나기";
-      weatherDesc = "힘들고 지칠 때 서로의 손을 꼭 잡아주며 더 깊어진 한 달이었어요.";
+      weatherDesc = "마음이 흔들릴 때 서로의 손을 꼭 잡아주며 더 단단해진 한 달이었어요.";
+    } else if (["🤬", "🤯"].includes(topEmoji)) {
+      weatherIcon = "⚡";
+      weatherTitle = "시원하게 털어낸 에너지의 달";
+      weatherDesc = "지치고 복잡했던 하루를 솔직히 나누며 함께 극복해 낸 달이었어요!";
     } else {
       weatherIcon = "🌈";
       weatherTitle = "다채롭고 소중한 무지개";
@@ -129,8 +151,8 @@ export function generateReportData(year, month) {
     }
   }
 
-  // 3. 해당 월의 기념일 및 마일스톤 집계
   const monthlyEvents = [];
+  const ddayItems = getDdayItems();
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const msList = getMilestonesForDate(dateStr);
@@ -138,8 +160,6 @@ export function generateReportData(year, month) {
       monthlyEvents.push({ ...ms, day });
     });
 
-    // 일반 등록 일정(생일/데이트)도 검사
-    const ddayItems = getDdayItems();
     ddayItems.forEach((item) => {
       if (!item.date) return;
       const [iy, im, id] = item.date.split("-").map(Number);
@@ -152,7 +172,7 @@ export function generateReportData(year, month) {
         });
       } else if (type === "event" && iy === year && im === month && id === day) {
         monthlyEvents.push({
-          title: `${item.title}`,
+          title: item.title,
           icon: item.icon || "🌟",
           day,
         });
@@ -174,15 +194,12 @@ export function generateReportData(year, month) {
     totalComments,
     totalReactions,
     bestEntry,
-    mediaEntries,
+    mediaPhotos,
     monthlyEvents,
     hasEntries: monthEntries.length > 0,
   };
 }
 
-/**
- * 슬라이드 뷰 렌더링
- */
 function renderSlides(data) {
   const container = document.getElementById("report-slides-wrapper");
   const dotsContainer = document.getElementById("report-dots");
@@ -202,31 +219,28 @@ function renderSlides(data) {
     totalComments,
     totalReactions,
     bestEntry,
-    mediaEntries,
+    mediaPhotos,
     monthlyEvents,
     hasEntries,
   } = data;
 
-  const authors = Object.keys(authorCounts);
-  const authorA = authors[0] || "류";
-  const authorB = authors[1] || "어그리";
+  const [authorA, authorB] = getParticipantNames(authorCounts);
+  const safeAuthorA = escapeHtml(authorA);
+  const safeAuthorB = escapeHtml(authorB);
   const countA = authorCounts[authorA] || 0;
   const countB = authorCounts[authorB] || 0;
   const percentA = totalCount > 0 ? Math.round((countA / totalCount) * 100) : 50;
   const percentB = totalCount > 0 ? 100 - percentA : 50;
 
-  // 슬라이드 HTML 목록
   const slides = [];
 
-  // ==========================
-  // 슬라이드 1: 표지 (Cover)
-  // ==========================
+  // 슬라이드 1: 표지
   slides.push(`
     <div class="report-slide report-slide-cover">
       <div class="report-badge-pill">MONTHLY MEMORY REPORT</div>
       <div class="report-cover-deco">💌</div>
       <h3 class="report-cover-title">${year}년 ${month}월</h3>
-      <p class="report-cover-subtitle">류와 어그리가 함께 쓴 이야기</p>
+      <p class="report-cover-subtitle">우리 둘이 함께 쓴 이야기</p>
       <div class="report-cover-summary-box">
         ${
           hasEntries
@@ -238,9 +252,7 @@ function renderSlides(data) {
     </div>
   `);
 
-  // ==========================
-  // 슬라이드 2: 기록 결산 (일기 통계)
-  // ==========================
+  // 슬라이드 2: 기록 결산
   slides.push(`
     <div class="report-slide">
       <div class="report-card-tag">📊 01. 기록 결산</div>
@@ -258,8 +270,8 @@ function renderSlides(data) {
 
       <div class="report-ratio-container">
         <div class="report-ratio-header">
-          <span>${authorA} (${countA}편)</span>
-          <span>${authorB} (${countB}편)</span>
+          <span>${safeAuthorA} (${countA}편)</span>
+          <span>${safeAuthorB} (${countB}편)</span>
         </div>
         <div class="report-ratio-bar">
           <div class="report-ratio-fill a" style="width: ${percentA}%"></div>
@@ -272,17 +284,15 @@ function renderSlides(data) {
               : Math.abs(percentA - percentB) <= 15
               ? "서로 꼭 닮은 마음으로 다정하게 채워나갔어요! ⚖️"
               : countA > countB
-              ? `${authorA} 님이 사랑과 정성을 듬뿍 담아 남겨주었어요! ✍️`
-              : `${authorB} 님이 사랑과 정성을 듬뿍 담아 남겨주었어요! ✍️`
+              ? `${safeAuthorA} 님이 사랑과 정성을 듬뿍 담아 남겨주었어요! ✍️`
+              : `${safeAuthorB} 님이 사랑과 정성을 듬뿍 담아 남겨주었어요! ✍️`
           }
         </p>
       </div>
     </div>
   `);
 
-  // ==========================
-  // 슬라이드 3: 마음 날씨 (감정 결산)
-  // ==========================
+  // 슬라이드 3: 마음 날씨
   const moodChipsHtml =
     moodSorted.length > 0
       ? moodSorted
@@ -291,7 +301,7 @@ function renderSlides(data) {
             (m, i) => `
           <div class="report-mood-row">
             <span class="report-mood-rank">${i + 1}위</span>
-            <span class="report-mood-icon">${m.emoji}</span>
+            <span class="report-mood-icon">${escapeHtml(m.emoji)}</span>
             <div class="report-mood-bar-wrap">
               <div class="report-mood-bar-fill" style="width: ${m.percent}%"></div>
             </div>
@@ -320,26 +330,29 @@ function renderSlides(data) {
     </div>
   `);
 
-  // ==========================
-  // 슬라이드 4: 사랑의 대화 (댓글 & 베스트 일기)
-  // ==========================
+  // 슬라이드 4: 교감과 대화 & 베스트 일기
   let bestEntryHtml = '<p class="report-empty-sub">작성된 일기가 없습니다.</p>';
   if (bestEntry) {
     const bDate = new Date(bestEntry.createdAt);
     const bDateStr = `${bDate.getMonth() + 1}월 ${bDate.getDate()}일`;
+    const bestAuthor = escapeHtml(getUserDisplayName(bestEntry.uid, bestEntry.author || "참여자"));
+    const safeBestTitle = escapeHtml(bestEntry.title || "제목 없음");
+    const rawBody = String(bestEntry.body || "");
+    const safeSnippet = escapeHtml(rawBody.slice(0, 75) + (rawBody.length > 75 ? "..." : ""));
+
     bestEntryHtml = `
-      <div class="report-best-card" data-id="${bestEntry.id}">
+      <button type="button" class="report-best-card" data-id="${escapeHtml(bestEntry.id)}">
         <div class="report-best-header">
           <span class="report-best-badge">🏆 이달의 베스트 일기</span>
           <span class="report-best-date">${bDateStr}</span>
         </div>
-        <h5 class="report-best-title">${bestEntry.title || "제목 없음"}</h5>
-        <p class="report-best-snippet">${(bestEntry.body || "").slice(0, 75)}${(bestEntry.body || "").length > 75 ? "..." : ""}</p>
+        <h5 class="report-best-title">${safeBestTitle}</h5>
+        <p class="report-best-snippet">${safeSnippet}</p>
         <div class="report-best-footer">
-          <span>작성자: ${bestEntry.author || "익명"}</span>
-          <span>💬 댓글 ${(bestEntry.comments && bestEntry.comments.length) || 0}개</span>
+          <span>작성자: ${bestAuthor}</span>
+          <span>💬 댓글 ${(bestEntry.comments && bestEntry.comments.length) || 0}개 · 보기 ➔</span>
         </div>
-      </div>
+      </button>
     `;
   }
 
@@ -363,25 +376,23 @@ function renderSlides(data) {
     </div>
   `);
 
-  // ==========================
-  // 슬라이드 5: 추억 갤러리 (그림 & 사진)
-  // ==========================
+  // 슬라이드 5: 추억 갤러리 (다중 사진 전체 집계 + 클릭 시 라이트박스)
   let galleryHtml = "";
-  if (mediaEntries.length > 0) {
+  if (mediaPhotos.length > 0) {
     galleryHtml = `
       <div class="report-gallery-grid">
-        ${mediaEntries
+        ${mediaPhotos
           .slice(0, 6)
           .map(
-            (e) => `
-          <div class="report-gallery-item" title="${e.title || '추억'}">
-            <img src="${e.image}" alt="추억 사진" loading="lazy" />
-          </div>
+            (p, idx) => `
+          <button type="button" class="report-gallery-item" data-photo-idx="${idx}" title="${escapeHtml(p.title)}">
+            <img src="${escapeHtml(p.src)}" alt="${escapeHtml(p.title)}" loading="lazy" decoding="async" />
+          </button>
         `
           )
           .join("")}
       </div>
-      <p class="report-gallery-caption">이번 달에 남긴 ${mediaEntries.length}장의 소중한 순간들 📷</p>
+      <p class="report-gallery-caption">이번 달에 남긴 ${mediaPhotos.length}장의 소중한 순간들 📷</p>
     `;
   } else {
     galleryHtml = `
@@ -401,9 +412,7 @@ function renderSlides(data) {
     </div>
   `);
 
-  // ==========================
   // 슬라이드 6: 기념일 회고
-  // ==========================
   let eventsHtml = "";
   if (monthlyEvents.length > 0) {
     eventsHtml = `
@@ -413,8 +422,8 @@ function renderSlides(data) {
             (ev) => `
           <li class="report-event-item">
             <span class="report-event-day">${month}월 ${ev.day}일</span>
-            <span class="report-event-icon">${ev.icon || "💖"}</span>
-            <span class="report-event-title">${ev.title}</span>
+            <span class="report-event-icon">${escapeHtml(ev.icon || "💖")}</span>
+            <span class="report-event-title">${escapeHtml(ev.title)}</span>
           </li>
         `
           )
@@ -439,9 +448,7 @@ function renderSlides(data) {
     </div>
   `);
 
-  // ==========================
-  // 슬라이드 7: 마무리 편지
-  // ==========================
+  // 슬라이드 7: 마무리 편지 (동적 닉네임 반영)
   slides.push(`
     <div class="report-slide report-slide-closing">
       <div class="report-closing-icon">🌸</div>
@@ -449,7 +456,7 @@ function renderSlides(data) {
       <div class="report-closing-card">
         <p class="report-closing-text">
           서로를 아끼고 배려하며<br />
-          예쁜 추억을 가득 채워준 <strong>류</strong>와 <strong>어그리</strong> 💕
+          예쁜 추억을 가득 채워준 <strong>${safeAuthorA}</strong>님과 <strong>${safeAuthorB}</strong>님 💕
         </p>
         <p class="report-closing-sub">
           다가오는 다음 달에도<br />
@@ -465,32 +472,46 @@ function renderSlides(data) {
 
   container.innerHTML = slides.join("");
 
-  // 도트 인디케이터 생성
-  dotsContainer.innerHTML = "";
-  for (let i = 0; i < slides.length; i++) {
-    const dot = document.createElement("button");
-    dot.type = "button";
-    dot.className = `report-dot ${i === currentSlideIndex ? "active" : ""}`;
-    dot.title = `${i + 1}번째 카드`;
-    dot.addEventListener("click", () => goToSlide(i));
-    dotsContainer.appendChild(dot);
+  if (dotsContainer) {
+    dotsContainer.innerHTML = "";
+    for (let i = 0; i < slides.length; i++) {
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = `report-dot ${i === currentSlideIndex ? "active" : ""}`;
+      dot.title = `${i + 1}번째 카드`;
+      dot.setAttribute("aria-label", `${i + 1}번째 레포트 카드`);
+      dot.addEventListener("click", () => goToSlide(i));
+      dotsContainer.appendChild(dot);
+    }
   }
 
-  // 베스트 일기 클릭 이벤트
+  // 베스트 일기 클릭 시 피드 탭 전환 + 페이징 자동 확장 + 하이라이트 이동
   const bestCard = container.querySelector(".report-best-card");
   if (bestCard && bestEntry) {
     bestCard.addEventListener("click", () => {
       closeReportModal();
-      const targetCard = document.querySelector(`[data-entry-id="${bestEntry.id}"]`);
-      if (targetCard) {
-        targetCard.scrollIntoView({ behavior: "smooth", block: "center" });
-        targetCard.classList.add("highlight-pulse");
-        setTimeout(() => targetCard.classList.remove("highlight-pulse"), 2500);
-      }
+      window.dispatchEvent(new CustomEvent("diary:switch-tab", { detail: { mode: "feed" } }));
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("diary:reveal-entry", {
+            detail: { entryId: bestEntry.id },
+          })
+        );
+      }, 150);
     });
   }
 
-  // 마무리 확인 버튼
+  // 갤러리 썸네일 클릭 시 라이트박스 열기
+  if (mediaPhotos.length > 0) {
+    const allSrcs = mediaPhotos.map((p) => p.src);
+    container.querySelectorAll(".report-gallery-item").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.dataset.photoIdx) || 0;
+        openLightbox(allSrcs, idx, `${year}년 ${month}월 추억 갤러리`);
+      });
+    });
+  }
+
   const confirmBtn = document.getElementById("report-confirm-btn");
   if (confirmBtn) {
     confirmBtn.addEventListener("click", closeReportModal);
@@ -499,9 +520,6 @@ function renderSlides(data) {
   updateSlidePosition();
 }
 
-/**
- * 슬라이드 이동
- */
 function goToSlide(index) {
   if (index < 0) index = 0;
   if (index >= TOTAL_SLIDES) index = TOTAL_SLIDES - 1;
@@ -534,22 +552,34 @@ function updateSlidePosition() {
   }
 
   dots.forEach((d, i) => {
-    if (i === currentSlideIndex) d.classList.add("active");
-    else d.classList.remove("active");
+    d.classList.toggle("active", i === currentSlideIndex);
   });
 
   if (prevBtn) prevBtn.disabled = currentSlideIndex === 0;
   if (nextBtn) nextBtn.disabled = currentSlideIndex === TOTAL_SLIDES - 1;
 }
 
-/**
- * 월간 레포트 모달 열기
- * @param {number} year - 연도 (기본: currentReportYear)
- * @param {number} month - 월 (1~12, 기본: currentReportMonth + 1)
- */
+function updateMonthNavLimits() {
+  const nextMonthBtn = document.getElementById("report-next-month-btn");
+  if (!nextMonthBtn) return;
+  const now = new Date();
+  const isCurrentOrFuture =
+    currentReportYear > now.getFullYear() ||
+    (currentReportYear === now.getFullYear() && currentReportMonth >= now.getMonth());
+  nextMonthBtn.disabled = isCurrentOrFuture;
+}
+
 export function openReportModal(year = currentReportYear, month = currentReportMonth + 1) {
+  const now = new Date();
+  const maxYear = now.getFullYear();
+  const maxMonth = now.getMonth() + 1;
+  if (year > maxYear || (year === maxYear && month > maxMonth)) {
+    year = maxYear;
+    month = maxMonth;
+  }
+
   currentReportYear = year;
-  currentReportMonth = month - 1; // 0-based
+  currentReportMonth = month - 1;
   currentSlideIndex = 0;
 
   const titleEl = document.getElementById("report-modal-month-title");
@@ -559,69 +589,69 @@ export function openReportModal(year = currentReportYear, month = currentReportM
 
   const data = generateReportData(year, month);
   renderSlides(data);
+  updateMonthNavLimits();
 
   if (reportModal) {
     openModal(reportModal);
   }
 
-  // 이번 달 확인 완료로 기록 (NEW 뱃지 제거)
-  const key = `report_viewed_${year}_${month}`;
-  localStorage.setItem(key, "true");
+  try {
+    localStorage.setItem(`report_viewed_${year}_${month}`, "true");
+  } catch {
+    // 무시
+  }
   checkReportBadge();
 }
 
-/**
- * 월간 레포트 모달 닫기
- */
 export function closeReportModal() {
   if (reportModal) {
     closeModal(reportModal);
   }
 }
 
-/**
- * 헤더 NEW 뱃지 노출 여부 검사
- */
-function checkReportBadge() {
-  if (!reportBadge) return;
-  const now = new Date();
-  // 지난달 연도와 월 (1~12)
-  let prevY = now.getFullYear();
-  let prevM = now.getMonth(); // 0-11
-  if (prevM === 0) {
-    prevM = 12;
-    prevY--;
-  }
-  const key = `report_viewed_${prevY}_${prevM}`;
-  if (!localStorage.getItem(key)) {
-    reportBadge.hidden = false;
-  } else {
-    reportBadge.hidden = true;
-  }
+function hasEntriesInMonth(year, month) {
+  const startMs = new Date(year, month - 1, 1, 0, 0, 0, 0).getTime();
+  const endMs = new Date(year, month, 0, 23, 59, 59, 999).getTime();
+  return cachedEntries.some((e) => e.createdAt && e.createdAt >= startMs && e.createdAt <= endMs);
 }
 
-/**
- * 월간 알림 발송 검사
- * - 매월 1일~7일 또는 새 달 진입 시 지난달 레포트 미열람/알림 미발송 시 알림 트리거
- */
+function checkReportBadge() {
+  if (!reportBadge) return;
+  const { year: prevY, month: prevM } = getPreviousYearMonth();
+  const key = `report_viewed_${prevY}_${prevM}`;
+  let viewed = false;
+  try {
+    viewed = Boolean(localStorage.getItem(key));
+  } catch {
+    viewed = false;
+  }
+  // 지난달 일기가 1편 이상 있고 아직 열람하지 않았을 때만 NEW 배지 표시
+  reportBadge.hidden = viewed || !hasEntriesInMonth(prevY, prevM);
+}
+
 export function checkMonthlyReportNotification() {
   const user = getCurrentUser();
-  if (!user) return; // 로그인 사용자에게만 알림 발송
+  if (!user) return;
 
-  const now = new Date();
-  let prevY = now.getFullYear();
-  let prevM = now.getMonth(); // 0=1월...11=12월. now.getMonth()가 8(9월)이면 prevM은 8(8월)
-  if (prevM === 0) {
-    prevM = 12;
-    prevY--;
+  const { year: prevY, month: prevM } = getPreviousYearMonth();
+  const notifKey = `monthly_report_notif_${prevY}_${prevM}`;
+
+  let alreadySent = false;
+  try {
+    alreadySent = Boolean(localStorage.getItem(notifKey));
+  } catch {
+    alreadySent = true;
   }
 
-  const notifKey = `monthly_report_notif_${prevY}_${prevM}`;
-  if (!localStorage.getItem(notifKey)) {
-    localStorage.setItem(notifKey, "sent");
+  if (!alreadySent) {
+    try {
+      localStorage.setItem(notifKey, "sent");
+    } catch {
+      // 무시
+    }
 
     const title = `💌 ${prevY}년 ${prevM}월 월간 레포트 도착!`;
-    const body = `류와 어그리의 지난달 추억과 감정 분석이 담긴 월간 레포트가 발행되었어요 💕`;
+    const body = `지난달 추억과 감정 분석이 담긴 월간 레포트가 발행되었어요 💕`;
 
     showToastNotification(body, "📊");
     showSystemNotification(title, body);
@@ -631,9 +661,6 @@ export function checkMonthlyReportNotification() {
   }
 }
 
-/**
- * 터치 스와이프 제스처 이벤트 등록
- */
 function initTouchSwipe() {
   const container = document.getElementById("report-carousel");
   if (!container) return;
@@ -658,7 +685,7 @@ function initTouchSwipe() {
   container.addEventListener(
     "touchmove",
     (e) => {
-      if (!startX || !startY) return;
+      if (!startX && !startY) return;
       const touch = e.touches[0];
       distX = touch.clientX - startX;
       distY = touch.clientY - startY;
@@ -667,22 +694,15 @@ function initTouchSwipe() {
   );
 
   container.addEventListener("touchend", () => {
-    // 가로 이동 거리가 45px 이상이고 세로 이동보다 클 때 스와이프 인정
     if (Math.abs(distX) > 45 && Math.abs(distX) > Math.abs(distY)) {
-      if (distX < 0) {
-        nextSlide();
-      } else {
-        prevSlide();
-      }
+      if (distX < 0) nextSlide();
+      else prevSlide();
     }
     startX = 0;
     startY = 0;
   });
 }
 
-/**
- * 월간 레포트 모듈 초기화
- */
 export function initReport() {
   reportModal = document.getElementById("monthly-report-modal");
   reportBtn = document.getElementById("monthly-report-btn");
@@ -695,24 +715,15 @@ export function initReport() {
   const prevSlideBtn = document.getElementById("report-prev-slide");
   const nextSlideBtn = document.getElementById("report-next-slide");
 
-  // 헤더 버튼 클릭
   if (reportBtn) {
     reportBtn.addEventListener("click", () => {
-      const now = new Date();
-      let targetY = now.getFullYear();
-      let targetM = now.getMonth(); // 기본: 직전 달
-      if (targetM === 0) {
-        targetM = 12;
-        targetY--;
-      }
-      openReportModal(targetY, targetM);
+      const { year, month } = getPreviousYearMonth();
+      openReportModal(year, month);
     });
   }
 
-  // 캘린더 '이 달의 레포트' 버튼 클릭
   if (calReportBtn) {
     calReportBtn.addEventListener("click", () => {
-      // 캘린더 상단 타이틀 텍스트에서 년/월 파싱 (예: "2026년 8월")
       const calTitle = document.getElementById("cal-month-title");
       if (calTitle && calTitle.textContent) {
         const parts = calTitle.textContent.match(/(\d{4})년\s*(\d{1,2})월/);
@@ -726,17 +737,12 @@ export function initReport() {
     });
   }
 
-  // 닫기 버튼
-  if (closeBtn) {
-    closeBtn.addEventListener("click", closeReportModal);
-  }
+  if (closeBtn) closeBtn.addEventListener("click", closeReportModal);
 
-  // 월 전환 버튼
   if (prevMonthBtn) {
     prevMonthBtn.addEventListener("click", () => {
       let y = currentReportYear;
-      let m = currentReportMonth; // 0-based
-      m--;
+      let m = currentReportMonth - 1;
       if (m < 0) {
         m = 11;
         y--;
@@ -747,9 +753,9 @@ export function initReport() {
 
   if (nextMonthBtn) {
     nextMonthBtn.addEventListener("click", () => {
+      if (nextMonthBtn.disabled) return;
       let y = currentReportYear;
-      let m = currentReportMonth;
-      m++;
+      let m = currentReportMonth + 1;
       if (m > 11) {
         m = 0;
         y++;
@@ -758,14 +764,9 @@ export function initReport() {
     });
   }
 
-  // 슬라이드 전환 버튼
   if (prevSlideBtn) prevSlideBtn.addEventListener("click", prevSlide);
   if (nextSlideBtn) nextSlideBtn.addEventListener("click", nextSlide);
 
-  // 스와이프 등록
   initTouchSwipe();
-
-  // 초기 뱃지 및 알림 검사
   checkReportBadge();
-  checkMonthlyReportNotification();
 }

@@ -1,7 +1,5 @@
 // =========================================================
-// 다이어리 - 바이브 코딩 실습
-//
-// 앱의 진입점(Entry Point)입니다.
+// app.js - 앱 진입점(Entry Point)
 // 각 모듈의 초기화 및 이벤트 배선만 담당합니다.
 // =========================================================
 
@@ -10,12 +8,12 @@ import { initProfileHandlers } from "./profile.js";
 import { initNotices } from "./notice.js";
 import { initNotify } from "./notify.js";
 import { initDday } from "./dday.js";
-import { initSearchFilter, render } from "./render.js";
+import { initSearchFilter, resetFilters } from "./render.js";
 import { initCalendar, switchViewTab } from "./calendar.js";
 import { initChangelog } from "./changelog.js";
 import { initAuth } from "./auth.js";
 import { initReport } from "./report.js";
-import { initModalAccessibility } from "./ui.js";
+import { initModalAccessibility, initTheme } from "./ui.js";
 import { initDailyQuestion } from "./daily-question.js";
 import { initNudge } from "./nudge.js";
 import { initGestures } from "./gestures.js";
@@ -30,38 +28,15 @@ function safe(name, fn) {
 }
 
 /**
- * 상단 '류이어리' 타이틀 클릭 시 홈 뷰 복귀, 검색/필터 초기화 및 최상단 스크롤
+ * 상단 '류이어리' 로고 클릭 시 홈 뷰 복귀, 검색/필터 상태 완전 초기화 및 최상단 스크롤
  */
 function initHeaderHome() {
   const headerHomeBtn = document.getElementById("header-home-btn");
   if (!headerHomeBtn) return;
 
   headerHomeBtn.addEventListener("click", () => {
-    // 1. 피드 보기 모드로 복귀 (3단 탭 전환 일원화)
     switchViewTab("feed");
-
-    // 2. 검색창 및 필터 초기화
-    const searchInput = document.getElementById("search-input");
-    const searchClearBtn = document.getElementById("search-clear-btn");
-    if (searchInput) searchInput.value = "";
-    if (searchClearBtn) searchClearBtn.hidden = true;
-
-    const filterMoodBtns = document.querySelectorAll(".filter-mood-btn");
-    filterMoodBtns.forEach((b) => {
-      if (b.dataset.mood === "all") b.classList.add("active");
-      else b.classList.remove("active");
-    });
-
-    const filterAuthorBtns = document.querySelectorAll(".filter-author-btn");
-    filterAuthorBtns.forEach((b) => {
-      if (b.dataset.author === "all") b.classList.add("active");
-      else b.classList.remove("active");
-    });
-
-    // 3. 목록 다시 렌더링
-    render();
-
-    // 4. 화면 최상단으로 부드럽게 스크롤
+    resetFilters();
     window.scrollTo({
       top: 0,
       behavior: "smooth",
@@ -70,7 +45,10 @@ function initHeaderHome() {
 }
 
 function boot() {
-  // 1. 인증 및 로그인 상태 감시 최우선 실행
+  // 0. 테마(라이트/다크) 최우선 적용 (깜빡임 최소화)
+  safe("initTheme", initTheme);
+
+  // 1. 인증 및 로그인 상태 감시 실행
   safe("initAuth", initAuth);
 
   // 2. 각 UI 및 보조 모듈 초기화
@@ -95,6 +73,3 @@ if (document.readyState === "loading") {
 } else {
   boot();
 }
-
-
-

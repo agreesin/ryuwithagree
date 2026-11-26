@@ -1,6 +1,6 @@
 // =========================================================
 // auth.js - 구글 로그인, 2단계 보안 및 세션/구독 관리 모듈
-// 로그인/로그아웃 처리, 화면 전환, SHA-256 단방향 암호 검증 및 실시간 데이터 구독을 담당합니다.
+// 로그인/로그아웃 처리, 화면 전환, SHA-256 단방향 암호 검증 및 실시간 구독 생명주기 관리
 // =========================================================
 
 import {
@@ -23,14 +23,26 @@ import {
 import { showError, hideError, openModal, closeModal, closeAllModals } from "./ui.js";
 import { updateProfileButtonsVisibility, updateHeaderAvatar } from "./profile.js";
 import { render } from "./render.js";
-import { updateNoticeAuth } from "./notice.js";
+import {
+  updateNoticeAuth,
+  startNoticeSubscription,
+  stopNoticeSubscription,
+} from "./notice.js";
 import {
   checkNewUpdates,
   updateQuestionNotifications,
   syncUserFcm,
+  resetNotifyState,
+  checkTodayMilestoneNotifications,
 } from "./notify.js";
 import { startDdaySubscription, stopDdaySubscription } from "./dday.js";
-import { renderCurrentDateQuestion } from "./daily-question.js";
+import {
+  refreshQuestionView,
+  startDailyQuestionSubscription,
+  stopDailyQuestionSubscription,
+} from "./daily-question.js";
+import { startNudgeSubscription, stopNudgeSubscription } from "./nudge.js";
+import { checkMonthlyReportNotification } from "./report.js";
 
 // 화면 요소
 const loginButton = document.getElementById("login-button");
@@ -40,26 +52,25 @@ const appArea = document.getElementById("app-area");
 const whoAmI = document.getElementById("who-am-i");
 const timelineList = document.getElementById("timeline-entry-list");
 
-// 보호 대상 요소들 (로그인 사용자 전용)
+// 보호 대상 요소들 (인증 완료 사용자 전용)
 const monthlyReportBtn = document.getElementById("monthly-report-btn");
 const ddayBadgeBtn = document.getElementById("dday-badge-btn");
-const ddayModal = document.getElementById("dday-modal");
+const notifWrapper = document.getElementById("notif-wrapper");
+const mobileBottomNav = document.getElementById("mobile-bottom-nav");
+const fabWriteBtn = document.getElementById("fab-write-btn");
 const appFooter = document.getElementById("app-footer");
-const changelogModal = document.getElementById("changelog-modal");
 
 // 암호 모달 화면 요소
 const passcodeModal = document.getElementById("passcode-modal");
 const passcodeForm = document.getElementById("passcode-form");
 const passcodeInput = document.getElementById("passcode-input");
+const passcodeToggleBtn = document.getElementById("passcode-toggle-btn");
 const passcodeError = document.getElementById("passcode-error");
 const passcodeCancelBtn = document.getElementById("passcode-cancel-btn");
 
-// 2차 암호 SHA-256 단방향 해시 ('신진대사', 원문 역추적 및 복호화 절대 불가)
+// 2차 암호 SHA-256 단방향 해시
 const PASSCODE_HASH = "f4b440c146ce37b3aba11158aa3d7157c0f9a2fd4f33de0145d9dd3c0f6f83fc";
 
-/**
- * 사용자가 입력한 암호의 SHA-256 해시를 검증합니다.
- */
 async function verifyPasscode(input) {
   try {
     if (!input || typeof crypto === "undefined" || !crypto.subtle) return false;
@@ -74,10 +85,21 @@ async function verifyPasscode(input) {
   }
 }
 
-// 모듈 스코프 변수 (실시간 구독 해제 손잡이)
 let stopWatchingEntries = null;
 let stopWatchingProfiles = null;
 let stopWatchingQuestions = null;
+
+function setProtectedChromeVisible(visible) {
+  if (monthlyReportBtn) monthlyReportBtn.hidden = !visible;
+  if (ddayBadgeBtn) ddayBadgeBtn.hidden = !visible;
+  if (notifWrapper) notifWrapper.hidden = !visible;
+  if (mobileBottomNav) mobileBottomNav.hidden = !visible;
+  if (fabWriteBtn) {
+    const editorOpen = document.getElementById("editor-section")?.hidden === false;
+    fabWriteBtn.hidden = !visible || editorOpen;
+  }
+  if (appFooter) appFooter.hidden = !visible;
+}
 
 /**
  * 암호 검증 완료 후 다이어리 진입 및 실시간 데이터 구독을 시작합니다.
@@ -89,12 +111,8 @@ async function grantAccess(user) {
   if (whoAmI) whoAmI.textContent = getCurrentProfiles()[user.uid] || user.displayName || "이름 없음";
   updateHeaderAvatar();
 
-  // 인증 완료 사용자에게만 기념일 뱃지 및 업데이트 내역, 월간 레포트 버튼 표시
-  if (monthlyReportBtn) monthlyReportBtn.hidden = false;
-  if (ddayBadgeBtn) ddayBadgeBtn.hidden = false;
-  if (appFooter) appFooter.hidden = false;
+  setProtectedChromeVisible(true);
 
-  // 각 부가 기능 개별 격리 실행 (오류가 발생해도 메인 화면 표시는 유지)
   try {
     await checkAdminStatus(user);
     updateProfileButtonsVisibility(user);
@@ -104,6 +122,7 @@ async function grantAccess(user) {
 
   try {
     updateNoticeAuth(user);
+    startNoticeSubscription();
   } catch (e) {
     console.warn("[auth] 공지사항 권한 갱신 경고:", e);
   }
@@ -121,6 +140,18 @@ async function grantAccess(user) {
   }
 
   try {
+    startDailyQuestionSubscription();
+  } catch (e) {
+    console.warn("[auth] 문답 구독 경고:", e);
+  }
+
+  try {
+    startNudgeSubscription();
+  } catch (e) {
+    console.warn("[auth] 콕 찌르기 구독 경고:", e);
+  }
+
+  try {
     if (!stopWatchingProfiles) {
       stopWatchingProfiles = subscribeProfiles((profiles, profilePhotos) => {
         setCurrentProfiles(profiles);
@@ -132,8 +163,8 @@ async function grantAccess(user) {
           whoAmI.textContent = profiles[curUser.uid] || curUser.displayName || "이름 없음";
         }
         updateHeaderAvatar();
-        render(); // 프로필 또는 사진 변경 시 타임라인 피드 실시간 갱신
-        renderCurrentDateQuestion(); // 문답 카드 프로필 갱신
+        render();
+        refreshQuestionView();
       });
     }
   } catch (e) {
@@ -142,12 +173,15 @@ async function grantAccess(user) {
 
   try {
     if (!stopWatchingEntries) {
-      stopWatchingEntries = subscribeEntries((entries) => {
-        render(entries);
-        checkNewUpdates(entries);
-      }, () => {
-        showError("목록을 불러오지 못했습니다. 접근 권한을 확인하세요.");
-      });
+      stopWatchingEntries = subscribeEntries(
+        (entries) => {
+          render(entries);
+          checkNewUpdates(entries);
+        },
+        () => {
+          showError("목록을 불러오지 못했습니다. 접근 권한을 확인하세요.");
+        }
+      );
     }
   } catch (e) {
     console.warn("[auth] 일기 구독 경고:", e);
@@ -162,29 +196,39 @@ async function grantAccess(user) {
   } catch (e) {
     console.warn("[auth] 문답 알림 구독 경고:", e);
   }
+
+  // 로그인 완료 후 월간 레포트 알림 및 당일 기념일 알림 확인
+  try {
+    checkMonthlyReportNotification();
+    checkTodayMilestoneNotifications();
+  } catch (e) {
+    console.warn("[auth] 주기 알림 검사 경고:", e);
+  }
 }
 
-/**
- * 암호 입력 팝업 모달을 표시합니다.
- */
 function promptPasscode() {
   closeAllModals();
   if (loginArea) loginArea.hidden = true;
   if (appArea) appArea.hidden = true;
-  openModal(passcodeModal);
-  if (monthlyReportBtn) monthlyReportBtn.hidden = true;
-  if (ddayBadgeBtn) ddayBadgeBtn.hidden = true;
-  if (appFooter) appFooter.hidden = true;
+  setProtectedChromeVisible(false);
 
   if (passcodeError) {
     passcodeError.hidden = true;
     passcodeError.textContent = "";
   }
   if (passcodeInput) {
+    passcodeInput.type = "password";
     passcodeInput.value = "";
     passcodeInput.classList.remove("shake");
-    setTimeout(() => passcodeInput.focus(), 100);
   }
+  if (passcodeToggleBtn) {
+    passcodeToggleBtn.textContent = "👁️";
+    passcodeToggleBtn.setAttribute("aria-pressed", "false");
+    passcodeToggleBtn.title = "암호 보기";
+  }
+
+  openModal(passcodeModal);
+  setTimeout(() => passcodeInput?.focus(), 100);
 }
 
 const authStatus = document.getElementById("auth-status");
@@ -212,16 +256,11 @@ function readPasscodeFlag(uid) {
     return sessionStorage.getItem(`diary_passcode_${uid}`) === "verified";
   } catch (e) {
     console.warn("[auth] sessionStorage 접근 불가:", e);
-    return false; // 실패 시 암호 입력 화면으로 폴백 (blank 방지)
+    return false;
   }
 }
 
-/**
- * 로그인/로그아웃 이벤트 리스너를 등록하고 로그인 상태 감시를 시작합니다.
- * [중요] 동기 함수로 유지하여 Promise rejection이 상위 에러 처리를 우회하지 않도록 합니다.
- */
 export function initAuth() {
-  // ── 1) watchLogin 리스너를 "가장 먼저" 등록. 이후 어떤 실패도 화면을 막지 못합니다.
   watchLogin(async (user) => {
     try {
       setCurrentUser(user);
@@ -234,13 +273,14 @@ export function initAuth() {
         }
         if (loginArea) loginArea.hidden = true;
       } else {
-        // 완전 로그아웃된 상태 -> 구글 로그인 버튼 표시 및 보안 대상 은닉
         closeAllModals();
-        if (monthlyReportBtn) monthlyReportBtn.hidden = true;
-        if (ddayBadgeBtn) ddayBadgeBtn.hidden = true;
-        if (appFooter) appFooter.hidden = true;
+        setProtectedChromeVisible(false);
 
         stopDdaySubscription();
+        stopDailyQuestionSubscription();
+        stopNudgeSubscription();
+        stopNoticeSubscription();
+        resetNotifyState();
 
         if (stopWatchingEntries) {
           stopWatchingEntries();
@@ -266,26 +306,19 @@ export function initAuth() {
     }
   });
 
-  // ── 2) 리다이렉트 복귀 확인은 fire-and-forget. 에러 확인용으로만 사용하며 렌더는 하지 않습니다.
   consumeRedirectResult().then(({ ok, error }) => {
     if (!ok && error) {
       console.warn("[auth] 이전 리다이렉트 로그인 결과 (안전 무시):", error);
     }
   });
 
-  // ── 3) 로그인 버튼 이벤트 배선
   if (loginButton) {
     loginButton.addEventListener("click", () => {
       hideAuthError();
       loginButton.textContent = "로그인 요청 중...";
 
-      // 주의: signInWithPopup 호출 전에 loginButton.disabled = true를 동기적으로 실행하면
-      // iOS Safari/PWA WebKit에서 클릭 이벤트의 사용자 제스처(User Activation)가 즉시 만료되어
-      // 브라우저 팝업 차단(auth/popup-blocked)이 발생합니다.
       loginWithGoogle()
-        .then(() => {
-          // 로그인 성공 시 watchLogin / onAuthStateChanged 리스너가 화면 전환을 처리합니다.
-        })
+        .then(() => {})
         .catch((error) => {
           console.error("[auth] 로그인 오류:", error);
           if (loginButton) {
@@ -294,7 +327,9 @@ export function initAuth() {
           }
           if (error.code === "auth/popup-blocked") {
             showAuthError(
-              new Error("브라우저 팝업이 차단되었습니다. 아이폰 설정 > Safari > '팝업 차단'을 해제하거나 팝업 허용을 눌러주세요.")
+              new Error(
+                "브라우저 팝업이 차단되었습니다. 브라우저 설정에서 '팝업 차단'을 해제하거나 팝업 허용을 눌러주세요."
+              )
             );
           } else if (
             error.code !== "auth/popup-closed-by-user" &&
@@ -310,7 +345,6 @@ export function initAuth() {
           }
         });
 
-      // 팝업 요청이 동기적으로 발송된 후 중복 클릭을 방지하기 위해 지연 disabled 처리
       setTimeout(() => {
         if (loginButton && loginButton.textContent === "로그인 요청 중..." && !getCurrentUser()) {
           loginButton.disabled = true;
@@ -319,7 +353,6 @@ export function initAuth() {
     });
   }
 
-  // ── 4) 로그아웃 버튼 이벤트 배선
   if (logoutButton) {
     logoutButton.addEventListener("click", () => {
       const curUser = getCurrentUser();
@@ -334,7 +367,17 @@ export function initAuth() {
     });
   }
 
-  // ── 5) 암호 모달 이벤트 배선
+  if (passcodeToggleBtn && passcodeInput) {
+    passcodeToggleBtn.addEventListener("click", () => {
+      const showing = passcodeInput.type === "text";
+      passcodeInput.type = showing ? "password" : "text";
+      passcodeToggleBtn.textContent = showing ? "👁️" : "🙈";
+      passcodeToggleBtn.setAttribute("aria-pressed", String(!showing));
+      passcodeToggleBtn.title = showing ? "암호 보기" : "암호 숨기기";
+      passcodeInput.focus();
+    });
+  }
+
   if (passcodeForm) {
     passcodeForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -353,12 +396,12 @@ export function initAuth() {
         }
       } else {
         if (passcodeError) {
-          passcodeError.textContent = "암호가 올바르지 않습니다. 너 누구냐?";
+          passcodeError.textContent = "암호가 올바르지 않습니다. 다시 확인해 주세요.";
           passcodeError.hidden = false;
         }
         if (passcodeInput) {
           passcodeInput.classList.remove("shake");
-          void passcodeInput.offsetWidth; // CSS 애니메이션 재시작 트릭
+          void passcodeInput.offsetWidth;
           passcodeInput.classList.add("shake");
           passcodeInput.value = "";
           passcodeInput.focus();
@@ -382,6 +425,3 @@ export function initAuth() {
     });
   }
 }
-
-
-

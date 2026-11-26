@@ -1,21 +1,19 @@
 // =========================================================
 // gestures.js - 모바일 터치 제스처 & Pull-to-refresh & 오프라인 상태 관리 모듈
 //
-// 1. 피드 / 달력 / 오늘의 질문 3단 탭 간 실시간 터치 드래그 & 좌우 스와이프 전환 애니메이션
-// 2. iOS PWA / 모바일 최상단 당겨서 새로고침 (Pull-to-refresh)
-// 3. 오프라인 네트워크 감지 및 낙관적 UI 안내 배너
+// 1. 피드 / 달력 / 오늘의 질문 3단 탭 간 실시간 터치 드래그 & 좌우 스와이프 전환
+//    (iOS 가장자리 뒤로가기 회피, 가로 스크롤 영역 제외, 수평 드래그 잠금)
+// 2. iOS PWA / 모바일 최상단 당겨서 새로고침 (입력 중 댓글 비파괴적 처리)
+// 3. 오프라인 네트워크 감지 및 안내 배너
 // =========================================================
 
 import { switchViewTab, getCurrentViewTab, renderCalendar } from "./calendar.js";
 import { showToastNotification } from "./notify.js";
-import { render } from "./render.js";
-import { renderCurrentDateQuestion } from "./daily-question.js";
+import { refreshQuestionView } from "./daily-question.js";
 
 const TAB_KEYS = ["feed", "cal", "question"];
+const EDGE_GUARD_PX = 20;
 
-/**
- * 현재 활성화된 섹션 DOM 요소를 반환합니다.
- */
 function getActiveSection(tabKey = getCurrentViewTab()) {
   if (tabKey === "feed") return document.getElementById("feed-view-section");
   if (tabKey === "cal") return document.getElementById("calendar-view-section");
@@ -23,9 +21,6 @@ function getActiveSection(tabKey = getCurrentViewTab()) {
   return null;
 }
 
-/**
- * 섹션 요소의 인라인 변형 스타일을 안전하게 초기화합니다.
- */
 function resetSectionStyle(sec) {
   if (!sec) return;
   sec.style.transform = "";
@@ -33,9 +28,33 @@ function resetSectionStyle(sec) {
   sec.style.opacity = "";
 }
 
-/**
- * 3단 탭 간 모바일 실시간 터치 드래그 및 좌우 스와이프 전환 애니메이션을 초기화합니다.
- */
+function isSwipeExcludedTarget(target) {
+  if (!target || !target.closest) return true;
+  return Boolean(
+    target.closest("#drawing-canvas") ||
+      target.closest("#drawing-container") ||
+      target.closest(".canvas-wrapper") ||
+      target.closest(".entry-carousel") ||
+      target.closest(".entry-carousel-track") ||
+      target.closest(".photo-preview-list") ||
+      target.closest(".mood-options") ||
+      target.closest(".filter-chips") ||
+      target.closest(".reaction-bar") ||
+      target.closest(".notice-area") ||
+      target.closest(".cal-nav-bar") ||
+      target.closest(".dq-chat-messages") ||
+      target.closest(".dq-comments-list") ||
+      target.closest(".dq-history-list") ||
+      target.closest(".mobile-bottom-nav") ||
+      target.closest(".fab-write-btn") ||
+      target.closest(".modal-overlay") ||
+      target.closest("input") ||
+      target.closest("textarea") ||
+      target.closest("button") ||
+      target.closest("select")
+  );
+}
+
 function initSwipeTabs() {
   const appArea = document.getElementById("app-area");
   if (!appArea) return;
@@ -56,30 +75,20 @@ function initSwipeTabs() {
         return;
       }
 
-      const target = e.target;
-      // 터치 무시 요소 필터링: 캔버스, 모달, 폼 입력, 캐러셀 트랙, 가로 스크롤 영역
-      if (
-        target.closest("#drawing-canvas") ||
-        target.closest("#drawing-container") ||
-        target.closest(".canvas-wrapper") ||
-        target.closest(".entry-carousel") ||
-        target.closest(".entry-carousel-track") ||
-        target.closest(".mood-options") ||
-        target.closest(".filter-chips") ||
-        target.closest(".dq-chat-messages") ||
-        target.closest(".dq-history-list") ||
-        target.closest(".modal-overlay") ||
-        target.closest("input") ||
-        target.closest("textarea") ||
-        target.closest("button") ||
-        target.closest("select")
-      ) {
+      const touch = e.touches[0];
+      // iOS Safari 좌/우 가장자리 뒤로가기 제스처와 충돌 방지
+      if (touch.clientX < EDGE_GUARD_PX || touch.clientX > window.innerWidth - EDGE_GUARD_PX) {
         isSwipeCandidate = false;
         isDragging = false;
         return;
       }
 
-      const touch = e.touches[0];
+      if (isSwipeExcludedTarget(e.target)) {
+        isSwipeCandidate = false;
+        isDragging = false;
+        return;
+      }
+
       startX = touch.clientX;
       startY = touch.clientY;
       startTime = Date.now();
@@ -103,35 +112,36 @@ function initSwipeTabs() {
       const diffX = touch.clientX - startX;
       const diffY = touch.clientY - startY;
 
-      // 사용자가 수직으로 스크롤 중이면 스와이프 후보에서 즉시 제외 (자연스러운 본문 스크롤 보장)
       if (!isDragging && Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 8) {
         isSwipeCandidate = false;
         resetSectionStyle(activeSection);
         return;
       }
 
-      // 수평 스와이프 의도가 명확해지면 실시간 반응형 드래그 애니메이션 시작
-      if (Math.abs(diffX) > 10 && Math.abs(diffX) > Math.abs(diffY) * 1.2) {
+      if (isDragging || (Math.abs(diffX) > 12 && Math.abs(diffX) > Math.abs(diffY) * 1.35)) {
         isDragging = true;
+        // 수평 탭 드래그가 확정된 순간에만 수직 스크롤 떨림 차단
+        if (e.cancelable) e.preventDefault();
+
         const currentTab = getCurrentViewTab();
         const currentIndex = TAB_KEYS.indexOf(currentTab);
 
-        // 첫 번째 탭에서 오른쪽으로 당기거나, 마지막 탭에서 왼쪽으로 당길 때는 쫀득한 고무줄 저항감 부여
         let moveX;
-        if ((currentIndex === 0 && diffX > 0) || (currentIndex === TAB_KEYS.length - 1 && diffX < 0)) {
+        if (
+          (currentIndex === 0 && diffX > 0) ||
+          (currentIndex === TAB_KEYS.length - 1 && diffX < 0)
+        ) {
           moveX = diffX * 0.25;
         } else {
           moveX = diffX * 0.72;
         }
 
-        // 최대 드래그 이동폭 제한 (-90px ~ 90px)
         moveX = Math.max(-90, Math.min(90, moveX));
-
         activeSection.style.transform = `translate3d(${moveX}px, 0, 0)`;
         activeSection.style.opacity = String(1 - Math.min(Math.abs(moveX) / 320, 0.35));
       }
     },
-    { passive: true }
+    { passive: false }
   );
 
   appArea.addEventListener(
@@ -153,15 +163,15 @@ function initSwipeTabs() {
       const diffY = touch.clientY - startY;
       const elapsed = Date.now() - startTime;
 
-      // 빠른 플릭(속도) 또는 충분한 드래그 거리(50px) 판정
-      const isQuickFlick = elapsed < 320 && Math.abs(diffX) > 38 && Math.abs(diffX) > Math.abs(diffY) * 1.5;
+      const isQuickFlick =
+        elapsed < 320 && Math.abs(diffX) > 38 && Math.abs(diffX) > Math.abs(diffY) * 1.5;
       const isLongSwipe = Math.abs(diffX) >= 55 && Math.abs(diffX) > Math.abs(diffY) * 1.35;
 
       if ((isQuickFlick || isLongSwipe) && currentIndex !== -1) {
         if (diffX < 0 && currentIndex < TAB_KEYS.length - 1) {
-          // 왼쪽으로 스와이프 (손가락: 오른쪽 ➔ 왼쪽) ➔ 다음 탭 이동
           const nextTab = TAB_KEYS[currentIndex + 1];
-          activeSection.style.transition = "transform 0.16s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.16s ease";
+          activeSection.style.transition =
+            "transform 0.16s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.16s ease";
           activeSection.style.transform = "translate3d(-60px, 0, 0)";
           activeSection.style.opacity = "0.2";
 
@@ -172,9 +182,9 @@ function initSwipeTabs() {
           }, 90);
           return;
         } else if (diffX > 0 && currentIndex > 0) {
-          // 오른쪽으로 스와이프 (손가락: 왼쪽 ➔ 오른쪽) ➔ 이전 탭 이동
           const prevTab = TAB_KEYS[currentIndex - 1];
-          activeSection.style.transition = "transform 0.16s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.16s ease";
+          activeSection.style.transition =
+            "transform 0.16s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.16s ease";
           activeSection.style.transform = "translate3d(60px, 0, 0)";
           activeSection.style.opacity = "0.2";
 
@@ -187,9 +197,9 @@ function initSwipeTabs() {
         }
       }
 
-      // 전환 임계치에 도달하지 못한 경우 부드러운 스프링 원위치 복귀
       if (isDragging) {
-        activeSection.style.transition = "transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s ease";
+        activeSection.style.transition =
+          "transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s ease";
         activeSection.style.transform = "translate3d(0, 0, 0)";
         activeSection.style.opacity = "1";
         setTimeout(() => {
@@ -215,9 +225,6 @@ function initSwipeTabs() {
   );
 }
 
-/**
- * iOS PWA 및 모바일 환경을 위한 당겨서 새로고침(Pull-to-refresh)을 초기화합니다.
- */
 function initPullToRefresh() {
   const ptrIndicator = document.getElementById("ptr-indicator");
   const ptrIcon = document.getElementById("ptr-icon");
@@ -232,10 +239,8 @@ function initPullToRefresh() {
   window.addEventListener(
     "touchstart",
     (e) => {
-      if (isRefreshing) return;
-      if (e.touches.length !== 1) return;
+      if (isRefreshing || e.touches.length !== 1) return;
 
-      // 최상단 스크롤 위치에서만 PTR 허용
       const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
       if (scrollTop > 2) {
         isPulling = false;
@@ -243,11 +248,12 @@ function initPullToRefresh() {
       }
 
       const target = e.target;
-      // 그림판이나 모달 내부에서는 PTR 비활성화
       if (
         target.closest("#drawing-canvas") ||
         target.closest("#drawing-container") ||
-        target.closest(".modal-overlay")
+        target.closest(".modal-overlay") ||
+        target.closest("input") ||
+        target.closest("textarea")
       ) {
         isPulling = false;
         return;
@@ -276,15 +282,13 @@ function initPullToRefresh() {
         return;
       }
 
-      // 수직 당김이 수평 이동보다 1.5배 이상 클 때만 반응
       if (Math.abs(diffY) > Math.abs(diffX) * 1.5) {
-        // 탄성 댐핑 효과
         const pullDistance = Math.min(Math.pow(diffY, 0.82) * 1.8, 80);
         ptrIndicator.style.transform = `translateY(${pullDistance}px)`;
         ptrIndicator.style.opacity = String(Math.min(pullDistance / 45, 1));
 
         if (pullDistance >= 58) {
-          if (ptrText) ptrText.textContent = "손을 놓으면 새로고침 ✨";
+          if (ptrText) ptrText.textContent = "손을 놓으면 동기화 확인 ✨";
           if (ptrIcon) ptrIcon.classList.add("ready");
         } else {
           if (ptrText) ptrText.textContent = "당겨서 새로고침";
@@ -306,11 +310,10 @@ function initPullToRefresh() {
       const currentDist = match ? parseFloat(match[1]) : 0;
 
       if (currentDist >= 58) {
-        // 새로고침 실행
         isRefreshing = true;
         ptrIndicator.style.transition = "transform 0.25s ease";
         ptrIndicator.style.transform = "translateY(52px)";
-        if (ptrText) ptrText.textContent = "최신 소식 동기화 중...";
+        if (ptrText) ptrText.textContent = "최신 상태 확인 중...";
         if (ptrIcon) {
           ptrIcon.classList.remove("ready");
           ptrIcon.classList.add("spinning");
@@ -318,19 +321,21 @@ function initPullToRefresh() {
         if (navigator.vibrate) navigator.vibrate(20);
 
         setTimeout(() => {
-          // 화면 최신 데이터 소프트 리프레시
           try {
-            render();
             const currentTab = getCurrentViewTab();
             if (currentTab === "cal") renderCalendar();
-            else if (currentTab === "question") renderCurrentDateQuestion();
+            else if (currentTab === "question") refreshQuestionView();
           } catch (err) {
             console.warn("[PTR] 새로고침 중 경고:", err);
           }
 
-          showToastNotification("최신 이야기가 동기화되었습니다! ✨", "🔄");
+          showToastNotification(
+            navigator.onLine
+              ? "실시간 최신 상태와 동기화되어 있습니다! ✨"
+              : "오프라인 상태입니다. 연결 시 자동 동기화됩니다.",
+            navigator.onLine ? "🔄" : "☁️"
+          );
 
-          // 복귀 애니메이션
           setTimeout(() => {
             ptrIndicator.style.transition = "transform 0.3s ease, opacity 0.3s ease";
             ptrIndicator.style.transform = "translateY(0px)";
@@ -342,10 +347,9 @@ function initPullToRefresh() {
               if (ptrText) ptrText.textContent = "당겨서 새로고침";
               isRefreshing = false;
             }, 300);
-          }, 400);
-        }, 550);
+          }, 350);
+        }, 450);
       } else {
-        // 원위치 복귀
         ptrIndicator.style.transition = "transform 0.2s ease, opacity 0.2s ease";
         ptrIndicator.style.transform = "translateY(0px)";
         ptrIndicator.style.opacity = "0";
@@ -359,9 +363,6 @@ function initPullToRefresh() {
   );
 }
 
-/**
- * 오프라인 상태 감지 및 사용자 피드백을 초기화합니다.
- */
 function initOfflineResilience() {
   const offlineBanner = document.getElementById("offline-banner");
 
@@ -386,15 +387,11 @@ function initOfflineResilience() {
   window.addEventListener("online", () => updateStatus(true));
   window.addEventListener("offline", () => updateStatus(false));
 
-  // 시작 시 오프라인 여부 확인
   if (!navigator.onLine && offlineBanner) {
     offlineBanner.hidden = false;
   }
 }
 
-/**
- * 전체 모바일 제스처 및 상태 리스너 초기화
- */
 export function initGestures() {
   initSwipeTabs();
   initPullToRefresh();
