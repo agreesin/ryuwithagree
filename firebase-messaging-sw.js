@@ -5,7 +5,7 @@
 importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js");
 
-const APP_CACHE_NAME = "ryudiary-shell-v4-1";
+const APP_CACHE_NAME = "ryudiary-shell-v4-2";
 const SHELL_ASSETS = [
   "./",
   "./index.html",

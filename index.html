@@ -47,7 +47,7 @@
     />
     <link rel="stylesheet" href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" />
 
-    <link rel="stylesheet" href="style.css?v=20261126_2" />
+    <link rel="stylesheet" href="style.css?v=20261126_3" />
   </head>
 
   <body>
@@ -146,7 +146,7 @@
       <!-- 로그인 전 화면 -->
       <section id="login-area" class="login-area">
         <div class="login-hero-icon" aria-hidden="true">💌</div>
-        <p class="login-message">허용된 참여자만 이용할 수 있는 비공개 교환 일기장입니다.</p>
+        <p class="login-message">허용된 사람만 볼 수 있는 일기장입니다.</p>
         <div id="auth-status" class="auth-status-box" role="alert" style="display: none"></div>
         <button id="login-button" class="login-button" type="button">
           구글 계정으로 로그인
@@ -754,30 +754,18 @@
     >
       <div class="modal-content passcode-modal-card">
         <div class="modal-icon" aria-hidden="true">🔒</div>
-        <h2 id="passcode-modal-title" class="modal-title">암호를 입력하세요</h2>
-        <p class="modal-desc">다이어리에 접근하려면 2차 암호 확인이 필요합니다.</p>
+        <h2 id="passcode-modal-title" class="modal-title">암호를 대시오</h2>
+        <p class="modal-desc">다이어리에 접근하려면 암호를 입력해야 합니다.</p>
         <form id="passcode-form" class="passcode-form">
-          <div class="passcode-input-wrap">
-            <input
-              type="password"
-              id="passcode-input"
-              class="passcode-input"
-              placeholder="암호를 입력하세요"
-              aria-label="2차 접근 암호"
-              autocomplete="off"
-              required
-            />
-            <button
-              type="button"
-              id="passcode-toggle-btn"
-              class="passcode-toggle-btn"
-              title="암호 보기"
-              aria-label="암호 표시 전환"
-              aria-pressed="false"
-            >
-              👁️
-            </button>
-          </div>
+          <input
+            type="text"
+            id="passcode-input"
+            class="passcode-input"
+            placeholder="암호를 입력하세요"
+            aria-label="2차 접근 암호"
+            autocomplete="off"
+            required
+          />
           <p id="passcode-error" class="passcode-error" role="alert" hidden></p>
           <div class="modal-actions">
             <button type="button" id="passcode-cancel-btn" class="modal-btn cancel">취소</button>
@@ -1116,6 +1104,6 @@
       </div>
     </div>
 
-    <script type="module" src="./app.js?v=20261126_2"></script>
+    <script type="module" src="./app.js?v=20261126_3"></script>
   </body>
 </html>

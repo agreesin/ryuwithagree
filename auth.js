@@ -64,7 +64,6 @@ const appFooter = document.getElementById("app-footer");
 const passcodeModal = document.getElementById("passcode-modal");
 const passcodeForm = document.getElementById("passcode-form");
 const passcodeInput = document.getElementById("passcode-input");
-const passcodeToggleBtn = document.getElementById("passcode-toggle-btn");
 const passcodeError = document.getElementById("passcode-error");
 const passcodeCancelBtn = document.getElementById("passcode-cancel-btn");
 
@@ -217,14 +216,8 @@ function promptPasscode() {
     passcodeError.textContent = "";
   }
   if (passcodeInput) {
-    passcodeInput.type = "password";
     passcodeInput.value = "";
     passcodeInput.classList.remove("shake");
-  }
-  if (passcodeToggleBtn) {
-    passcodeToggleBtn.textContent = "👁️";
-    passcodeToggleBtn.setAttribute("aria-pressed", "false");
-    passcodeToggleBtn.title = "암호 보기";
   }
 
   openModal(passcodeModal);
@@ -367,17 +360,6 @@ export function initAuth() {
     });
   }
 
-  if (passcodeToggleBtn && passcodeInput) {
-    passcodeToggleBtn.addEventListener("click", () => {
-      const showing = passcodeInput.type === "text";
-      passcodeInput.type = showing ? "password" : "text";
-      passcodeToggleBtn.textContent = showing ? "👁️" : "🙈";
-      passcodeToggleBtn.setAttribute("aria-pressed", String(!showing));
-      passcodeToggleBtn.title = showing ? "암호 보기" : "암호 숨기기";
-      passcodeInput.focus();
-    });
-  }
-
   if (passcodeForm) {
     passcodeForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -396,7 +378,7 @@ export function initAuth() {
         }
       } else {
         if (passcodeError) {
-          passcodeError.textContent = "암호가 올바르지 않습니다. 다시 확인해 주세요.";
+          passcodeError.textContent = "암호가 올바르지 않습니다. 너 누구냐?";
           passcodeError.hidden = false;
         }
         if (passcodeInput) {

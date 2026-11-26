@@ -6191,39 +6191,7 @@ body.duo-shake {
   line-height: 1.45;
 }
 
-/* 4. 2차 암호 모달 비밀번호 보기 토글 */
-.passcode-input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.passcode-input-wrap .passcode-input {
-  padding-right: 46px;
-}
-
-.passcode-toggle-btn {
-  position: absolute;
-  right: 6px;
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: transparent;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1.05rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  transition: background-color 0.15s ease;
-}
-
-.passcode-toggle-btn:hover {
-  background: var(--surface-soft);
-}
-
-/* 5. 공지사항 접힘 1줄 미리보기 */
+/* 4. 공지사항 접힘 1줄 미리보기 */
 .notice-preview {
   margin: 6px 0 0 0;
   padding: 6px 10px;
